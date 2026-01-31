@@ -35,15 +35,19 @@ app.use(express.static(path.join(__dirname, '../src')));
 // Serve dist if production
 // app.use(express.static(path.join(__dirname, '../dist')));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/payment', paymentRoutes);
-app.use('/api/admin', adminRoutes);
+// Routes (Support both /api and root paths to handle Nginx proxying correctly)
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+app.use('/', apiRouter); // Alias for when Nginx strips /api
+
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/user', userRoutes);
+apiRouter.use('/export', exportRoutes);
+apiRouter.use('/payment', paymentRoutes);
+apiRouter.use('/admin', adminRoutes);
 
 // Public Stats Route (Moved from auth.js)
-app.get('/api/public/stats', (req, res) => {
+apiRouter.get('/public/stats', (req, res) => {
     const stats = {};
     db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
