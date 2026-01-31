@@ -1854,7 +1854,7 @@ function app() {
             return x1 < x2 + w2 - margin && x1 + w1 - margin > x2 &&
                    y1 < y2 + h2 - margin && y1 + h1 - margin > y2;
         },
-    };
+    }; // Close return object
     } catch (e) {
         console.error("App initialization failed:", e);
         alert("System Error: " + e.message);
@@ -1895,7 +1895,28 @@ function app() {
                 });
 
 
-                // ... existing init logic ...}
+                // ... existing init logic ...
+            }
+        };
+    } catch (e) {
+        console.error("App initialization failed:", e);
+        alert("System Error: " + e.message);
+        return {
+            t: (k) => k,
+            loading: false,
+            shapes: [],
+            user: null,
+            showPricingModal: false,
+            showLoginModal: false,
+            showRegisterModal: false,
+            showDashboardModal: false,
+            showAdminModal: false,
+            showForgotPasswordModal: false,
+            showHistoryModal: false,
+            unit: 'cm',
+            adTimer: 5,
+            showAdModal: false,
+            init() {}
         };
     }
 }
