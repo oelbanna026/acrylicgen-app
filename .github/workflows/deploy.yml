@@ -54,46 +54,34 @@ jobs:
           # Skip strict host key checking to avoid interactive prompt
           command_timeout: 30m
           script: |
-            # Disable strict host key checking for this session
+            # Disable strict host key checking
             export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
             
-            # Debug info
-            echo "Starting deployment..."
-            echo "Current location: $(pwd)"
-            ls -la
+            echo "--- STARTING AGGRESSIVE DEPLOYMENT ---"
             
-            # Locate Project Directory
-            TARGET_DIR="ACRILIC_GENERATOR"
-            
-            if [ -d "$TARGET_DIR" ]; then
-              echo "Found directory: $TARGET_DIR"
-              cd "$TARGET_DIR"
-            elif [ -d "acrylicgen-app" ]; then
-              echo "Found directory: acrylicgen-app"
-              cd "acrylicgen-app"
-            else
-              echo "Project directory not found. Cloning fresh..."
-              git clone https://github.com/${{ github.repository }} "$TARGET_DIR"
-              cd "$TARGET_DIR"
-            fi
-            
-            echo "Deploying in: $(pwd)"
-            
-            # Force Update Code
-            git fetch origin main
-            git reset --hard origin/main
-            
-            # Force Docker Rebuild (No Cache)
+            # 1. Force stop known containers
             echo "Stopping existing containers..."
-            docker compose down --remove-orphans || true
+            docker stop acrylic_frontend acrylic_backend || true
+            docker rm acrylic_frontend acrylic_backend || true
             
-            echo "Rebuilding from scratch..."
-            docker compose build --no-cache
+            # 2. Create a FRESH directory to guarantee we are using new code
+            # We use a new name to ensure we are not in the old stale folder
+            DEPLOY_DIR="ACRILIC_LIVE_UPDATE"
             
-            echo "Starting services..."
-            docker compose up -d --force-recreate
+            echo "Cleaning old deployment directory..."
+            rm -rf "$DEPLOY_DIR"
             
-            echo "Cleaning up..."
-            docker system prune -f
+            echo "Cloning fresh repository..."
+            git clone https://github.com/${{ github.repository }} "$DEPLOY_DIR"
             
-            echo "Deployment Complete!"
+            echo "Navigating to $DEPLOY_DIR..."
+            cd "$DEPLOY_DIR"
+            
+            # 3. Build and Start
+            echo "Building and starting containers..."
+            docker compose up -d --build --force-recreate
+            
+            echo "Pruning unused images..."
+            docker image prune -f
+            
+            echo "--- DEPLOYMENT SUCCESSFUL ---"
