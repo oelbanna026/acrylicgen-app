@@ -391,7 +391,7 @@ function app() {
         // Auth Methods
         async login() {
             try {
-                await auth.login(this.loginForm.email, this.loginForm.password);
+                await auth.login(this.loginForm.email.trim(), this.loginForm.password);
                 this.user = auth.user;
                 this.showLoginModal = false;
                 this.loginForm = { email: '', password: '' };
@@ -402,7 +402,7 @@ function app() {
 
         async register() {
             try {
-                await auth.register(this.registerForm.name, this.registerForm.email, this.registerForm.password);
+                await auth.register(this.registerForm.name, this.registerForm.email.trim(), this.registerForm.password);
                 this.user = auth.user;
                 this.showRegisterModal = false;
                 this.registerForm = { name: '', email: '', password: '' };

@@ -8,8 +8,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_pr
 
 // Register
 router.post('/register', (req, res) => {
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    // Normalize email
+    email = email.trim().toLowerCase();
 
     const hashedPassword = bcrypt.hashSync(password, 8);
 
@@ -28,7 +31,10 @@ router.post('/register', (req, res) => {
 
 // Login
 router.post('/login', (req, res) => {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+    
+    // Normalize email
+    if (email) email = email.trim().toLowerCase();
 
     db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
