@@ -80,19 +80,7 @@ router.post('/reset-password', (req, res) => {
     res.status(200).json({ message: 'Password has been reset successfully' });
 });
 
-// Public Stats
-router.get('/public/stats', (req, res) => {
-    const stats = {};
-    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.totalUsers = row.count;
-        
-        db.get('SELECT COUNT(*) as count FROM exports', (err, row) => {
-            stats.totalExports = row.count;
-            stats.activeUsers = Math.floor(Math.random() * 20) + 5; // Mock
-            res.status(200).json(stats);
-        });
-    });
-});
+// Public Stats - MOVED TO server.js or public routes
+// router.get('/public/stats', (req, res) => { ... });
 
 module.exports = router;
