@@ -249,8 +249,8 @@ function app() {
         payPalItemType: '', // 'plan' or 'credits'
         payPalItemValue: '', // plan name or credits amount
         adTimer: 5,
-        loginForm: { email: '', password: '' },
-        registerForm: { name: '', email: '', password: '' },
+        authLogin: { email: '', password: '' },
+        authRegister: { name: '', email: '', password: '' },
         forgotPasswordEmail: '',
         history: [],
         adminStats: null,
