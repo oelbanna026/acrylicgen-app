@@ -174,47 +174,53 @@ const i18n = {
 };
 
 function app() {
-    try {
-    // Ensure AuthService is available
-    let auth = window.AuthService;
-    if (!auth) {
-        console.error("AuthService missing! Using fallback.");
-        auth = {
-            user: null,
-            login: async () => { alert('Auth System Error'); throw new Error('Auth System Error'); },
-            register: async () => { alert('Auth System Error'); throw new Error('Auth System Error'); },
-            logout: () => {},
-            getProfile: async () => null,
-            getHistory: async () => [],
-            getAdminStats: async () => null,
-            getAdminUsers: async () => [],
-            mockPurchase: async () => {},
-            deductCredit: async () => ({ success: true }) // Allow export in fallback
-        };
-    }
+        try {
+        // Ensure AuthService is available
+        let auth = window.AuthService;
+        if (!auth) {
+            console.error("AuthService missing! Using fallback.");
+            auth = {
+                user: null,
+                login: async () => { alert('Auth System Error'); throw new Error('Auth System Error'); },
+                register: async () => { alert('Auth System Error'); throw new Error('Auth System Error'); },
+                logout: () => {},
+                getProfile: async () => null,
+                getHistory: async () => [],
+                getAdminStats: async () => null,
+                getAdminUsers: async () => [],
+                mockPurchase: async () => {},
+                deductCredit: async () => ({ success: true }) // Allow export in fallback
+            };
+        }
+    
+        const defaultShape = () => ({
+            id: Date.now(),
+            name: 'Shape ' + Math.floor(Math.random() * 1000),
+            x: 0,
+            y: 0,
+            width: 50,
+            height: 30,
+            rotation: 0,
+            shapeType: 'rectangle',
+            cornerType: 'straight',
+            cornerRadius: 5,
+            holePattern: 'corners',
+            holeCount: 8,
+            holeDiameter: 0.8,
+            holeMargin: 3,
+            holes: []
+        });
+    
+        return {
+            // Expose Translation Helper
+            t(key) {
+                const lang = this.lang || 'ar';
+                return i18n[lang][key] || key;
+            },
 
-    const defaultShape = () => ({
-        id: Date.now(),
-        name: 'Shape ' + Math.floor(Math.random() * 1000),
-        x: 0,
-        y: 0,
-        width: 50,
-        height: 30,
-        rotation: 0,
-        shapeType: 'rectangle',
-        cornerType: 'straight',
-        cornerRadius: 5,
-        holePattern: 'corners',
-        holeCount: 8,
-        holeDiameter: 0.8,
-        holeMargin: 3,
-        holes: []
-    });
-
-    return {
-        // System State
-        loading: true,
-        user: auth.user,
+            // System State
+            loading: true,
+            user: auth.user,
         showLoginModal: false,
         showRegisterModal: false,
         showPricingModal: false,
