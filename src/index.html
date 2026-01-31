@@ -13,7 +13,40 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e293b">
     
-    <!-- Tailwind CSS -->
+    <!-- Performance: Preconnect to external domains -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com">
+    <link rel="preconnect" href="https://www.paypal.com">
+    
+    <!-- SEO: Meta Tags -->
+    <meta name="robots" content="index, follow">
+    <meta name="keywords" content="acrylic box generator, laser cut svg, dxf generator, nesting tool, acrylic design, laser cutting software, cnc nesting">
+    <meta name="author" content="AcrylicGen Team">
+    <meta property="og:title" content="Acrylic Designer Pro - Professional Laser Cutting & Nesting Tool">
+    <meta property="og:description" content="Design, nest, and calculate costs for acrylic sheets. Export DXF/SVG for laser cutting instantly.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://acrylicgen-app.com">
+    <meta property="og:image" content="https://acrylicgen-app.com/assets/og-image.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Schema.org Markup (SoftwareApplication) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Acrylic Designer Pro",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "A professional tool for designing and calculating acrylic sheet costs efficiently. Features include auto-nesting, DXF/SVG export, and cost estimation.",
+      "featureList": "Laser Cut Design, Auto Nesting, Cost Calculation, DXF Export, SVG Export"
+    }
+    </script>
+
+    <!-- Tailwind CSS (Consider compiling for prod, but CDN ok for now) -->
     <script src="vendor/tailwindcss.js"></script>
     <script>
         tailwind.config = {
@@ -29,38 +62,39 @@
         }
     </script>
     
-    <!-- Alpine.js -->
+    <!-- Alpine.js (Defer is good) -->
     <script defer src="vendor/alpine.min.js"></script>
     
-    <!-- jsPDF -->
-    <script src="vendor/jspdf.umd.min.js"></script>
+    <!-- Libraries (Defer to unblock render) -->
+    <script defer src="vendor/jspdf.umd.min.js"></script>
+    <script defer src="vendor/driver.js"></script>
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1855840981689804" crossorigin="anonymous"></script>
+    <!-- Analytics: Google Analytics 4 (Placeholder) -->
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      // gtag('config', 'G-XXXXXXXXXX'); 
+    </script>
 
-    <!-- PayPal SDK -->
-    <script src="https://www.paypal.com/sdk/js?client-id=ATp1IFI6cxnoSWuZ1HpWOoj9xwUk8Og8IWoazQ3g1UodjOfj9iW6L0mjcYxdak4_7LpXGAVjrMVWWrGz&currency=USD"></script>
+    <!-- Ads: Lazy Loaded via monetization.js to improve LCP -->
+    <!-- Removed direct script tag to prevent blocking -->
+
+    <!-- PayPal SDK (Defer) -->
+    <script defer src="https://www.paypal.com/sdk/js?client-id=ATp1IFI6cxnoSWuZ1HpWOoj9xwUk8Og8IWoazQ3g1UodjOfj9iW6L0mjcYxdak4_7LpXGAVjrMVWWrGz&currency=USD"></script>
 
     <!-- Driver.js CSS -->
     <link rel="stylesheet" href="vendor/driver.css">
 
-    <!-- Auth Logic -->
-    <script src="js/auth.js?v=21"></script>
-    
-    <!-- Driver.js -->
-    <script src="vendor/driver.js"></script>
-    
-    <!-- Tour Logic -->
-    <script src="js/tour.js?v=21"></script>
-
-    <!-- Monetization Logic -->
-    <script src="js/monetization.js?v=21"></script>
-
-    <!-- App Logic -->
-    <script src="js/app.js?v=24"></script>
+    <!-- App Logic (Defer all) -->
+    <script defer src="js/auth.js?v=22"></script>
+    <script defer src="js/tour.js?v=22"></script>
+    <script defer src="js/monetization.js?v=22"></script>
+    <script defer src="js/app.js?v=25"></script>
 </head>
 <body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
 
@@ -260,11 +294,22 @@
         </header>
 
         <!-- Body: Sidebar + Canvas -->
-        <div class="flex-1 flex overflow-hidden">
+        <div class="flex-1 flex overflow-hidden relative">
             
+            <!-- Mobile Overlay -->
+            <div x-show="showSidebar" @click="showSidebar = false" x-transition.opacity 
+                 class="fixed inset-0 bg-black/50 z-20 md:hidden" x-cloak></div>
+
             <!-- Sidebar -->
-            <aside id="sidebar-panel" class="w-80 flex flex-col border-e overflow-y-auto transition-all z-20 shadow-xl"
-                   :class="{'border-r': lang==='ltr', 'border-l': lang==='ar'}"
+            <aside id="sidebar-panel" class="w-80 flex flex-col border-e overflow-y-auto transition-transform duration-300 z-30 shadow-xl fixed md:relative h-full md:h-auto"
+                   :class="{
+                       'translate-x-0': showSidebar,
+                       '-translate-x-full': !showSidebar && lang !== 'ar', 
+                       'translate-x-full': !showSidebar && lang === 'ar',
+                       'md:translate-x-0': true,
+                       'border-r': lang !== 'ar', 
+                       'border-l': lang === 'ar'
+                   }"
                    style="background-color: var(--bg-panel); border-color: var(--border);">
                 
                 <!-- Tools Toolbar -->
@@ -886,7 +931,7 @@
                 </div>
 
                 <!-- Pro -->
-                <div class="border-2 border-blue-500 rounded-xl p-6 flex flex-col relative transform scale-105 shadow-xl bg-white dark:bg-slate-800">
+                <div class="border-2 border-blue-500 rounded-xl p-6 flex flex-col relative md:transform md:scale-105 shadow-xl bg-white dark:bg-slate-800 z-10">
                     <div class="absolute top-0 right-0 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-bl">POPULAR</div>
                     <h3 class="text-xl font-bold mb-2">Pro</h3>
                     <div class="text-3xl font-bold mb-4">$7<span class="text-sm font-normal text-gray-500">/mo</span></div>
