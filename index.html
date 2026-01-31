@@ -39,6 +39,9 @@
     
     <!-- App Logic -->
     <script src="js/app.js?v=13"></script>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
 
@@ -412,6 +415,31 @@
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Login</button>
             </form>
+            
+            <div class="mt-4 mb-4">
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OR</span>
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+                <div id="g_id_onload"
+                     data-client_id="YOUR_GOOGLE_CLIENT_ID"
+                     data-context="signin"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="sign_in_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     data-width="100%">
+                </div>
+            </div>
+
             <p class="mt-4 text-center text-sm text-gray-500">
                 Don't have an account? <a href="#" @click.prevent="showLoginModal = false; showRegisterModal = true" class="text-blue-500 font-bold">Register</a>
             </p>
@@ -438,6 +466,25 @@
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Create Account</button>
             </form>
+            
+            <div class="mt-4 mb-4">
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OR</span>
+                    <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+                <!-- Google Button (Reused) -->
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="signup_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     data-width="100%">
+                </div>
+            </div>
+
             <p class="mt-4 text-center text-sm text-gray-500">
                 Already have an account? <a href="#" @click.prevent="showRegisterModal = false; showLoginModal = true" class="text-blue-500 font-bold">Login</a>
             </p>
