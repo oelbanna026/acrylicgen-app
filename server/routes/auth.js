@@ -1,0 +1,98 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const db = require('../config/database');
+const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_prod';
+
+// Register
+router.post('/register', (req, res) => {
+    const { name, email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    const hashedPassword = bcrypt.hashSync(password, 8);
+
+    db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`, [name, email, hashedPassword], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ error: 'Email already exists' });
+            }
+            return res.status(500).json({ error: err.message });
+        }
+
+        const token = jwt.sign({ id: this.lastID }, JWT_SECRET, { expiresIn: '24h' });
+        res.status(201).json({ token, user: { id: this.lastID, name, email, credits: 5, plan: 'free', role: 'user' } });
+    });
+});
+
+// Login
+router.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const passwordIsValid = bcrypt.compareSync(password, user.password);
+        if (!passwordIsValid) return res.status(401).json({ token: null, error: 'Invalid password' });
+
+        // Update tracking info
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+        const location = 'Unknown'; // Placeholder for now
+        const now = new Date().toISOString();
+
+        db.run(`UPDATE users SET last_login = ?, ip = ?, location = ? WHERE id = ?`, [now, ip, location, user.id]);
+
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
+        res.status(200).json({ 
+            token, 
+            user: { 
+                id: user.id, 
+                name: user.name, 
+                email: user.email, 
+                credits: user.credits, 
+                plan: user.plan,
+                role: user.role
+            } 
+        });
+    });
+});
+
+// Verify Email (Mock)
+router.post('/verify-email', (req, res) => {
+    const { token } = req.body;
+    // In a real app, verify the token and update user status
+    res.status(200).json({ message: 'Email verified successfully' });
+});
+
+// Forgot Password (Mock)
+router.post('/forgot-password', (req, res) => {
+    const { email } = req.body;
+    // In a real app, send email with reset token
+    res.status(200).json({ message: 'Password reset link sent to your email' });
+});
+
+// Reset Password (Mock)
+router.post('/reset-password', (req, res) => {
+    const { token, newPassword } = req.body;
+    // In a real app, verify token and update password
+    res.status(200).json({ message: 'Password has been reset successfully' });
+});
+
+// Public Stats
+router.get('/public/stats', (req, res) => {
+    const stats = {};
+    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        stats.totalUsers = row.count;
+        
+        db.get('SELECT COUNT(*) as count FROM exports', (err, row) => {
+            stats.totalExports = row.count;
+            stats.activeUsers = Math.floor(Math.random() * 20) + 5; // Mock
+            res.status(200).json(stats);
+        });
+    });
+});
+
+module.exports = router;

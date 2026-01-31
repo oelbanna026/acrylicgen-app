@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Acrylic Designer Pro</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e293b">
+    
+    <!-- Tailwind CSS -->
+    <script src="vendor/tailwindcss.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="vendor/alpine.min.js"></script>
+    
+    <!-- jsPDF -->
+    <script src="vendor/jspdf.umd.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Driver.js CSS -->
+    <link rel="stylesheet" href="vendor/driver.css">
+
+    <!-- Auth Logic -->
+    <script src="js/auth.js?v=20"></script>
+    
+    <!-- Driver.js -->
+    <script src="vendor/driver.js"></script>
+    
+    <!-- Tour Logic -->
+    <script src="js/tour.js?v=20"></script>
+
+    <!-- App Logic -->
+    <script src="js/app.js?v=20"></script>
+</head>
+<body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
+
+    <!-- Admin Dashboard Modal -->
+    <div x-show="showAdminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative" @click.outside="showAdminModal = false">
+            <button @click="showAdminModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            
+            <h2 class="text-2xl font-bold mb-6" x-text="t('admin_dashboard')"></h2>
+
+            <!-- Stats Grid -->
+            <template x-if="adminStats">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg">
+                        <div class="text-sm text-gray-500 dark:text-gray-400" x-text="t('total_users')"></div>
+                        <div class="text-2xl font-bold text-blue-600 dark:text-blue-400" x-text="adminStats.totalUsers"></div>
+                    </div>
+                    <div class="p-4 bg-green-50 dark:bg-slate-700 rounded-lg">
+                        <div class="text-sm text-gray-500 dark:text-gray-400" x-text="t('total_exports')"></div>
+                        <div class="text-2xl font-bold text-green-600 dark:text-green-400" x-text="adminStats.totalExports"></div>
+                    </div>
+                    <div class="p-4 bg-purple-50 dark:bg-slate-700 rounded-lg">
+                        <div class="text-sm text-gray-500 dark:text-gray-400" x-text="t('total_revenue')"></div>
+                        <div class="text-2xl font-bold text-purple-600 dark:text-purple-400" x-text="currencySymbol + adminStats.totalRevenue"></div>
+                    </div>
+                    <div class="p-4 bg-orange-50 dark:bg-slate-700 rounded-lg">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Active Now</div>
+                        <div class="text-2xl font-bold text-orange-600 dark:text-orange-400" x-text="adminStats.activeNow || 0"></div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Users List -->
+            <h3 class="text-xl font-bold mb-4" x-text="t('users_list')"></h3>
+            <div class="overflow-x-auto rounded-lg border dark:border-slate-700">
+                <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">User</th>
+                            <th scope="col" class="px-6 py-3">Plan/Credits</th>
+                            <th scope="col" class="px-6 py-3">Session</th>
+                            <th scope="col" class="px-6 py-3">Location</th>
+                            <th scope="col" class="px-6 py-3">Role</th>
+                            <th scope="col" class="px-6 py-3">Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="u in adminUsers" :key="u.id">
+                            <tr class="bg-white border-b dark:bg-slate-800 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600">
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-gray-900 dark:text-white" x-text="u.name"></div>
+                                    <div class="text-xs" x-text="u.email"></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span :class="{
+                                        'bg-green-100 text-green-800': u.plan === 'business',
+                                        'bg-blue-100 text-blue-800': u.plan === 'pro',
+                                        'bg-yellow-100 text-yellow-800': u.plan === 'starter',
+                                        'bg-gray-100 text-gray-800': u.plan === 'free'
+                                    }" class="text-xs font-medium px-2 py-0.5 rounded border border-gray-200" x-text="u.plan.toUpperCase()"></span>
+                                    <div class="text-xs mt-1">Credits: <span x-text="u.credits === -1 ? '∞' : u.credits"></span></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-xs text-green-600 font-bold" x-show="u.session_duration">Active: <span x-text="u.session_duration"></span></div>
+                                    <div class="text-xs text-gray-400" x-text="'Last: ' + new Date(u.last_login).toLocaleTimeString()"></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-1">
+                                        <span x-text="u.location"></span>
+                                    </div>
+                                    <div class="text-xs text-gray-400" x-text="u.ip"></div>
+                                </td>
+                                <td class="px-6 py-4" x-text="u.role"></td>
+                                <td class="px-6 py-4" x-text="new Date(u.created_at).toLocaleDateString()"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Screen -->
+    <div x-show="loading" class="loader-overlay" x-transition.opacity>
+        <div class="spinner mb-4"></div>
+        <h2 class="text-xl font-bold" x-text="t('loading')"></h2>
+    </div>
+
+    <!-- Auth Gate Removed -->
+
+    <!-- Update Notification -->
+    <div x-show="updateAvailable" class="fixed bottom-4 left-4 z-50 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4" x-cloak x-transition>
+        <div>
+            <p class="font-bold" x-text="t('update_available')"></p>
+        </div>
+        <button @click="refreshApp()" class="bg-white text-blue-600 px-3 py-1 rounded font-bold text-sm" x-text="t('update_now')"></button>
+    </div>
+
+    <!-- Main Layout: Header + Content -->
+    <div class="flex flex-col h-screen" x-cloak>
+        
+        <!-- Header -->
+        <header class="h-16 flex items-center justify-between px-6 border-b shrink-0" 
+                style="background-color: var(--bg-panel); border-color: var(--border);">
+            
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">
+                    <span x-text="t('app_title')"></span>
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- Auth -->
+                <template x-if="!user">
+                    <div class="flex gap-2 mx-2">
+                        <button @click="showLoginModal = true" class="px-3 py-1 text-sm font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded transition">Login</button>
+                        <button @click="showRegisterModal = true" class="px-3 py-1 text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 rounded transition">Register</button>
+                    </div>
+                </template>
+                <template x-if="user">
+                    <div class="flex items-center gap-2 mx-2 cursor-pointer" @click="showDashboardModal = true; loadHistory()">
+                        <div class="text-right hidden sm:block">
+                            <div class="text-xs font-bold text-blue-500">
+                                <span x-text="user.credits === -1 ? '∞' : user.credits"></span> Credits
+                            </div>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
+                            <span x-text="user.name ? user.name.charAt(0).toUpperCase() : 'U'"></span>
+                        </div>
+                    </div>
+                </template>
+
+                <select x-model="currency" class="px-2 py-1 rounded border text-sm font-bold transition"
+                        style="background-color: var(--input-bg); border-color: var(--border); color: var(--text-main);">
+                    <template x-for="c in currencies">
+                        <option :value="c.code" x-text="c.code"></option>
+                    </template>
+                </select>
+
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition" :title="t('toggle_theme')">
+                    <span x-show="theme === 'dark'">☀️</span>
+                    <span x-show="theme === 'light'">🌙</span>
+                </button>
+
+                <button @click="toggleLang()" class="px-3 py-1 rounded border font-bold text-sm transition hover:bg-opacity-10 hover:bg-gray-500"
+                        style="border-color: var(--border);">
+                    <span x-text="lang === 'ar' ? 'EN' : 'عربي'"></span>
+                </button>
+
+                <button id="btn-restart-tour" @click="restartTour()" class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100 dark:hover:bg-slate-700 transition font-bold" :title="t('restart_tour')" style="border-color: var(--border);">
+                    ?
+                </button>
+
+                <button @click="hardReset()" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium transition"
+                        x-text="t('reset')">
+                </button>
+            </div>
+        </header>
+
+        <!-- Body: Sidebar + Canvas -->
+        <div class="flex-1 flex overflow-hidden">
+            
+            <!-- Sidebar -->
+            <aside id="sidebar-panel" class="w-80 flex flex-col border-e overflow-y-auto transition-all z-20 shadow-xl"
+                   :class="{'border-r': lang==='ltr', 'border-l': lang==='ar'}"
+                   style="background-color: var(--bg-panel); border-color: var(--border);">
+                
+                <!-- Tools Toolbar -->
+                <div id="toolbar-section" class="p-2 grid grid-cols-4 gap-1 border-b" style="border-color: var(--border)">
+                    <button @click="rotateSelectedShape()" :title="t('rotate')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-500">
+                        <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button @click="duplicateSelectedShape()" :title="t('duplicate')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-green-500">
+                        <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                    <button @click="snapEnabled = !snapEnabled" :title="t('snap_to_grid')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700" :class="snapEnabled ? 'text-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400'">
+                         <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </button>
+                    <button id="btn-nesting" @click="$refs.nestingPanel.classList.toggle('hidden')" :title="t('nesting')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-orange-500">
+                         <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Nesting Panel -->
+                <div x-ref="nestingPanel" class="hidden bg-orange-50 dark:bg-slate-800/50 p-4 border-b border-orange-100 dark:border-slate-700">
+                    <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('nesting_settings')"></h3>
+                    <div class="flex gap-2 mb-2">
+                        <div>
+                            <label class="text-[10px] text-gray-500" x-text="t('canvas_w')"></label>
+                            <input type="number" x-model.number="nestingSheetWidth" class="w-full p-1 text-xs rounded border">
+                        </div>
+                        <div>
+                    <label class="text-[10px] text-gray-500" x-text="t('canvas_h')"></label>
+                    <input type="number" x-model.number="nestingSheetHeight" class="w-full p-1 text-xs rounded border">
+                </div>
+            </div>
+            
+            <div class="mb-2">
+                <label class="text-[10px] text-gray-500" x-text="t('nesting_margin')"></label>
+                <div class="relative">
+                     <input type="number" step="0.1" min="0" x-model.number="nestingMargin" class="w-full p-1 text-xs rounded border">
+                     <span class="absolute end-2 top-1 text-[10px] text-gray-400 pointer-events-none" x-text="unit"></span>
+                </div>
+            </div>
+
+            <button @click="nestShapes()" class="w-full py-1 bg-orange-500 text-white text-xs font-bold rounded hover:bg-orange-600 transition" x-text="t('nest_now')"></button>
+                    
+                    <hr class="my-2 border-orange-200 dark:border-slate-600">
+                    
+                    <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('fill_sheet')"></h3>
+                    <div class="mb-2">
+                        <label class="text-[10px] text-gray-500" x-text="t('fill_count')"></label>
+                        <input type="number" x-model.number="fillCount" placeholder="Auto" class="w-full p-1 text-xs rounded border">
+                    </div>
+                    <button @click="fillSheet()" class="w-full py-1 bg-blue-500 text-white text-xs font-bold rounded hover:bg-blue-600 transition" x-text="t('fill_btn')"></button>
+                </div>
+
+                <!-- Ad Slot (Top Sidebar) -->
+                <div class="p-2">
+                    <div class="ad-slot">
+                        <!-- Google AdSense Placeholder -->
+                        <span class="text-xs text-gray-400">Google Ad (Responsive)</span>
+                    </div>
+                    
+                    <!-- System Stats -->
+                    <div class="mt-2 bg-blue-50 dark:bg-slate-700/50 rounded p-2 text-center" x-show="publicStats.totalUsers > 0">
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <div class="font-bold text-blue-600 dark:text-blue-400" x-text="publicStats.activeUsers"></div>
+                                <div class="text-[10px] text-gray-500">Active Now</div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-green-600 dark:text-green-400" x-text="publicStats.totalExports"></div>
+                                <div class="text-[10px] text-gray-500">Exports</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 space-y-6">
+                    
+                    <!-- Section: Layers / Shapes -->
+                    <div id="layers-section">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-bold uppercase tracking-wider" style="color: var(--text-muted)" x-text="t('layers')"></h3>
+                            <div class="flex gap-2">
+                                <button @click="clearAllShapes()" class="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition" x-show="shapes.length > 0" x-text="t('delete_all')">Clear</button>
+                                <button @click="addShape()" class="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition" x-text="t('add_shape')">+</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                            <template x-for="(s, index) in shapes" :key="s.id">
+                                <div class="flex items-center justify-between p-2 rounded cursor-pointer border transition"
+                                     :class="activeShapeId === s.id ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-700' : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-slate-700 dark:hover:bg-slate-600'"
+                                     @click="selectShape(s.id)">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 dark:bg-slate-600" x-text="index + 1"></span>
+                                        <span class="text-sm font-medium" x-text="s.name || 'Shape ' + (index + 1)"></span>
+                                    </div>
+                                    <button @click.stop="removeShape(s.id)" class="text-red-400 hover:text-red-600 px-1" title="Delete">×</button>
+                                </div>
+                            </template>
+                        </div>
+                        <hr class="mt-4" style="border-color: var(--border)">
+                    </div>
+
+                    <!-- Section: Dimensions -->
+                    <div id="dimensions-section">
+                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('dimensions')"></h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-xs mb-1" x-text="t('unit')"></label>
+                            <div class="flex bg-gray-100 dark:bg-slate-800 rounded p-1 gap-1">
+                                <template x-for="u in ['mm', 'cm', 'inch']">
+                                    <button @click="unit = u" 
+                                            class="flex-1 py-1 text-sm rounded transition"
+                                            :class="unit === u ? 'bg-blue-500 text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                                            x-text="u"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Position -->
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('x_pos')"></label>
+                                <div class="relative">
+                                    <input type="number" step="0.5" x-model.number="x" class="form-input w-full p-2 rounded text-sm">
+                                    <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('y_pos')"></label>
+                                <div class="relative">
+                                    <input type="number" step="0.5" x-model.number="y" class="form-input w-full p-2 rounded text-sm">
+                                    <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('width')"></label>
+                                <div class="relative">
+                                    <input type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="width" class="form-input w-full p-2 rounded text-sm">
+                                    <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('height')"></label>
+                                <div class="relative">
+                                    <input type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="height" class="form-input w-full p-2 rounded text-sm">
+                                    <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shape Selection -->
+                        <div class="mt-4">
+                            <label class="block text-xs mb-1" x-text="t('shape')"></label>
+                            <select x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
+                                <option value="rectangle" x-text="t('shape_rect')"></option>
+                                <option value="oval" x-text="t('shape_oval')"></option>
+                                <option value="pentagon" x-text="t('shape_pentagon')"></option>
+                                <option value="hexagon" x-text="t('shape_hexagon')"></option>
+                                <option value="star" x-text="t('shape_star')"></option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr style="border-color: var(--border)">
+
+                    <!-- Section: Corners (Only for Rectangle) -->
+                    <div x-show="shapeType === 'rectangle'" x-transition>
+                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('corners')"></h3>
+                        <div class="mb-3">
+                            <select x-model="cornerType" class="form-input w-full p-2 rounded text-sm">
+                                <option value="straight" x-text="t('straight')"></option>
+                                <option value="rounded" x-text="t('rounded')"></option>
+                            </select>
+                        </div>
+                        <div x-show="cornerType === 'rounded'" x-transition class="mt-2">
+                            <div class="flex justify-between mb-1">
+                                <label class="text-xs" x-text="t('radius')"></label>
+                                <span class="text-xs font-mono" x-text="cornerRadius + ' ' + unit"></span>
+                            </div>
+                            <input type="range" :min="0" :max="Math.min(width, height)/2" :step="limits.step" x-model.number="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        </div>
+                        <hr class="mt-4" style="border-color: var(--border)">
+                    </div>
+
+                    <hr style="border-color: var(--border)">
+
+                    <!-- Section: Holes -->
+                    <div>
+                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('holes')"></h3>
+                        <div class="mb-3">
+                            <select x-model="holePattern" class="form-input w-full p-2 rounded text-sm">
+                                <option value="none" x-text="t('no_holes')"></option>
+                                <option value="corners" x-text="t('corners_4')"></option>
+                                <option value="corners_mid" x-text="t('side_6')"></option>
+                                <option value="custom" x-text="t('custom_count')"></option>
+                            </select>
+                        </div>
+                        
+                        <div x-show="holePattern === 'custom'" class="mb-3" x-transition>
+                             <div class="flex justify-between mb-1">
+                                <label class="text-xs" x-text="t('hole_count')"></label>
+                                <span class="text-xs font-mono" x-text="holeCount"></span>
+                             </div>
+                             <input type="range" min="1" max="100" step="1" x-model.number="holeCount" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        </div>
+
+                        <div x-show="holePattern !== 'none'" x-transition class="grid grid-cols-1 gap-4">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="text-xs" x-text="t('diameter')"></label>
+                                    <span class="text-xs font-mono" x-text="holeDiameter + ' ' + unit"></span>
+                                </div>
+                                <input type="range" :min="limits.holeMin" :max="limits.holeMax" :step="limits.holeStep" x-model.number="holeDiameter" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <label class="text-xs" x-text="t('margin')"></label>
+                                    <span class="text-xs font-mono" x-text="holeMargin + ' ' + unit"></span>
+                                </div>
+                                <input type="range" :min="0" :max="Math.min(width, height)/3" :step="limits.step" x-model.number="holeMargin" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                    <hr style="border-color: var(--border)">
+                    
+                    <!-- Section: Cost Settings -->
+                    <div id="cost-section" class="p-5 pt-0">
+                        <button @click="$refs.costSettings.classList.toggle('hidden')" class="flex items-center justify-between w-full text-left py-2">
+                            <h3 class="text-sm font-bold uppercase tracking-wider" style="color: var(--text-muted)" x-text="t('pricing_settings')"></h3>
+                            <span class="text-xs">▼</span>
+                        </button>
+                        
+                        <div x-ref="costSettings" class="hidden space-y-3 pt-2">
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('sheet_dims')"></label>
+                                <div class="flex gap-2">
+                                    <input type="number" x-model.number="sheetWidth" class="form-input w-full p-2 rounded text-sm" placeholder="W">
+                                    <input type="number" x-model.number="sheetHeight" class="form-input w-full p-2 rounded text-sm" placeholder="H">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('sheet_price')"></label>
+                                <input type="number" min="0" x-model.number="sheetPrice" class="form-input w-full p-2 rounded text-sm">
+                            </div>
+                            
+                            <!-- Area Info -->
+                            <div class="bg-gray-100 dark:bg-slate-700 p-2 rounded text-xs space-y-1">
+                                <div class="flex justify-between">
+                                    <span x-text="t('width') + ':'"></span>
+                                    <span class="font-bold" x-text="designDimensions.width.toFixed(2) + ' ' + unit"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span x-text="t('height') + ':'"></span>
+                                    <span class="font-bold" x-text="designDimensions.height.toFixed(2) + ' ' + unit"></span>
+                                </div>
+                                <div class="flex justify-between border-t border-gray-300 dark:border-gray-600 pt-1 mt-1">
+                                    <span x-text="t('area')"></span>
+                                    <span class="font-bold" x-text="totalAreaCm2.toFixed(2) + ' cm²'"></span>
+                                </div>
+                            </div>
+
+                             <div>
+                                <label class="block text-xs mb-1" x-text="t('thickness_mm')"></label>
+                                <input type="number" min="0" step="0.1" x-model.number="thickness" class="form-input w-full p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('cutting_price_hr')"></label>
+                                <input type="number" min="0" x-model.number="cuttingPricePerHour" class="form-input w-full p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs mb-1" x-text="t('profit_margin')"></label>
+                                <input type="number" min="0" x-model.number="profitMargin" class="form-input w-full p-2 rounded text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- Footer Stats & Export -->
+                <div id="export-section" class="mt-auto p-5 border-t" style="border-color: var(--border); background-color: rgba(0,0,0,0.02);">
+                    <div class="mb-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-gray-500" x-text="t('dimensions')"></span>
+                            <span class="font-mono text-sm font-bold dir-ltr" x-text="dimensionsFormatted"></span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-500" x-text="t('area')"></span>
+                            <span class="font-bold text-blue-500 text-sm dir-ltr" x-text="areaTotalFormatted"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between text-lg font-bold mb-4 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+                        <span x-text="t('cost')"></span>
+                        <span class="text-green-500" x-text="currencySymbol + ' ' + totalPrice"></span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button @click="exportDXF()" class="py-2 rounded bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold transition">DXF</button>
+                        <button @click="exportSVG()" class="py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition">SVG</button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Canvas -->
+            <main id="canvas-area" class="flex-1 relative overflow-hidden canvas-area cursor-grab active:cursor-grabbing"
+                  :class="{'cursor-move': isDraggingShape}"
+                  x-ref="canvas"
+                  @wheel.prevent="handleWheel"
+                  @mousedown="startPan"
+                  @mousemove="handleMouseMove"
+                  @mouseup="handleMouseUp"
+                  @mouseleave="handleMouseUp"
+                  @touchstart.prevent="startTouch"
+                  @touchmove.prevent="moveTouch"
+                  @touchend="endTouch">
+                
+                <!-- SVG Canvas -->
+                <svg x-ref="svg" 
+                     class="w-full h-full block touch-none"
+                     xmlns="http://www.w3.org/2000/svg">
+                    
+                    <!-- Grid Background -->
+                    <defs>
+                        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="currentColor" stroke-width="0.5" class="text-gray-200 dark:text-slate-800"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+
+                    <!-- Sheet Boundaries (Visual Guide) -->
+                    <rect :x="pan.x" :y="pan.y" 
+                          :width="nestingSheetWidth * zoom" 
+                          :height="nestingSheetHeight * zoom" 
+                          fill="none" stroke="red" stroke-width="1" stroke-dasharray="5,5" opacity="0.5" pointer-events="none" />
+
+                    <!-- Camera Group -->
+                    <g :transform="`translate(${pan.x}, ${pan.y}) scale(${zoom})`">
+                        <!-- Origin Marker -->
+                        <path d="M -10 0 L 10 0 M 0 -10 L 0 10" stroke="gray" stroke-width="1" opacity="0.5" />
+                    </g>
+                </svg>
+
+                <!-- Shapes Layer (Separate SVG to avoid template issues) -->
+                <div class="absolute inset-0 pointer-events-none">
+                    <template x-for="shape in shapes" :key="shape.id">
+                        <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                            <g :transform="`translate(${pan.x}, ${pan.y}) scale(${zoom})`">
+                                <g :transform="`translate(${parseFloat(shape.x)||0}, ${parseFloat(shape.y)||0}) rotate(${parseFloat(shape.rotation)||0}, ${(parseFloat(shape.width)||0)/2}, ${(parseFloat(shape.height)||0)/2})`"
+                                   :data-id="shape.id"
+                                   class="cursor-pointer transition-opacity pointer-events-auto"
+                                   :class="activeShapeId === shape.id ? 'opacity-100' : 'opacity-80 hover:opacity-100'"
+                                   @mousedown.stop="startShapeDrag($event, shape.id)"
+                                   @touchstart.stop="startShapeDrag($event, shape.id)">
+                                    
+                                    <!-- Shape Body -->
+                                    <path :d="getShapePath(shape)" 
+                                          :fill="activeShapeId === shape.id ? '#ffffff' : '#f0f0f0'" 
+                                          fill-opacity="0.9" 
+                                          :stroke="activeShapeId === shape.id ? '#3b82f6' : '#000000'" 
+                                          :stroke-width="activeShapeId === shape.id ? 2 : 1.5" 
+                                          vector-effect="non-scaling-stroke" 
+                                          class="drop-shadow-sm transition-all duration-300"/>
+                                    
+                                    <!-- Holes -->
+                                    <path :d="getHolesPath(shape)" 
+                                          fill="none" 
+                                          stroke="#ef4444" 
+                                          stroke-width="1.5" 
+                                          vector-effect="non-scaling-stroke" />
+                        
+                                    <!-- Labels (Active Only) -->
+                                    <g x-show="activeShapeId === shape.id" pointer-events="none">
+                                         <!-- Top Label (Width) -->
+                                         <rect :x="(parseFloat(shape.width)||0)/2 - 15*labelScale" 
+                                               :y="-8*labelScale" 
+                                               :width="30*labelScale" 
+                                               :height="6*labelScale" 
+                                               :rx="2*labelScale" 
+                                               fill="var(--bg-panel)" 
+                                               fill-opacity="0.8" />
+                                         <text :x="(parseFloat(shape.width)||0)/2" 
+                                               :y="-4*labelScale" 
+                                               text-anchor="middle" 
+                                               font-weight="bold" 
+                                               fill="var(--text-main)" 
+                                               :style="`font-size: ${3*labelScale}px`"
+                                               x-text="shape.width + ' ' + unit"></text>
+                                         
+                                         <!-- Left Label (Height) -->
+                                         <rect :x="-8*labelScale" 
+                                               :y="(parseFloat(shape.height)||0)/2 - 15*labelScale" 
+                                               :width="6*labelScale" 
+                                               :height="30*labelScale" 
+                                               :rx="2*labelScale" 
+                                               fill="var(--bg-panel)" 
+                                               fill-opacity="0.8" />
+                                         <text :x="-5*labelScale" 
+                                               :y="(parseFloat(shape.height)||0)/2" 
+                                               text-anchor="middle" 
+                                               font-weight="bold" 
+                                               fill="var(--text-main)" 
+                                               :transform="`rotate(-90, ${-5*labelScale}, ${(parseFloat(shape.height)||0)/2})`"
+                                               :style="`font-size: ${3*labelScale}px`"
+                                               x-text="shape.height + ' ' + unit"></text>
+                                    </g>
+                                </g>
+                            </g>
+                        </svg>
+                    </template>
+                </div>
+
+                <!-- Zoom Controls Overlay -->
+                <div class="absolute bottom-5 right-5 flex flex-col gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg shadow-xl border border-gray-200 dark:border-slate-700"
+                     :class="lang === 'ar' ? 'left-5 right-auto' : 'right-5 left-auto'">
+                    <button @click="zoomIn()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-xl font-bold">+</button>
+                    <button @click="resetView()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 font-bold text-sm">⟲</button>
+                    <button @click="zoomOut()" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-xl font-bold">-</button>
+                </div>
+                
+                <!-- Debug / Status Overlay -->
+                <div x-show="holes.length === 0 && holePattern !== 'none'" 
+                     class="absolute top-5 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow-lg text-sm font-bold animate-pulse pointer-events-none">
+                     <span x-text="t('warning_no_holes')"></span>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    <!-- Login Modal -->
+    <div x-show="showLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showLoginModal = false">
+            <button @click="showLoginModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+            <form @submit.prevent="login">
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" x-model="loginForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2">Password</label>
+                    <input type="password" x-model="loginForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Login</button>
+            </form>
+            <p class="mt-4 text-center text-sm text-gray-500">
+                <a href="#" @click.prevent="showLoginModal = false; showForgotPasswordModal = true" class="text-gray-500 hover:text-gray-700 block mb-2" x-text="t('forgot_password')"></a>
+                Don't have an account? <a href="#" @click.prevent="showLoginModal = false; showRegisterModal = true" class="text-blue-500 font-bold">Register</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div x-show="showForgotPasswordModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showForgotPasswordModal = false">
+            <button @click="showForgotPasswordModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 class="text-2xl font-bold mb-6 text-center" x-text="t('forgot_password')"></h2>
+            <form @submit.prevent="forgotPassword">
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" x-model="forgotPasswordEmail" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition" x-text="t('send_reset_link')"></button>
+            </form>
+            <p class="mt-4 text-center text-sm text-gray-500">
+                <a href="#" @click.prevent="showForgotPasswordModal = false; showLoginModal = true" class="text-blue-500 font-bold" x-text="t('login')"></a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div x-show="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showRegisterModal = false">
+            <button @click="showRegisterModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+            <form @submit.prevent="register">
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2">Name</label>
+                    <input type="text" x-model="registerForm.name" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" x-model="registerForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2">Password</label>
+                    <input type="password" x-model="registerForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Create Account</button>
+            </form>
+            <p class="mt-4 text-center text-sm text-gray-500">
+                Already have an account? <a href="#" @click.prevent="showRegisterModal = false; showLoginModal = true" class="text-blue-500 font-bold">Login</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Dashboard Modal -->
+    <div x-show="showDashboardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto" @click.outside="showDashboardModal = false">
+            <button @click="showDashboardModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-2xl font-bold">
+                    <span x-text="user?.name?.charAt(0).toUpperCase()"></span>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold" x-text="user?.name"></h2>
+                    <p class="text-gray-500" x-text="user?.email"></p>
+                </div>
+                <div class="ml-auto text-right">
+                    <div class="text-sm text-gray-500">Current Plan</div>
+                    <div class="text-xl font-bold text-blue-500 uppercase" x-text="user?.plan"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg text-center">
+                    <div class="text-3xl font-bold text-blue-500 mb-1" x-text="user?.credits === -1 ? '∞' : user?.credits"></div>
+                    <div class="text-xs font-bold uppercase text-gray-500">Available Credits</div>
+                </div>
+                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-600 transition" @click="showDashboardModal = false; showPricingModal = true">
+                    <div class="text-3xl font-bold text-green-500 mb-1">Top Up</div>
+                    <div class="text-xs font-bold uppercase text-gray-500">Buy Credits / Upgrade</div>
+                </div>
+                <template x-if="user?.role === 'admin'">
+                    <div class="p-4 bg-purple-50 dark:bg-slate-700 rounded-lg text-center cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/20 transition" @click="showDashboardModal = false; openAdminDashboard()">
+                        <div class="text-3xl font-bold text-purple-500 mb-1">⚙️</div>
+                        <div class="text-xs font-bold uppercase text-gray-500" x-text="t('admin_dashboard')"></div>
+                    </div>
+                </template>
+                <div class="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg text-center cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition" @click="logout">
+                    <div class="text-3xl font-bold text-red-500 mb-1">⏻</div>
+                    <div class="text-xs font-bold uppercase text-gray-500">Logout</div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg" x-text="t('history')"></h3>
+                    <button @click="loadHistory()" class="text-sm text-blue-500 hover:underline">Refresh</button>
+                </div>
+                
+                <template x-if="history.length === 0">
+                    <div class="text-center text-gray-400 py-8" x-text="t('no_history')"></div>
+                </template>
+                
+                <div class="overflow-x-auto max-h-60 overflow-y-auto">
+                    <table class="w-full text-sm text-left" x-show="history.length > 0">
+                        <thead class="text-xs uppercase bg-gray-50 dark:bg-slate-700 text-gray-700 dark:text-gray-400 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2" x-text="t('date')"></th>
+                                <th class="px-4 py-2" x-text="t('type')"></th>
+                                <th class="px-4 py-2" x-text="t('cost_credits')"></th>
+                                <th class="px-4 py-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in history" :key="item.id">
+                                <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700">
+                                    <td class="px-4 py-2" x-text="new Date(item.created_at).toLocaleDateString()"></td>
+                                    <td class="px-4 py-2" x-text="item.type.toUpperCase()"></td>
+                                    <td class="px-4 py-2" x-text="item.cost"></td>
+                                    <td class="px-4 py-2">
+                                        <button @click="loadDesign(item.parameters)" class="text-blue-500 hover:underline text-xs font-bold" x-text="t('re_export')"></button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing Modal -->
+    <div x-show="showPricingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto" @click.outside="showPricingModal = false">
+            <button @click="showPricingModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            
+            <h2 class="text-3xl font-bold text-center mb-2">Upgrade Your Plan</h2>
+            <p class="text-center text-gray-500 mb-8">Choose the best plan for your needs</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Starter -->
+                <div class="border dark:border-slate-700 rounded-xl p-6 flex flex-col relative overflow-hidden">
+                    <h3 class="text-xl font-bold mb-2">Starter</h3>
+                    <div class="text-3xl font-bold mb-4">$3<span class="text-sm font-normal text-gray-500">/mo</span></div>
+                    <ul class="space-y-3 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> 30 Exports</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Basic Shapes</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> DXF Export</li>
+                    </ul>
+                    <button @click="buyPlan('starter')" class="w-full py-2 border border-blue-500 text-blue-500 rounded font-bold hover:bg-blue-50 transition">Select Plan</button>
+                </div>
+
+                <!-- Pro -->
+                <div class="border-2 border-blue-500 rounded-xl p-6 flex flex-col relative transform scale-105 shadow-xl bg-white dark:bg-slate-800">
+                    <div class="absolute top-0 right-0 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-bl">POPULAR</div>
+                    <h3 class="text-xl font-bold mb-2">Pro</h3>
+                    <div class="text-3xl font-bold mb-4">$7<span class="text-sm font-normal text-gray-500">/mo</span></div>
+                    <ul class="space-y-3 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> 100 Exports</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> All Shapes</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> DXF & SVG Export</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Priority Support</li>
+                    </ul>
+                    <button @click="buyPlan('pro')" class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 transition">Select Plan</button>
+                </div>
+
+                <!-- Business -->
+                <div class="border dark:border-slate-700 rounded-xl p-6 flex flex-col">
+                    <h3 class="text-xl font-bold mb-2">Business</h3>
+                    <div class="text-3xl font-bold mb-4">$30<span class="text-sm font-normal text-gray-500">/mo</span></div>
+                    <ul class="space-y-3 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Unlimited Exports</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> All Features</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Commercial License</li>
+                    </ul>
+                    <button @click="buyPlan('business')" class="w-full py-2 border border-blue-500 text-blue-500 rounded font-bold hover:bg-blue-50 transition">Select Plan</button>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-8 border-t dark:border-slate-700">
+                <h3 class="text-xl font-bold text-center mb-6">Pay As You Go</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <button @click="buyCredits(10, 3)" class="p-4 border rounded-lg hover:border-blue-500 transition text-center">
+                        <div class="font-bold text-lg">10 Exports</div>
+                        <div class="text-blue-500">$3</div>
+                     </button>
+                     <button @click="buyCredits(50, 9)" class="p-4 border rounded-lg hover:border-blue-500 transition text-center">
+                        <div class="font-bold text-lg">50 Exports</div>
+                        <div class="text-blue-500">$9</div>
+                     </button>
+                     <button @click="buyCredits(200, 25)" class="p-4 border rounded-lg hover:border-blue-500 transition text-center">
+                        <div class="font-bold text-lg">200 Exports</div>
+                        <div class="text-blue-500">$25</div>
+                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

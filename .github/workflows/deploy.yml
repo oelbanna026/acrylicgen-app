@@ -1,0 +1,51 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      run: |
+        cd server
+        npm ci
+
+    - name: Run Tests (Placeholder)
+      run: |
+        echo "Running tests..."
+        # Add your test command here, e.g., npm test
+        
+  deploy-preview:
+    needs: build-and-test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Staging Server
+        run: echo "Deploying to staging environment for review..."
+        # Here you would add SSH commands to deploy to a staging server
+        
+  deploy-production:
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Production Server
+        run: echo "Deploying to production server..."
+        # Example:
+        # ssh user@your-server "cd /app && git pull && docker-compose up -d --build"
