@@ -51,7 +51,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     // Skip cross-origin requests like Google Ads or CDN scripts if needed, 
     // or cache them if they support CORS.
-    
+    if (!event.request.url.startsWith('http')) return;
+
     event.respondWith(
         fetch(event.request)
             .then(response => {
