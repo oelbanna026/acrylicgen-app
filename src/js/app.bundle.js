@@ -1149,7 +1149,7 @@ function app() {
         
         endPan() { this.isPanning = false; },
 
-        startTouch(e) { if(e.touches.length === 1) this.startPan(e.touches[0]); },
+        onStartTouch(e) { if(e.touches.length === 1) this.onStartPan(e.touches[0]); },
         moveTouch(e) { if(e.touches.length === 1) this.panView(e.touches[0]); },
         endTouch() { this.endPan(); },
 
@@ -1519,7 +1519,7 @@ function app() {
             };
         },
 
-        handleMouseMove(e) {
+        onMouseMove(e) {
             const evt = e.touches ? e.touches[0] : e;
             
             if (this.isDraggingShape && this.draggedShapeId) {
@@ -1550,7 +1550,7 @@ function app() {
         onMouseUp(e) {
             this.isDraggingShape = false;
             this.draggedShapeId = null;
-            this.endPan();
+            this.onEndPan();
         },
 
         applySnapping(shape, x, y) {
