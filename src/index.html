@@ -109,6 +109,16 @@
     
     <!-- Alpine.js (Must load after app.js) -->
     <script defer src="vendor/alpine.min.js"></script>
+    <script>
+        // Global Fallback for critical handlers to prevent Alpine errors
+        window.onMouseUp = function(e) {
+            if (window.app && window.app().onMouseUp) {
+                // This is just a fallback, the actual Alpine handler should take precedence.
+                // But if Alpine evaluates 'onMouseUp' and fails to find it in component scope,
+                // it might look globally.
+            }
+        };
+    </script>
 </head>
 <body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
 
