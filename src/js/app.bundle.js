@@ -1133,7 +1133,8 @@ function app() {
             this.pan.y = my - objY * this.zoom;
         },
 
-        startPan(e) {
+        onStartPan(e) {
+            console.log('onStartPan', e);
             this.isPanning = true;
             this.lastMouse = { x: e.clientX, y: e.clientY };
         },
@@ -1147,11 +1148,14 @@ function app() {
             this.lastMouse = { x: e.clientX, y: e.clientY };
         },
         
-        endPan() { this.isPanning = false; },
+        onEndPan() { 
+            console.log('onEndPan');
+            this.isPanning = false; 
+        },
 
         onStartTouch(e) { if(e.touches.length === 1) this.onStartPan(e.touches[0]); },
         moveTouch(e) { if(e.touches.length === 1) this.panView(e.touches[0]); },
-        endTouch() { this.endPan(); },
+        endTouch() { this.onEndPan(); },
 
         zoomIn() { this.zoom *= 1.2; },
         zoomOut() { this.zoom *= 0.8; },
@@ -1548,6 +1552,7 @@ function app() {
         },
 
         onMouseUp(e) {
+            console.log('onMouseUp');
             this.isDraggingShape = false;
             this.draggedShapeId = null;
             this.onEndPan();
@@ -1912,8 +1917,8 @@ function app() {
             showForgotPasswordModal: false,
             showHistoryModal: false,
             unit: 'cm',
-            loginForm: { email: '', password: '' },
-            registerForm: { name: '', email: '', password: '' },
+            authLogin: { email: '', password: '' },
+            authRegister: { name: '', email: '', password: '' },
             forgotPasswordEmail: '',
             // Monetization Integration
             adTimer: 5,
