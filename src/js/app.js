@@ -890,6 +890,30 @@ function app() {
         },
 
         init() {
+            // Initialize Monetization Listeners
+            window.addEventListener('ad-modal-open', () => {
+                this.showAdModal = true;
+                this.adTimer = 5;
+            });
+            
+            window.addEventListener('ad-timer-tick', (e) => {
+                this.adTimer = e.detail;
+            });
+            
+            window.addEventListener('ad-modal-close', () => {
+                this.showAdModal = false;
+            });
+
+            window.addEventListener('show-upgrade-modal', () => {
+                this.showPricingModal = true;
+            });
+
+            // Handle Resize
+            const updateSidebar = () => {
+                 this.showSidebar = window.innerWidth >= 768;
+            };
+            window.addEventListener('resize', updateSidebar);
+
             // Validate Language
             if (!i18n[this.lang]) {
                 console.warn('Invalid language detected, resetting to ar');
