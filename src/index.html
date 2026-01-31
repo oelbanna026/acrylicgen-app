@@ -105,7 +105,7 @@
     <script defer src="js/tour.js?v=22"></script>
     <script defer src="js/monetization.js?v=22"></script>
     <script defer src="js/diagnostics.js?v=2"></script>
-    <script defer src="js/app.bundle.js?v=6"></script>
+    <script defer src="js/app.bundle.js?v=7"></script>
     
     <!-- Alpine.js (Must load after app.js) -->
     <script defer src="vendor/alpine.min.js"></script>
@@ -834,15 +834,15 @@
             <form @submit.prevent="register">
                 <div class="mb-4">
                     <label for="register-name" class="block text-sm font-bold mb-2">Name</label>
-                    <input id="register-name" name="name" type="text" autocomplete="name" x-model="registerForm.name" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <input id="register-name" name="name" type="text" autocomplete="name" x-model="authRegister.name" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <div class="mb-4">
                     <label for="register-email" class="block text-sm font-bold mb-2">Email</label>
-                    <input id="register-email" name="email" type="email" autocomplete="username" x-model="registerForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <input id="register-email" name="email" type="email" autocomplete="username" x-model="authRegister.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <div class="mb-6">
                     <label for="register-password" class="block text-sm font-bold mb-2">Password</label>
-                    <input id="register-password" name="password" type="password" autocomplete="new-password" x-model="registerForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <input id="register-password" name="password" type="password" autocomplete="new-password" x-model="authRegister.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Create Account</button>
             </form>
