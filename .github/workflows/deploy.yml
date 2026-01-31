@@ -61,6 +61,7 @@ jobs:
             cd ACRILIC_GENERATOR || cd acrylic-generator || echo "Project directory not found, cloning..." && git clone https://github.com/${{ github.repository }} ACRILIC_GENERATOR && cd ACRILIC_GENERATOR
             
             # Pull and Deploy
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker compose up -d --build
             docker image prune -f
