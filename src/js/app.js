@@ -392,6 +392,21 @@ function app() {
         },
 
         // Auth Methods
+        async handleGoogleLogin(credential) {
+            this.loading = true;
+            try {
+                await auth.googleLogin(credential);
+                this.user = auth.user;
+                this.showLoginModal = false;
+                this.showRegisterModal = false;
+                alert('Logged in with Google successfully!');
+            } catch (e) {
+                alert('Google Login Failed: ' + e.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
         async login() {
             try {
                 await auth.login(this.authLogin.email.trim(), this.authLogin.password);
@@ -907,10 +922,15 @@ function app() {
             });
 
             window.addEventListener('show-upgrade-modal', () => {
-                this.showPricingModal = true;
-            });
+                    this.showPricingModal = true;
+                });
 
-            // Handle Resize
+                // Google Auth Callback Handler
+                window.handleGoogleCredentialResponse = (response) => {
+                    this.handleGoogleLogin(response.credential);
+                };
+
+                // Handle Resize
             const updateSidebar = () => {
                  this.showSidebar = window.innerWidth >= 768;
             };
