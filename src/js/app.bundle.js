@@ -394,10 +394,10 @@ function app() {
         // Auth Methods
         async login() {
             try {
-                await auth.login(this.loginForm.email.trim(), this.loginForm.password);
+                await auth.login(this.authLogin.email.trim(), this.authLogin.password);
                 this.user = auth.user;
                 this.showLoginModal = false;
-                this.loginForm = { email: '', password: '' };
+                this.authLogin = { email: '', password: '' };
             } catch (e) {
                 alert(e.message);
             }
@@ -405,10 +405,10 @@ function app() {
 
         async register() {
             try {
-                await auth.register(this.registerForm.name, this.registerForm.email.trim(), this.registerForm.password);
+                await auth.register(this.authRegister.name, this.authRegister.email.trim(), this.authRegister.password);
                 this.user = auth.user;
                 this.showRegisterModal = false;
-                this.registerForm = { name: '', email: '', password: '' };
+                this.authRegister = { name: '', email: '', password: '' };
             } catch (e) {
                 alert(e.message);
             }
