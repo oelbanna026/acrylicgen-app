@@ -4,10 +4,22 @@ This guide explains how to deploy "Acrylic Generator" to a global domain (e.g., 
 
 ## 1. Server Prerequisites
 
-To host this application online, you need a Virtual Private Server (VPS). Recommended providers:
-- **DigitalOcean** (Droplet)
-- **Hetzner** (Cloud)
-- **AWS** (EC2) or **Linode**
+To host this application online, you need a Virtual Private Server (VPS).
+
+### 🔷 How to Buy a VPS on DigitalOcean (Recommended)
+Since you are already on the dashboard:
+1.  **Finish Account Setup**: Click "Add Payment Method" and add a card or PayPal (this is required to activate the account).
+2.  **Create a Droplet**:
+    *   Click the big green **Create** button -> Select **Droplets**.
+    *   **Region**: Choose the data center closest to your customers (e.g., London, Frankfurt, New York).
+    *   **Image**: Choose **Ubuntu 22.04 (LTS)** or **24.04 (LTS)**.
+    *   **Size**: Select **Basic** -> **Regular** -> **$6/month** (or the cheapest option available).
+    *   **Authentication**: Select **Password** and create a strong password (save this!).
+    *   **Hostname**: Give it a name like `acrylic-server`.
+    *   Click **Create Droplet**.
+3.  **Get Your IP**:
+    *   Wait a minute for the progress bar to finish.
+    *   Copy the **IP Address** shown next to your new Droplet (e.g., `164.92.123.45`).
 
 **Requirements:**
 - Ubuntu 20.04 or later
@@ -18,9 +30,21 @@ To host this application online, you need a Virtual Private Server (VPS). Recomm
 
 1. **Buy your domain** (e.g., `acrylic-design.com`).
 2. **Point DNS Records** to your VPS IP address:
-   - `A` Record: `@` -> `YOUR_SERVER_IP`
-   - `A` Record: `www` -> `YOUR_SERVER_IP`
-   - `A` Record: `staging` -> `YOUR_SERVER_IP` (For the review environment)
+   
+   **For Namecheap Users:**
+   - Log in to Namecheap -> Domain List -> Manage.
+   - Go to **Advanced DNS**.
+   - Click **Add New Record**:
+     - Type: `A Record`
+     - Host: `@`
+     - Value: `YOUR_VPS_IP_ADDRESS` (e.g., 164.92.xxx.xxx)
+     - TTL: Automatic
+   - Add another record:
+     - Type: `A Record`
+     - Host: `www`
+     - Value: `YOUR_VPS_IP_ADDRESS`
+   
+   *(Wait 5-30 minutes for DNS to propagate)*
 
 3. **Install Docker on VPS:**
    ```bash
