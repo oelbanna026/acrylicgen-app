@@ -1171,32 +1171,53 @@ function app() {
                 return;
             }
             
-            try {
-                const res = await auth.deductCredit('dxf', 'export.dxf');
-                if (!res.success) {
-                    if (res.message.includes('credits')) this.showPricingModal = true;
-                    alert(res.message);
+            // Monetization Check
+            window.Monetization.executeProtectedAction(async () => {
+                try {
+                    const res = await auth.deductCredit('dxf', 'export.dxf');
+                    if (!res.success) {
+                        if (res.message.includes('credits')) this.showPricingModal = true;
+                        alert(res.message);
+                        return;
+                    }
+                    this.user = auth.user;
+                } catch (e) {
+                    alert(e.message);
                     return;
                 }
-                this.user = auth.user;
-            } catch (e) {
-                alert(e.message);
-                return;
-            }
 
-            let dxf = "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
-            let scale = 1;
-            if (this.unit === 'cm') scale = 10;
-            else if (this.unit === 'inch') scale = 25.4;
+                let dxf = "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+                let scale = 1;
+                if (this.unit === 'cm') scale = 10;
+                else if (this.unit === 'inch') scale = 25.4;
 
-            this.shapes.forEach(shape => {
-                const shapePts = this.getShapePoints(shape);
-                const ox = parseFloat(shape.x) || 0;
-                const oy = parseFloat(shape.y) || 0;
+                this.shapes.forEach(shape => {
+                    const shapePts = this.getShapePoints(shape);
+                    const ox = parseFloat(shape.x) || 0;
+                    const oy = parseFloat(shape.y) || 0;
 
-                if (shapePts.length > 0) {
-                    dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
-                    shapePts.forEach(p => {
+                    if (shapePts.length > 0) {
+                        dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
+                        shapePts.forEach(p => {
+                            dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
+                            if (p.bulge && p.bulge !== 0) {
+                                dxf += `42\n${p.bulge}\n`;
+                            }
+                        });
+                    }
+                    
+                    const holeR = (parseFloat(shape.holeDiameter)||0) / 2 * scale;
+                    shape.holes.forEach(hole => {
+                        const hx = (hole.x + ox) * scale;
+                        const hy = (hole.y + oy) * scale;
+                        dxf += `0\nCIRCLE\n8\n0\n10\n${hx}\n20\n${hy}\n40\n${holeR}\n`;
+                    });
+                });
+                
+                dxf += "0\nENDSEC\n0\nEOF";
+                this.download(dxf, `design_${Date.now()}.dxf`, "application/dxf");
+            });
+        },
                         dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
                         if (p.bulge && p.bulge !== 0) {
                             dxf += `42\n${p.bulge}\n`;
@@ -1699,7 +1720,26 @@ function app() {
             showForgotPasswordModal: false,
             showHistoryModal: false,
             unit: 'cm',
-            init() {}
+            // Monetization Integration
+            adTimer: 5,
+            showAdModal: false,
+            
+            init() {
+                // Initialize Monetization Listeners
+                window.addEventListener('ad-modal-open', () => {
+                    this.showAdModal = true;
+                    this.adTimer = 5;
+                });
+                
+                window.addEventListener('ad-timer-tick', (e) => {
+                    this.adTimer = e.detail;
+                });
+                
+                window.addEventListener('ad-modal-close', () => {
+                    this.showAdModal = false;
+                });
+
+                // ... existing init logic ...}
         };
     }
 }
