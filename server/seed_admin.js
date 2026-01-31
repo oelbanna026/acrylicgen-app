@@ -5,8 +5,8 @@ const bcrypt = require('bcryptjs');
 const dbPath = path.resolve(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
-const email = 'admin@example.com';
-const password = '123456';
+const email = 'oelbanna026@gmail.com';
+const password = 'Acrylic@2026';
 const hashedPassword = bcrypt.hashSync(password, 8);
 
 db.serialize(() => {
