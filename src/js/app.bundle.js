@@ -1912,6 +1912,9 @@ function app() {
             showForgotPasswordModal: false,
             showHistoryModal: false,
             unit: 'cm',
+            loginForm: { email: '', password: '' },
+            registerForm: { name: '', email: '', password: '' },
+            forgotPasswordEmail: '',
             // Monetization Integration
             adTimer: 5,
             showAdModal: false,
