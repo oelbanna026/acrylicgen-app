@@ -130,7 +130,15 @@
     async googleLogin(credential) {
             try {
                 const data = await this.request('/auth/google', 'POST', { credential });
-                this.setSession(data.token, data.user);
+                // Use setSession if available, or manually set
+                if (typeof this.setSession === 'function') {
+                    this.setSession(data.token, data.user);
+                } else {
+                    this.token = data.token;
+                    this.user = data.user;
+                    localStorage.setItem('token', this.token);
+                    localStorage.setItem('user', JSON.stringify(this.user));
+                }
                 return data.user;
             } catch (e) {
                 console.error("Google Login Failed:", e);
@@ -138,7 +146,14 @@
             }
         },
 
-        async login(email, password) {
+    setSession(token, user) {
+        this.token = token;
+        this.user = user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+    },
+
+    async login(email, password) {
         const data = await this.request('/auth/login', 'POST', { email, password });
         this.token = data.token;
         this.user = data.user;
