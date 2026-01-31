@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 app.use(cors());
 app.use(express.json());
