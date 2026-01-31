@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro</title>
     
     <!-- Version -->
-    <meta name="version" content="1.2.3">
+    <meta name="version" content="1.2.4">
     <meta name="description" content="Acrylic Designer Pro - A professional tool for designing and calculating acrylic sheet costs efficiently.">
 
     <!-- PWA Manifest -->
@@ -573,13 +573,22 @@
                         <span class="text-green-500" x-text="currencySymbol + ' ' + totalPrice"></span>
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2 mb-4">
                         <button @click="exportDXF()" class="py-2 rounded bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold transition flex items-center justify-center gap-1">
                             <span x-text="t('export_dxf')"></span>
                             <!-- Lock Icon for Free users -->
                             <svg x-show="user && user.plan === 'free' && !Monetization.checkLimit()" class="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z"/></svg>
                         </button>
                         <button @click="exportSVG()" class="py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition">SVG</button>
+                    </div>
+
+                    <!-- Legal Links -->
+                    <div class="text-center text-[10px] text-gray-400 flex justify-center gap-3">
+                        <a href="privacy.html" target="_blank" class="hover:underline">Privacy</a>
+                        <span>•</span>
+                        <a href="terms.html" target="_blank" class="hover:underline">Terms</a>
+                        <span>•</span>
+                        <button @click="showAboutModal = true" class="hover:underline">About</button>
                     </div>
                 </div>
             </aside>
@@ -919,6 +928,60 @@
                      </button>
                 </div>
             </div>
+        </div>
+    </div>
+    <!-- About / Landing Modal (For SEO & Content) -->
+    <div x-show="showAboutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl p-8 relative max-h-[90vh] overflow-y-auto" @click.outside="showAboutModal = false">
+            <button @click="showAboutModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            
+            <div class="prose dark:prose-invert max-w-none">
+                <h1 class="text-3xl font-bold mb-4 text-blue-600 dark:text-blue-400">Acrylic Designer Pro</h1>
+                <p class="text-lg mb-6 text-gray-600 dark:text-gray-300">The ultimate professional tool for designing, nesting, and calculating costs for acrylic sheets, laser cutting, and CNC projects.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-blue-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">🚀 Smart Nesting</h3>
+                        <p class="text-sm">Optimize your material usage with our advanced nesting algorithm. Reduce waste and save money on every sheet.</p>
+                    </div>
+                    <div class="bg-green-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">💰 Instant Cost Calculation</h3>
+                        <p class="text-sm">Get real-time pricing based on material area, cutting time, and profit margins. Perfect for quoting clients instantly.</p>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">📐 Precision Design</h3>
+                        <p class="text-sm">Create complex shapes with exact dimensions. Add holes, rounded corners, and custom patterns with ease.</p>
+                    </div>
+                    <div class="bg-orange-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">📂 Export Ready</h3>
+                        <p class="text-sm">Download production-ready DXF and SVG files directly to your laser cutter or CNC machine.</p>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-bold mb-4">How to Use</h2>
+                <ol class="list-decimal pl-5 space-y-2 mb-8">
+                    <li><strong>Add Shapes:</strong> Use the sidebar to add rectangles, circles, or polygons.</li>
+                    <li><strong>Customize:</strong> Adjust dimensions, add holes, or round corners using the properties panel.</li>
+                    <li><strong>Nest:</strong> Open the "Nesting" panel to automatically arrange shapes to fit your sheet size.</li>
+                    <li><strong>Calculate:</strong> Set your material cost and profit margin to see the final price.</li>
+                    <li><strong>Export:</strong> Click "Export DXF" to get your file ready for cutting.</li>
+                </ol>
+
+                <p class="text-sm text-gray-500 mt-8 border-t pt-4">
+                    © 2026 Acrylic Designer Pro. All rights reserved. 
+                    <a href="privacy.html" class="underline">Privacy Policy</a> | <a href="terms.html" class="underline">Terms of Service</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cookie Consent -->
+    <div x-data="{ showCookie: !localStorage.getItem('cookieConsent') }" x-show="showCookie" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 z-[100] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg" x-transition x-cloak>
+        <div class="text-sm">
+            We use cookies to enhance your experience and serve personalized ads. By using our site, you agree to our <a href="privacy.html" class="underline text-blue-300">Privacy Policy</a>.
+        </div>
+        <div class="flex gap-2">
+            <button @click="showCookie = false; localStorage.setItem('cookieConsent', 'true')" class="bg-blue-600 px-4 py-2 rounded text-sm font-bold hover:bg-blue-700">Accept</button>
         </div>
     </div>
 </body>
