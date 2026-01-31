@@ -233,22 +233,6 @@ function app() {
         user: auth.user,
         showSidebar: window.innerWidth >= 768,
         showLoginModal: false,
-
-        init() {
-            // Handle Resize
-            window.addEventListener('resize', () => {
-                if (window.innerWidth >= 768) {
-                    this.showSidebar = true;
-                } else {
-                    this.showSidebar = false;
-                }
-            });
-            
-            // Initial checks
-            if (this.user) this.checkAuth();
-            
-            // ... other init logic if needed
-        },
         showRegisterModal: false,
         showPricingModal: false,
         showDashboardModal: false,
