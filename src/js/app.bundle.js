@@ -1116,7 +1116,7 @@ function app() {
             this.pan.y = (screenH - contentH * this.zoom) / 2 - minY * this.zoom;
         },
 
-        handleWheel(e) {
+        onWheel(e) {
             const factor = Math.pow(1.001, -e.deltaY);
             const newZoom = this.zoom * factor;
             if (newZoom < 0.1 || newZoom > 5000) return;
@@ -1942,7 +1942,7 @@ function app() {
             // Dummy handlers to prevent crashes
             handleMouseMove(e) {},
             onMouseUp(e) {},
-            handleWheel(e) {},
+            onWheel(e) {},
             startPan(e) {},
             panView(e) {},
             endPan(e) {},
