@@ -224,6 +224,11 @@ function app() {
         showAdminModal: false,
         showAboutModal: false,
         showAdModal: false,
+        showPayPalModal: false,
+        payPalAmount: 0,
+        payPalDescription: '',
+        payPalItemType: '', // 'plan' or 'credits'
+        payPalItemValue: '', // plan name or credits amount
         adTimer: 5,
         loginForm: { email: '', password: '' },
         registerForm: { name: '', email: '', password: '' },
@@ -1166,6 +1171,123 @@ function app() {
                  return pts;
             }
             return [];
+        },
+
+        // --- Payment Logic ---
+
+        buyPlan(plan) {
+            if (!this.user) {
+                this.showLoginModal = true;
+                return;
+            }
+            const prices = { 'starter': 3, 'pro': 7, 'business': 30 };
+            this.payPalAmount = prices[plan];
+            this.payPalDescription = `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`;
+            this.payPalItemType = 'plan';
+            this.payPalItemValue = plan;
+            this.showPricingModal = false;
+            this.showPayPalModal = true;
+            this.renderPayPalButton();
+        },
+
+        buyCredits(amount, price) {
+            if (!this.user) {
+                this.showLoginModal = true;
+                return;
+            }
+            this.payPalAmount = price;
+            this.payPalDescription = `Buy ${amount} Exports`;
+            this.payPalItemType = 'credits';
+            this.payPalItemValue = amount;
+            this.showPricingModal = false;
+            this.showPayPalModal = true;
+            this.renderPayPalButton();
+        },
+
+        renderPayPalButton() {
+            const container = document.getElementById('paypal-button-container');
+            container.innerHTML = ''; // Clear previous buttons
+
+            if (window.paypal) {
+                window.paypal.Buttons({
+                    createOrder: (data, actions) => {
+                        return actions.order.create({
+                            purchase_units: [{
+                                description: this.payPalDescription,
+                                amount: {
+                                    value: this.payPalAmount
+                                }
+                            }]
+                        });
+                    },
+                    onApprove: async (data, actions) => {
+                        // Capture the funds from the transaction
+                        const order = await actions.order.capture();
+                        
+                        // Call your server to save the transaction
+                        this.verifyPaymentOnServer(order);
+                    },
+                    onError: (err) => {
+                        console.error(err);
+                        alert('Payment failed. Please try again.');
+                    }
+                }).render('#paypal-button-container');
+            }
+        },
+
+        async verifyPaymentOnServer(order) {
+            this.loading = true;
+            try {
+                // Determine what was bought
+                const payload = {
+                    userId: this.user.id,
+                    orderId: order.id,
+                    amount: this.payPalAmount,
+                    currency: 'USD',
+                    status: order.status,
+                    payerEmail: order.payer.email_address
+                };
+
+                if (this.payPalItemType === 'plan') {
+                    payload.plan = this.payPalItemValue;
+                } else {
+                    payload.credits = this.payPalItemValue;
+                }
+
+                // In a real scenario, we send the orderID to the backend and let the backend verify with PayPal
+                // Here we are sending the captured order details for simplicity, but ideally verify-paypal endpoint should re-fetch
+                
+                const response = await fetch('/api/payment/verify-paypal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Payment successful! Your account has been updated.');
+                    this.showPayPalModal = false;
+                    // Refresh user data
+                    const userRes = await fetch('/api/auth/me', {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                    });
+                    if (userRes.ok) {
+                        this.user = await userRes.json();
+                        auth.user = this.user;
+                    }
+                } else {
+                    alert('Payment verification failed: ' + result.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Server error during verification');
+            } finally {
+                this.loading = false;
+            }
         },
 
         async exportDXF() {
