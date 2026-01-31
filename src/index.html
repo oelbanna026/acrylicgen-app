@@ -255,18 +255,18 @@
                     <div class="flex gap-2 mb-2">
                         <div>
                             <label class="text-[10px] text-gray-500" x-text="t('canvas_w')"></label>
-                            <input type="number" x-model.number="nestingSheetWidth" class="w-full p-1 text-xs rounded border">
+                            <input type="number" x-model.number="nestingSheetWidth" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                         </div>
                         <div>
-                    <label class="text-[10px] text-gray-500" x-text="t('canvas_h')"></label>
-                    <input type="number" x-model.number="nestingSheetHeight" class="w-full p-1 text-xs rounded border">
+                            <label class="text-[10px] text-gray-500" x-text="t('canvas_h')"></label>
+                            <input type="number" x-model.number="nestingSheetHeight" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                 </div>
             </div>
             
             <div class="mb-2">
                 <label class="text-[10px] text-gray-500" x-text="t('nesting_margin')"></label>
                 <div class="relative">
-                     <input type="number" step="0.1" min="0" x-model.number="nestingMargin" class="w-full p-1 text-xs rounded border">
+                     <input type="number" step="0.1" min="0" x-model.number="nestingMargin" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                      <span class="absolute end-2 top-1 text-[10px] text-gray-400 pointer-events-none" x-text="unit"></span>
                 </div>
             </div>
@@ -278,7 +278,7 @@
                     <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('fill_sheet')"></h3>
                     <div class="mb-2">
                         <label class="text-[10px] text-gray-500" x-text="t('fill_count')"></label>
-                        <input type="number" x-model.number="fillCount" placeholder="Auto" class="w-full p-1 text-xs rounded border">
+                        <input type="number" x-model.number="fillCount" placeholder="Auto" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                     </div>
                     <button @click="fillSheet()" class="w-full py-1 bg-blue-500 text-white text-xs font-bold rounded hover:bg-blue-600 transition" x-text="t('fill_btn')"></button>
                 </div>
