@@ -57,11 +57,43 @@ jobs:
             # Disable strict host key checking for this session
             export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
             
-            # Try to navigate to project directory (adjust if needed)
-            cd ACRILIC_GENERATOR || cd acrylic-generator || echo "Project directory not found, cloning..." && git clone https://github.com/${{ github.repository }} ACRILIC_GENERATOR && cd ACRILIC_GENERATOR
+            # Debug info
+            echo "Starting deployment..."
+            echo "Current location: $(pwd)"
+            ls -la
             
-            # Pull and Deploy
+            # Locate Project Directory
+            TARGET_DIR="ACRILIC_GENERATOR"
+            
+            if [ -d "$TARGET_DIR" ]; then
+              echo "Found directory: $TARGET_DIR"
+              cd "$TARGET_DIR"
+            elif [ -d "acrylicgen-app" ]; then
+              echo "Found directory: acrylicgen-app"
+              cd "acrylicgen-app"
+            else
+              echo "Project directory not found. Cloning fresh..."
+              git clone https://github.com/${{ github.repository }} "$TARGET_DIR"
+              cd "$TARGET_DIR"
+            fi
+            
+            echo "Deploying in: $(pwd)"
+            
+            # Force Update Code
             git fetch origin main
             git reset --hard origin/main
-            docker compose up -d --build
-            docker image prune -f
+            
+            # Force Docker Rebuild (No Cache)
+            echo "Stopping existing containers..."
+            docker compose down --remove-orphans || true
+            
+            echo "Rebuilding from scratch..."
+            docker compose build --no-cache
+            
+            echo "Starting services..."
+            docker compose up -d --force-recreate
+            
+            echo "Cleaning up..."
+            docker system prune -f
+            
+            echo "Deployment Complete!"
