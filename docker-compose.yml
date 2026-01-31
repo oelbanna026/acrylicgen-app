@@ -5,7 +5,7 @@ services:
     container_name: acrylic_backend
     restart: unless-stopped
     volumes:
-      - ./server/database.sqlite:/usr/src/app/database.sqlite
+      - ./server/data:/usr/src/app/data
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-super_secret_production_key}
