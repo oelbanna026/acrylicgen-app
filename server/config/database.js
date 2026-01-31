@@ -11,11 +11,24 @@ if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
+// Backup Database on Startup
+if (fs.existsSync(dbPath)) {
+    const backupPath = `${dbPath}.backup`;
+    try {
+        fs.copyFileSync(dbPath, backupPath);
+        console.log(`Database backup created at ${backupPath}`);
+    } catch (err) {
+        console.error('Failed to create database backup:', err);
+    }
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error opening database', err.message);
     } else {
         console.log('Connected to the SQLite database.');
+        // Enable WAL mode for better concurrency
+        db.run('PRAGMA journal_mode = WAL');
         initDb();
     }
 });
