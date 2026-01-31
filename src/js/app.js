@@ -1895,7 +1895,8 @@ function app() {
     }; // Close return object
     } catch (e) {
         console.error("App initialization failed:", e);
-        alert("System Error: " + e.message);
+        if (window.Diagnostics) window.Diagnostics.run();
+        else alert("System Error: " + e.message);
         return {
             t: (k) => k,
             loading: false,
@@ -1931,10 +1932,38 @@ function app() {
                 window.addEventListener('show-upgrade-modal', () => {
                     this.showPricingModal = true;
                 });
-
-
-                // ... existing init logic ...
-            }
+            },
+            
+            // Dummy handlers to prevent crashes
+            handleMouseMove(e) {},
+            handleMouseUp(e) {},
+            handleWheel(e) {},
+            startPan(e) {},
+            panView(e) {},
+            endPan(e) {},
+            startTouch(e) {},
+            moveTouch(e) {},
+            endTouch(e) {},
+            startShapeDrag(e) {},
+            selectShape(id) {},
+            removeShape(id) {},
+            addShape() {},
+            duplicateSelectedShape() {},
+            rotateSelectedShape() {},
+            nestShapes() {},
+            fillSheet() {},
+            zoomIn() {},
+            zoomOut() {},
+            resetView() {},
+            clearAllShapes() {},
+            loadHistory() {},
+            openAdminDashboard() {},
+            logout() {},
+            buyPlan() {},
+            buyCredits() {},
+            getShapePath() { return ''; },
+            getHolesPath() { return ''; },
+            getShapeBoundingBox() { return {minX:0, minY:0, maxX:0, maxY:0, width:0, height:0}; }
         };
     }
 }
