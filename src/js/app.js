@@ -242,6 +242,8 @@ function app() {
         showAboutModal: false,
         showAdModal: false,
         showPayPalModal: false,
+        showNestingPanel: false,
+        showCostSettings: false,
         payPalAmount: 0,
         payPalDescription: '',
         payPalItemType: '', // 'plan' or 'credits'
