@@ -927,8 +927,19 @@ function app() {
 
                 // Google Auth Callback Handler
                 window.handleGoogleCredentialResponse = (response) => {
-                    this.handleGoogleLogin(response.credential);
+                    console.log('Google Auth Response Received:', response);
+                    if (this && typeof this.handleGoogleLogin === 'function') {
+                        this.handleGoogleLogin(response.credential);
+                    } else {
+                        console.error('App context lost or handleGoogleLogin not found. Dispatching event fallback.');
+                        window.dispatchEvent(new CustomEvent('google-auth-success', { detail: response.credential }));
+                    }
                 };
+
+                // Fallback Event Listener
+                window.addEventListener('google-auth-success', (e) => {
+                    this.handleGoogleLogin(e.detail);
+                });
 
                 // Handle Resize
             const updateSidebar = () => {
