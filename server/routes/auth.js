@@ -6,7 +6,7 @@ const db = require('../config/database');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_prod';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'; // Replace with env var in prod
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '848633901532-m8q0ors3lj860dbj2l0ie1gknvepi2h1.apps.googleusercontent.com'; 
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Google Auth
@@ -15,12 +15,14 @@ router.post('/google', async (req, res) => {
     if (!credential) return res.status(400).json({ error: 'No credential provided' });
 
     try {
+        console.log(`Verifying Google Token with Client ID: ${GOOGLE_CLIENT_ID}`);
         // Verify Google Token
         const ticket = await client.verifyIdToken({
             idToken: credential,
             audience: GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
+        console.log("Google Auth Success:", payload.email);
         const { email, name, picture, sub: googleId } = payload;
 
         // Check if user exists
