@@ -926,18 +926,11 @@ function app() {
                 });
 
                 // Google Auth Callback Handler
-                window.handleGoogleCredentialResponse = (response) => {
-                    console.log('Google Auth Response Received:', response);
-                    if (this && typeof this.handleGoogleLogin === 'function') {
-                        this.handleGoogleLogin(response.credential);
-                    } else {
-                        console.error('App context lost or handleGoogleLogin not found. Dispatching event fallback.');
-                        window.dispatchEvent(new CustomEvent('google-auth-success', { detail: response.credential }));
-                    }
-                };
-
+                // Handled globally outside Alpine to avoid scope issues
+                
                 // Fallback Event Listener
                 window.addEventListener('google-auth-success', (e) => {
+                    console.log('Alpine caught google-auth-success event', e.detail);
                     this.handleGoogleLogin(e.detail);
                 });
 
@@ -2010,4 +2003,14 @@ function app() {
     }
 }
 window.app = app;
+    // Expose app function globally
+    window.app = app;
+
+    // Setup Google Auth Handler Outside Alpine Scope
+    window.handleGoogleCredentialResponse = (response) => {
+        console.log('Google Auth Response Received (Global):', response);
+        // Dispatch event for Alpine to catch
+        window.dispatchEvent(new CustomEvent('google-auth-success', { detail: response.credential }));
+    };
+
 })();
