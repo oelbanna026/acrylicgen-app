@@ -399,7 +399,8 @@ function app() {
                 this.user = auth.user;
                 this.showLoginModal = false;
                 this.showRegisterModal = false;
-                alert('Logged in with Google successfully!');
+                // alert('Logged in with Google successfully!');
+                console.log('Logged in with Google successfully!');
             } catch (e) {
                 alert('Google Login Failed: ' + e.message);
             } finally {
