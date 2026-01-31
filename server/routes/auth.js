@@ -56,7 +56,30 @@ router.post('/google', async (req, res) => {
                 db.run(`INSERT INTO users (name, email, password, credits, plan, role) VALUES (?, ?, ?, 5, 'free', 'user')`, 
                     [name, email, hashedPassword], 
                     function(err) {
-                        if (err) return res.status(500).json({ error: err.message });
+                        if (err) {
+                            if (err.message.includes('UNIQUE constraint failed')) {
+                                // Race condition handling: If insert failed because user was created just now by another request
+                                db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
+                                    if (user) {
+                                         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
+                                         return res.status(200).json({
+                                             token,
+                                             user: {
+                                                 id: user.id,
+                                                 name: user.name,
+                                                 email: user.email,
+                                                 credits: user.credits,
+                                                 plan: user.plan,
+                                                 role: user.role
+                                             }
+                                         });
+                                    }
+                                    return res.status(500).json({ error: 'Database Error: Duplicate email but user not found.' });
+                                });
+                                return;
+                            }
+                            return res.status(500).json({ error: err.message });
+                        }
                         
                         const newUserId = this.lastID;
                         const token = jwt.sign({ id: newUserId }, JWT_SECRET, { expiresIn: '24h' });
