@@ -1,10 +1,84 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const db = require('../config/database');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_prod';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'; // Replace with env var in prod
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// Google Auth
+router.post('/google', async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'No credential provided' });
+
+    try {
+        // Verify Google Token
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const { email, name, picture, sub: googleId } = payload;
+
+        // Check if user exists
+        db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            if (user) {
+                // User exists -> Login
+                
+                // Optional: Update Google ID if missing
+                // db.run(`UPDATE users SET google_id = ? WHERE id = ?`, [googleId, user.id]);
+
+                const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
+                return res.status(200).json({
+                    token,
+                    user: {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        credits: user.credits,
+                        plan: user.plan,
+                        role: user.role
+                    }
+                });
+            } else {
+                // User does not exist -> Register
+                // Generate random password for DB constraints
+                const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+                const hashedPassword = bcrypt.hashSync(randomPassword, 8);
+
+                db.run(`INSERT INTO users (name, email, password, credits, plan, role) VALUES (?, ?, ?, 5, 'free', 'user')`, 
+                    [name, email, hashedPassword], 
+                    function(err) {
+                        if (err) return res.status(500).json({ error: err.message });
+                        
+                        const newUserId = this.lastID;
+                        const token = jwt.sign({ id: newUserId }, JWT_SECRET, { expiresIn: '24h' });
+                        
+                        return res.status(201).json({
+                            token,
+                            user: {
+                                id: newUserId,
+                                name: name,
+                                email: email,
+                                credits: 5,
+                                plan: 'free',
+                                role: 'user'
+                            }
+                        });
+                });
+            }
+        });
+
+    } catch (e) {
+        console.error("Google Auth Error:", e);
+        res.status(400).json({ error: 'Invalid Google Token' });
+    }
+});
 
 // Register
 router.post('/register', (req, res) => {
