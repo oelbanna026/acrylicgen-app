@@ -93,8 +93,26 @@
             }
         },
 
+        // Load AdSense Script Lazy
+        loadAdScript() {
+            if (this.adScriptLoaded) return;
+            
+            // console.log('Lazy loading AdSense script...');
+            const script = document.createElement('script');
+            script.async = true;
+            // TODO: Replace with your actual AdSense Publisher ID
+            script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX";
+            script.crossOrigin = "anonymous";
+            document.head.appendChild(script);
+            
+            this.adScriptLoaded = true;
+        },
+
         // Show Ad Modal
         showAd(callback) {
+            // Lazy load the script when ad is first requested
+            this.loadAdScript();
+
             this.adCallback = callback;
             this.adTimer = 5;
             this.showAdModal = true;
