@@ -212,13 +212,23 @@ function app() {
         });
     
         return {
-            // Expose Translation Helper
-            t(key) {
-                const lang = this.lang || 'ar';
-                return i18n[lang][key] || key;
-            },
+        // Expose Translation Helper
+        t(key) {
+            // Ensure lang is set
+            const lang = this.lang || 'ar';
+            // Access i18n safely
+            if (i18n && i18n[lang] && i18n[lang][key]) {
+                return i18n[lang][key];
+            }
+            // Fallback to English if key missing in current lang
+            if (i18n && i18n['en'] && i18n['en'][key]) {
+                return i18n['en'][key];
+            }
+            // Fallback to key itself
+            return key;
+        },
 
-            // System State
+        // System State
             loading: true,
             user: auth.user,
         showLoginModal: false,
