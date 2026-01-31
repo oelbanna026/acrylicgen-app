@@ -1547,7 +1547,7 @@ function app() {
             }
         },
 
-        handleMouseUp(e) {
+        onMouseUp(e) {
             this.isDraggingShape = false;
             this.draggedShapeId = null;
             this.endPan();
@@ -1938,7 +1938,7 @@ function app() {
             
             // Dummy handlers to prevent crashes
             handleMouseMove(e) {},
-            handleMouseUp(e) {},
+            onMouseUp(e) {},
             handleWheel(e) {},
             startPan(e) {},
             panView(e) {},
