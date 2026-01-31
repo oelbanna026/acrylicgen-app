@@ -1898,26 +1898,6 @@ function app() {
                 // ... existing init logic ...
             }
         };
-    } catch (e) {
-        console.error("App initialization failed:", e);
-        alert("System Error: " + e.message);
-        return {
-            t: (k) => k,
-            loading: false,
-            shapes: [],
-            user: null,
-            showPricingModal: false,
-            showLoginModal: false,
-            showRegisterModal: false,
-            showDashboardModal: false,
-            showAdminModal: false,
-            showForgotPasswordModal: false,
-            showHistoryModal: false,
-            unit: 'cm',
-            adTimer: 5,
-            showAdModal: false,
-            init() {}
-        };
     }
 }
 window.app = app;

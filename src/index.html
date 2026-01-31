@@ -236,7 +236,7 @@
                     </div>
                 </template>
 
-                <select x-model="currency" class="px-2 py-1 rounded border text-sm font-bold transition"
+                <select id="currency-select" name="currency" aria-label="Currency" x-model="currency" class="px-2 py-1 rounded border text-sm font-bold transition"
                         style="background-color: var(--input-bg); border-color: var(--border); color: var(--text-main);">
                     <template x-for="c in currencies">
                         <option :value="c.code" x-text="c.code"></option>
@@ -300,19 +300,19 @@
                     <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('nesting_settings')"></h3>
                     <div class="flex gap-2 mb-2">
                         <div>
-                            <label class="text-[10px] text-gray-500" x-text="t('canvas_w')"></label>
-                            <input type="number" x-model.number="nestingSheetWidth" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
+                            <label for="nesting-width" class="text-[10px] text-gray-500" x-text="t('canvas_w')"></label>
+                            <input id="nesting-width" name="nestingWidth" type="number" x-model.number="nestingSheetWidth" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500" x-text="t('canvas_h')"></label>
-                            <input type="number" x-model.number="nestingSheetHeight" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
-                </div>
+                            <label for="nesting-height" class="text-[10px] text-gray-500" x-text="t('canvas_h')"></label>
+                            <input id="nesting-height" name="nestingHeight" type="number" x-model.number="nestingSheetHeight" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
+                        </div>
             </div>
             
             <div class="mb-2">
-                <label class="text-[10px] text-gray-500" x-text="t('nesting_margin')"></label>
+                <label for="nesting-margin" class="text-[10px] text-gray-500" x-text="t('nesting_margin')"></label>
                 <div class="relative">
-                     <input type="number" step="0.1" min="0" x-model.number="nestingMargin" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
+                     <input id="nesting-margin" name="nestingMargin" type="number" step="0.1" min="0" x-model.number="nestingMargin" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                      <span class="absolute end-2 top-1 text-[10px] text-gray-400 pointer-events-none" x-text="unit"></span>
                 </div>
             </div>
@@ -323,8 +323,8 @@
                     
                     <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('fill_sheet')"></h3>
                     <div class="mb-2">
-                        <label class="text-[10px] text-gray-500" x-text="t('fill_count')"></label>
-                        <input type="number" x-model.number="fillCount" placeholder="Auto" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
+                        <label for="fill-count" class="text-[10px] text-gray-500" x-text="t('fill_count')"></label>
+                        <input id="fill-count" name="fillCount" type="number" x-model.number="fillCount" placeholder="Auto" class="w-full p-1 text-xs rounded border bg-white dark:bg-slate-700 dark:text-white dark:border-slate-600 text-gray-900">
                     </div>
                     <button @click="fillSheet()" class="w-full py-1 bg-blue-500 text-white text-xs font-bold rounded hover:bg-blue-600 transition" x-text="t('fill_btn')"></button>
                 </div>
@@ -397,16 +397,16 @@
                         <!-- Position -->
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('x_pos')"></label>
+                                <label for="pos-x" class="block text-xs mb-1" x-text="t('x_pos')"></label>
                                 <div class="relative">
-                                    <input type="number" step="0.5" x-model.number="x" class="form-input w-full p-2 rounded text-sm">
+                                    <input id="pos-x" name="posX" type="number" step="0.5" x-model.number="x" class="form-input w-full p-2 rounded text-sm">
                                     <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('y_pos')"></label>
+                                <label for="pos-y" class="block text-xs mb-1" x-text="t('y_pos')"></label>
                                 <div class="relative">
-                                    <input type="number" step="0.5" x-model.number="y" class="form-input w-full p-2 rounded text-sm">
+                                    <input id="pos-y" name="posY" type="number" step="0.5" x-model.number="y" class="form-input w-full p-2 rounded text-sm">
                                     <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                 </div>
                             </div>
@@ -414,16 +414,16 @@
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('width')"></label>
+                                <label for="shape-width" class="block text-xs mb-1" x-text="t('width')"></label>
                                 <div class="relative">
-                                    <input type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="width" class="form-input w-full p-2 rounded text-sm">
+                                    <input id="shape-width" name="shapeWidth" type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="width" class="form-input w-full p-2 rounded text-sm">
                                     <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('height')"></label>
+                                <label for="shape-height" class="block text-xs mb-1" x-text="t('height')"></label>
                                 <div class="relative">
-                                    <input type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="height" class="form-input w-full p-2 rounded text-sm">
+                                    <input id="shape-height" name="shapeHeight" type="number" :min="limits.min" :max="limits.max" :step="limits.step" x-model.number="height" class="form-input w-full p-2 rounded text-sm">
                                     <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                 </div>
                             </div>
@@ -431,8 +431,8 @@
 
                         <!-- Shape Selection -->
                         <div class="mt-4">
-                            <label class="block text-xs mb-1" x-text="t('shape')"></label>
-                            <select x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
+                            <label for="shape-type" class="block text-xs mb-1" x-text="t('shape')"></label>
+                            <select id="shape-type" name="shapeType" x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="rectangle" x-text="t('shape_rect')"></option>
                                 <option value="oval" x-text="t('shape_oval')"></option>
                                 <option value="pentagon" x-text="t('shape_pentagon')"></option>
@@ -448,17 +448,18 @@
                     <div x-show="shapeType === 'rectangle'" x-transition>
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('corners')"></h3>
                         <div class="mb-3">
-                            <select x-model="cornerType" class="form-input w-full p-2 rounded text-sm">
+                            <label for="corner-type" class="sr-only">Corner Type</label>
+                            <select id="corner-type" name="cornerType" x-model="cornerType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="straight" x-text="t('straight')"></option>
                                 <option value="rounded" x-text="t('rounded')"></option>
                             </select>
                         </div>
                         <div x-show="cornerType === 'rounded'" x-transition class="mt-2">
                             <div class="flex justify-between mb-1">
-                                <label class="text-xs" x-text="t('radius')"></label>
+                                <label for="corner-radius" class="text-xs" x-text="t('radius')"></label>
                                 <span class="text-xs font-mono" x-text="cornerRadius + ' ' + unit"></span>
                             </div>
-                            <input type="range" :min="0" :max="Math.min(width, height)/2" :step="limits.step" x-model.number="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            <input id="corner-radius" name="cornerRadius" type="range" :min="0" :max="Math.min(width, height)/2" :step="limits.step" x-model.number="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
                         <hr class="mt-4" style="border-color: var(--border)">
                     </div>
@@ -469,7 +470,8 @@
                     <div>
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('holes')"></h3>
                         <div class="mb-3">
-                            <select x-model="holePattern" class="form-input w-full p-2 rounded text-sm">
+                            <label for="hole-pattern" class="sr-only">Hole Pattern</label>
+                            <select id="hole-pattern" name="holePattern" x-model="holePattern" class="form-input w-full p-2 rounded text-sm">
                                 <option value="none" x-text="t('no_holes')"></option>
                                 <option value="corners" x-text="t('corners_4')"></option>
                                 <option value="corners_mid" x-text="t('side_6')"></option>
@@ -479,26 +481,26 @@
                         
                         <div x-show="holePattern === 'custom'" class="mb-3" x-transition>
                              <div class="flex justify-between mb-1">
-                                <label class="text-xs" x-text="t('hole_count')"></label>
+                                <label for="hole-count" class="text-xs" x-text="t('hole_count')"></label>
                                 <span class="text-xs font-mono" x-text="holeCount"></span>
                              </div>
-                             <input type="range" min="1" max="100" step="1" x-model.number="holeCount" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                             <input id="hole-count" name="holeCount" type="range" min="1" max="100" step="1" x-model.number="holeCount" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
 
                         <div x-show="holePattern !== 'none'" x-transition class="grid grid-cols-1 gap-4">
                             <div>
                                 <div class="flex justify-between mb-1">
-                                    <label class="text-xs" x-text="t('diameter')"></label>
+                                    <label for="hole-diameter" class="text-xs" x-text="t('diameter')"></label>
                                     <span class="text-xs font-mono" x-text="holeDiameter + ' ' + unit"></span>
                                 </div>
-                                <input type="range" :min="limits.holeMin" :max="limits.holeMax" :step="limits.holeStep" x-model.number="holeDiameter" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                                <input id="hole-diameter" name="holeDiameter" type="range" :min="limits.holeMin" :max="limits.holeMax" :step="limits.holeStep" x-model.number="holeDiameter" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             </div>
                             <div>
                                 <div class="flex justify-between mb-1">
-                                    <label class="text-xs" x-text="t('margin')"></label>
+                                    <label for="hole-margin" class="text-xs" x-text="t('margin')"></label>
                                     <span class="text-xs font-mono" x-text="holeMargin + ' ' + unit"></span>
                                 </div>
-                                <input type="range" :min="0" :max="Math.min(width, height)/3" :step="limits.step" x-model.number="holeMargin" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                                <input id="hole-margin" name="holeMargin" type="range" :min="0" :max="Math.min(width, height)/3" :step="limits.step" x-model.number="holeMargin" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             </div>
                         </div>
                     </div>
@@ -516,15 +518,15 @@
                         
                         <div x-ref="costSettings" class="hidden space-y-3 pt-2">
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('sheet_dims')"></label>
+                                <label for="cost-sheet-width" class="block text-xs mb-1" x-text="t('sheet_dims')"></label>
                                 <div class="flex gap-2">
-                                    <input type="number" x-model.number="sheetWidth" class="form-input w-full p-2 rounded text-sm" placeholder="W">
-                                    <input type="number" x-model.number="sheetHeight" class="form-input w-full p-2 rounded text-sm" placeholder="H">
+                                    <input id="cost-sheet-width" name="sheetWidth" aria-label="Sheet Width" type="number" x-model.number="sheetWidth" class="form-input w-full p-2 rounded text-sm" placeholder="W">
+                                    <input id="cost-sheet-height" name="sheetHeight" aria-label="Sheet Height" type="number" x-model.number="sheetHeight" class="form-input w-full p-2 rounded text-sm" placeholder="H">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('sheet_price')"></label>
-                                <input type="number" min="0" x-model.number="sheetPrice" class="form-input w-full p-2 rounded text-sm">
+                                <label for="cost-sheet-price" class="block text-xs mb-1" x-text="t('sheet_price')"></label>
+                                <input id="cost-sheet-price" name="sheetPrice" type="number" min="0" x-model.number="sheetPrice" class="form-input w-full p-2 rounded text-sm">
                             </div>
                             
                             <!-- Area Info -->
@@ -544,16 +546,16 @@
                             </div>
 
                              <div>
-                                <label class="block text-xs mb-1" x-text="t('thickness_mm')"></label>
-                                <input type="number" min="0" step="0.1" x-model.number="thickness" class="form-input w-full p-2 rounded text-sm">
+                                <label for="cost-thickness" class="block text-xs mb-1" x-text="t('thickness_mm')"></label>
+                                <input id="cost-thickness" name="thickness" type="number" min="0" step="0.1" x-model.number="thickness" class="form-input w-full p-2 rounded text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('cutting_price_hr')"></label>
-                                <input type="number" min="0" x-model.number="cuttingPricePerHour" class="form-input w-full p-2 rounded text-sm">
+                                <label for="cost-cutting" class="block text-xs mb-1" x-text="t('cutting_price_hr')"></label>
+                                <input id="cost-cutting" name="cuttingPrice" type="number" min="0" x-model.number="cuttingPricePerHour" class="form-input w-full p-2 rounded text-sm">
                             </div>
                             <div>
-                                <label class="block text-xs mb-1" x-text="t('profit_margin')"></label>
-                                <input type="number" min="0" x-model.number="profitMargin" class="form-input w-full p-2 rounded text-sm">
+                                <label for="cost-profit" class="block text-xs mb-1" x-text="t('profit_margin')"></label>
+                                <input id="cost-profit" name="profitMargin" type="number" min="0" x-model.number="profitMargin" class="form-input w-full p-2 rounded text-sm">
                             </div>
                         </div>
                     </div>
@@ -728,12 +730,12 @@
             <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
             <form @submit.prevent="login">
                 <div class="mb-4">
-                    <label class="block text-sm font-bold mb-2">Email</label>
-                    <input type="email" x-model="loginForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="login-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input id="login-email" name="email" type="email" x-model="loginForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <div class="mb-6">
-                    <label class="block text-sm font-bold mb-2">Password</label>
-                    <input type="password" x-model="loginForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="login-password" class="block text-sm font-bold mb-2">Password</label>
+                    <input id="login-password" name="password" type="password" x-model="loginForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Login</button>
             </form>
@@ -751,8 +753,8 @@
             <h2 class="text-2xl font-bold mb-6 text-center" x-text="t('forgot_password')"></h2>
             <form @submit.prevent="forgotPassword">
                 <div class="mb-6">
-                    <label class="block text-sm font-bold mb-2">Email</label>
-                    <input type="email" x-model="forgotPasswordEmail" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="forgot-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input id="forgot-email" name="email" type="email" x-model="forgotPasswordEmail" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition" x-text="t('send_reset_link')"></button>
             </form>
@@ -769,16 +771,16 @@
             <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
             <form @submit.prevent="register">
                 <div class="mb-4">
-                    <label class="block text-sm font-bold mb-2">Name</label>
-                    <input type="text" x-model="registerForm.name" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="register-name" class="block text-sm font-bold mb-2">Name</label>
+                    <input id="register-name" name="name" type="text" x-model="registerForm.name" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm font-bold mb-2">Email</label>
-                    <input type="email" x-model="registerForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="register-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input id="register-email" name="email" type="email" x-model="registerForm.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <div class="mb-6">
-                    <label class="block text-sm font-bold mb-2">Password</label>
-                    <input type="password" x-model="registerForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                    <label for="register-password" class="block text-sm font-bold mb-2">Password</label>
+                    <input id="register-password" name="password" type="password" x-model="registerForm.password" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
                 </div>
                 <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Create Account</button>
             </form>

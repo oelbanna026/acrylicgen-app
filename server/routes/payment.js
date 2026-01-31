@@ -4,8 +4,8 @@ const db = require('../config/database');
 // const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Future
 
 // PayPal Config
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'ATp1IFI6cxnoSWuZ1HpWOoj9xwUk8Og8IWoazQ3g1UodjOfj9iW6L0mjcYxdak4_7LpXGAVjrMVWWrGz';
-const PAYPAL_SECRET = process.env.PAYPAL_SECRET || 'EJW5thW2OEPr_dUQMUAswGoGOPOb-na4s8KNVQqKOyrc0yCJzqddal-eFDK9ZVcNtKoWd41JxLw7u10r';
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
 const PAYPAL_API = 'https://api-m.sandbox.paypal.com'; // Use 'https://api-m.paypal.com' for Live
 
 // Helper to get PayPal Access Token
