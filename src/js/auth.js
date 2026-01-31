@@ -38,9 +38,18 @@
                     headers,
                     body: body ? JSON.stringify(body) : null
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || data.message || 'Request failed');
-                return data;
+
+                // Check content type
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || data.message || 'Request failed');
+                    return data;
+                } else {
+                    const text = await res.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error(`Server Error (${res.status}): Please check console for details.`);
+                }
             } catch (e) {
                 // console.error('API Error:', e);
                 throw e;
