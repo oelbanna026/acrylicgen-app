@@ -229,8 +229,9 @@ function app() {
         },
 
         // System State
-            loading: true,
-            user: auth.user,
+        loading: true,
+        user: auth.user,
+        showSidebar: window.innerWidth >= 768,
         showLoginModal: false,
         showRegisterModal: false,
         showPricingModal: false,
@@ -503,6 +504,7 @@ function app() {
                 this.user = auth.user;
                 alert('Plan upgraded successfully!');
                 this.showPricingModal = false;
+                window.trackEvent('purchase', { item: plan, type: 'subscription' });
             } catch (e) {
                 alert(e.message);
             }
@@ -515,6 +517,7 @@ function app() {
                 this.user = auth.user;
                 alert('Credits purchased successfully!');
                 this.showPricingModal = false;
+                window.trackEvent('purchase', { item: amount + '_credits', type: 'credits' });
             } catch (e) {
                 alert(e.message);
             }
