@@ -1028,8 +1028,19 @@ function app() {
         toggleLang() { this.lang = this.lang === 'ar' ? 'en' : 'ar'; },
         
         hardReset() {
-            if(confirm(this.lang==='ar' ? 'هل أنت متأكد؟' : 'Are you sure?')) {
+            if(confirm(this.lang==='ar' ? 'هل أنت متأكد؟ سيتم إعادة ضبط الإعدادات فقط.' : 'Are you sure? Only settings will be reset.')) {
+                // Preserve Auth & Important Data
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+                const cookieConsent = localStorage.getItem('cookieConsent');
+
                 localStorage.clear();
+
+                // Restore Auth
+                if (token) localStorage.setItem('token', token);
+                if (user) localStorage.setItem('user', user);
+                if (cookieConsent) localStorage.setItem('cookieConsent', cookieConsent);
+
                 window.location.reload();
             }
         },
