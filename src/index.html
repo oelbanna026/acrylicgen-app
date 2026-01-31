@@ -301,12 +301,12 @@
                  class="fixed inset-0 bg-black/50 z-20 md:hidden" x-cloak></div>
 
             <!-- Sidebar -->
-            <aside id="sidebar-panel" class="w-80 flex flex-col border-e overflow-y-auto transition-transform duration-300 z-30 shadow-xl absolute md:relative h-full shrink-0 top-0"
+            <aside id="sidebar-panel" class="w-80 flex flex-col border-e overflow-y-auto transition-transform duration-300 z-30 shadow-xl absolute md:static top-0 h-full shrink-0"
                    :class="{
                        'translate-x-0': showSidebar,
                        '-translate-x-full': !showSidebar && lang !== 'ar', 
                        'translate-x-full': !showSidebar && lang === 'ar',
-                       'md:translate-x-0': true,
+                       'md:transform-none': true,
                        'border-r': lang !== 'ar', 
                        'border-l': lang === 'ar',
                        'left-0': lang !== 'ar',
