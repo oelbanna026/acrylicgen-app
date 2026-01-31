@@ -50,7 +50,8 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          # key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             # Try to navigate to project directory (adjust if needed)
             cd ACRILIC_GENERATOR || cd acrylic-generator || echo "Project directory not found, cloning..." && git clone https://github.com/${{ github.repository }} ACRILIC_GENERATOR && cd ACRILIC_GENERATOR
