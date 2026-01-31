@@ -105,7 +105,7 @@
     <script defer src="js/tour.js?v=22"></script>
     <script defer src="js/monetization.js?v=22"></script>
     <script defer src="js/diagnostics.js?v=2"></script>
-    <script defer src="js/app.bundle.js?v=8"></script>
+    <script defer src="js/app.bundle.js?v=9"></script>
     
     <!-- Alpine.js (Must load after app.js) -->
     <script defer src="vendor/alpine.min.js"></script>
@@ -675,13 +675,13 @@
                   :class="{'cursor-move': isDraggingShape}"
                   x-ref="canvas"
                   @wheel.prevent="onWheel"
-                  @mousedown="startPan"
-                  @mousemove="handleMouseMove"
+                  @mousedown="onStartPan"
+                  @mousemove="onMouseMove"
                   @mouseup="onMouseUp"
                   @mouseleave="onMouseUp"
-                  @touchstart.prevent="startTouch"
-                  @touchmove.prevent="moveTouch"
-                  @touchend="endTouch">
+                  @touchstart.prevent="onStartTouch"
+                  @touchmove.prevent="onMoveTouch"
+                  @touchend="onEndTouch">
                 
                 <!-- SVG Canvas -->
                 <svg x-ref="svg" 
