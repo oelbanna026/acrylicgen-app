@@ -5,7 +5,7 @@ services:
     container_name: acrylic_backend
     restart: unless-stopped
     volumes:
-      - ./server/data:/usr/src/app/data
+      - acrylic_data:/usr/src/app/data
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-super_secret_production_key}
@@ -32,3 +32,6 @@ services:
 networks:
   acrylic_net:
     driver: bridge
+
+volumes:
+  acrylic_data:
