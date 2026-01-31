@@ -1214,82 +1214,84 @@ function app() {
                     });
                 });
                 
+                // Add Watermark for Free Plan
+                const plan = window.Monetization.getUserPlan();
+                if (plan.watermark) {
+                     const dims = this.designDimensions;
+                     const cx = ((dims.minX + dims.maxX) / 2) * scale;
+                     const cy = ((dims.minY + dims.maxY) / 2) * scale;
+                     const h = Math.max(dims.height * 0.05, 5) * scale; // 5% of height
+                     
+                     dxf += `0\nTEXT\n8\nWATERMARK\n62\n9\n10\n${cx}\n20\n${cy}\n40\n${h}\n1\nCreated with AcrylicGen Free\n72\n4\n11\n${cx}\n21\n${cy}\n`;
+                }
+
                 dxf += "0\nENDSEC\n0\nEOF";
                 this.download(dxf, `design_${Date.now()}.dxf`, "application/dxf");
             });
         },
-                        dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
-                        if (p.bulge && p.bulge !== 0) {
-                            dxf += `42\n${p.bulge}\n`;
-                        }
-                    });
-                }
-                
-                const holeR = (parseFloat(shape.holeDiameter)||0) / 2 * scale;
-                shape.holes.forEach(hole => {
-                    const hx = (hole.x + ox) * scale;
-                    const hy = (hole.y + oy) * scale;
-                    dxf += `0\nCIRCLE\n8\n0\n10\n${hx}\n20\n${hy}\n40\n${holeR}\n`;
-                });
-            });
-            
-            dxf += "0\nENDSEC\n0\nEOF";
-            this.download(dxf, "design.dxf", "application/dxf");
-        },
-        
+
         async exportSVG() {
             if (!this.user) {
                 this.showLoginModal = true;
                 return;
             }
 
-            try {
-                const res = await auth.deductCredit('svg', 'export.svg');
-                if (!res.success) {
-                    if (res.message.includes('credits')) this.showPricingModal = true;
-                    alert(res.message);
+            // Monetization Check
+            window.Monetization.executeProtectedAction(async () => {
+                try {
+                    const res = await auth.deductCredit('svg', 'export.svg');
+                    if (!res.success) {
+                        if (res.message.includes('credits')) this.showPricingModal = true;
+                        alert(res.message);
+                        return;
+                    }
+                    this.user = auth.user;
+                } catch (e) {
+                    alert(e.message);
                     return;
                 }
-                this.user = auth.user;
-            } catch (e) {
-                alert(e.message);
-                return;
-            }
-
-            // Calculate bounding box for SVG viewbox
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            this.shapes.forEach(s => {
-                const x = parseFloat(s.x) || 0;
-                const y = parseFloat(s.y) || 0;
-                const w = parseFloat(s.width) || 0;
-                const h = parseFloat(s.height) || 0;
-                minX = Math.min(minX, x);
-                minY = Math.min(minY, y);
-                maxX = Math.max(maxX, x + w);
-                maxY = Math.max(maxY, y + h);
-            });
-            
-            if (minX === Infinity) { minX = 0; minY = 0; maxX = 50; maxY = 30; }
-            
-            const totalW = maxX - minX;
-            const totalH = maxY - minY;
-
-            let svgContent = '';
-            this.shapes.forEach(shape => {
-                const ox = (parseFloat(shape.x) || 0) - minX; // Normalize to 0,0 based on min
-                const oy = (parseFloat(shape.y) || 0) - minY;
+    
+                // Calculate bounding box for SVG viewbox
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                this.shapes.forEach(s => {
+                    const x = parseFloat(s.x) || 0;
+                    const y = parseFloat(s.y) || 0;
+                    const w = parseFloat(s.width) || 0;
+                    const h = parseFloat(s.height) || 0;
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + w);
+                    maxY = Math.max(maxY, y + h);
+                });
                 
-                svgContent += `<g transform="translate(${ox}, ${oy})">
-                    <path d="${this.getShapePath(shape)}" fill="none" stroke="black" stroke-width="0.5" />
-                    <path d="${this.getHolesPath(shape)}" fill="none" stroke="red" stroke-width="0.5" />
-                </g>`;
+                if (minX === Infinity) { minX = 0; minY = 0; maxX = 50; maxY = 30; }
+                
+                const totalW = maxX - minX;
+                const totalH = maxY - minY;
+    
+                let svgContent = '';
+                this.shapes.forEach(shape => {
+                    const ox = (parseFloat(shape.x) || 0) - minX; // Normalize to 0,0 based on min
+                    const oy = (parseFloat(shape.y) || 0) - minY;
+                    
+                    svgContent += `<g transform="translate(${ox}, ${oy})">
+                        <path d="${this.getShapePath(shape)}" fill="none" stroke="black" stroke-width="0.5" />
+                        <path d="${this.getHolesPath(shape)}" fill="none" stroke="red" stroke-width="0.5" />
+                    </g>`;
+                });
+    
+                // Add Watermark for Free Plan
+                const plan = window.Monetization.getUserPlan();
+                if (plan.watermark) {
+                    svgContent += `<text x="${totalW/2}" y="${totalH/2}" text-anchor="middle" fill="rgba(0,0,0,0.1)" font-size="${Math.max(totalH/20, 2)}" transform="rotate(-45, ${totalW/2}, ${totalH/2})">Created with AcrylicGen Free</text>`;
+                }
+    
+                const svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${totalW}${this.unit}" height="${totalH}${this.unit}" viewBox="0 0 ${totalW} ${totalH}">
+      ${svgContent}
+    </svg>`;
+                this.download(svg, "design.svg", "image/svg+xml");
             });
-
-            const svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}${this.unit}" height="${totalH}${this.unit}" viewBox="0 0 ${totalW} ${totalH}">
-  ${svgContent}
-</svg>`;
-            this.download(svg, "design.svg", "image/svg+xml");
         },
 
         download(content, name, type) {
@@ -1523,179 +1525,187 @@ function app() {
         fillSheet() {
             if (!this.activeShape) return;
             
-            const shape = this.activeShape;
-            // Use Bounding Box for dimensions to support rotation
-            const dummy = JSON.parse(JSON.stringify(shape));
-            dummy.x = 0; dummy.y = 0;
-            const box = this.getShapeBoundingBox(dummy);
-            
-            const w = box.width;
-            const h = box.height;
-            
-            if (w <= 0 || h <= 0) return;
-
-            const sheetW = parseFloat(this.nestingSheetWidth) || 1000;
-            const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
-            const margin = parseFloat(this.nestingMargin) || 0;
-
-            let countToAdd = 0;
-
-            if (this.fillCount && this.fillCount > 0) {
-                countToAdd = parseInt(this.fillCount);
-            } else {
-                // Auto calculation
-                // Capacity = (SheetW + Margin) / (ShapeW + Margin)
-                // Using floor to be safe
-                const cols = Math.floor((sheetW + margin) / (w + margin));
-                const rows = Math.floor((sheetH + margin) / (h + margin));
-                const maxPossible = cols * rows;
+            window.Monetization.executeProtectedAction(() => {
+                const shape = this.activeShape;
+                // Use Bounding Box for dimensions to support rotation
+                const dummy = JSON.parse(JSON.stringify(shape));
+                dummy.x = 0; dummy.y = 0;
+                const box = this.getShapeBoundingBox(dummy);
                 
-                // Subtract existing shapes to avoid overflow
-                // We assume user wants to fill the board to capacity
-                const currentCount = this.shapes.length;
-                countToAdd = Math.max(0, maxPossible - currentCount);
-
-                // Limit to avoid browser crash
-                countToAdd = Math.min(countToAdd, 500); 
-            }
-
-            if (countToAdd <= 0) return;
-
-            if (countToAdd > 100) {
-                if (!confirm(this.t('fill_warning'))) return;
-            }
-
-            this.loading = true;
-            
-            // Use setTimeout to allow UI to update loading state
-            setTimeout(() => {
-                for (let i = 0; i < countToAdd; i++) {
-                    const copy = JSON.parse(JSON.stringify(shape));
-                    copy.id = Date.now() + i;
-                    copy.name = shape.name + ' (' + (i+1) + ')';
-                    // Initial position doesn't matter, nestShapes will fix it
-                    copy.x = 0; 
-                    copy.y = 0;
-                    this.shapes.push(copy);
-                }
+                const w = box.width;
+                const h = box.height;
                 
-                // Run nesting immediately
-                this.nestShapes();
-                // nestShapes will handle loading = false
-            }, 50);
-        },
-
-        nestShapes() {
-            if (this.shapes.length === 0) return;
-            this.loading = true;
-
-            // Simulate async for UI update
-            setTimeout(() => {
-                const margin = parseFloat(this.nestingMargin) || 0;
+                if (w <= 0 || h <= 0) return;
+    
                 const sheetW = parseFloat(this.nestingSheetWidth) || 1000;
                 const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
+                const margin = parseFloat(this.nestingMargin) || 0;
+    
+                let countToAdd = 0;
+    
+                if (this.fillCount && this.fillCount > 0) {
+                    countToAdd = parseInt(this.fillCount);
+                } else {
+                    // Auto calculation
+                    // Capacity = (SheetW + Margin) / (ShapeW + Margin)
+                    // Using floor to be safe
+                    const cols = Math.floor((sheetW + margin) / (w + margin));
+                    const rows = Math.floor((sheetH + margin) / (h + margin));
+                    const maxPossible = cols * rows;
+                    
+                    // Subtract existing shapes to avoid overflow
+                    // We assume user wants to fill the board to capacity
+                    const currentCount = this.shapes.length;
+                    countToAdd = Math.max(0, maxPossible - currentCount);
+    
+                    // Limit to avoid browser crash
+                    countToAdd = Math.min(countToAdd, 500); 
+                }
+    
+                if (countToAdd <= 0) return;
+    
+                if (countToAdd > 100) {
+                    if (!confirm(this.t('fill_warning'))) return;
+                }
+    
+                this.loading = true;
                 
-                // 1. Prepare shapes with Bounding Box info
-                let items = this.shapes.map(s => {
-                    const dummy = JSON.parse(JSON.stringify(s));
-                    dummy.x = 0;
-                    dummy.y = 0;
-                    const box = this.getShapeBoundingBox(dummy);
+                // Use setTimeout to allow UI to update loading state
+                setTimeout(() => {
+                    for (let i = 0; i < countToAdd; i++) {
+                        const copy = JSON.parse(JSON.stringify(shape));
+                        copy.id = Date.now() + i;
+                        copy.name = shape.name + ' (' + (i+1) + ')';
+                        // Initial position doesn't matter, nestShapes will fix it
+                        copy.x = 0; 
+                        copy.y = 0;
+                        this.shapes.push(copy);
+                    }
                     
-                    return {
-                        id: s.id,
-                        w: box.width,
-                        h: box.height,
-                        offsetX: box.minX,
-                        offsetY: box.minY,
-                        original: s
-                    };
-                });
+                    // Run nesting immediately (skip monetization check)
+                    this.nestShapes(true);
+                    // nestShapes will handle loading = false
+                }, 50);
+            });
+        },
 
-                // 2. Sort by height (descending), then width
-                items.sort((a, b) => (b.h - a.h) || (b.w - a.w));
-
-                const placed = [];
-                let overflowCount = 0;
-
-                items.forEach(item => {
-                    let bestX = -1;
-                    let bestY = -1;
-                    let found = false;
-
-                    // Strategy: Try to place in existing rows (y-levels defined by placed items)
-                    // We collect all unique Y coordinates (bottoms of placed items + margin, and 0)
-                    // And all unique X coordinates (rights of placed items + margin, and 0)
+        nestShapes(skipMonetization = false) {
+            if (this.shapes.length === 0) return;
+            
+            const action = () => {
+                this.loading = true;
+    
+                // Simulate async for UI update
+                setTimeout(() => {
+                    const margin = parseFloat(this.nestingMargin) || 0;
+                    const sheetW = parseFloat(this.nestingSheetWidth) || 1000;
+                    const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
                     
-                    let potentialY = [0];
-                    let potentialX = [0];
-                    
-                    placed.forEach(p => {
-                        potentialY.push(p.y + p.h + margin);
-                        potentialX.push(p.x + p.w + margin);
+                    // 1. Prepare shapes with Bounding Box info
+                    let items = this.shapes.map(s => {
+                        const dummy = JSON.parse(JSON.stringify(s));
+                        dummy.x = 0;
+                        dummy.y = 0;
+                        const box = this.getShapeBoundingBox(dummy);
+                        
+                        return {
+                            id: s.id,
+                            w: box.width,
+                            h: box.height,
+                            offsetX: box.minX,
+                            offsetY: box.minY,
+                            original: s
+                        };
                     });
-                    
-                    // Sort coordinates
-                    potentialY = [...new Set(potentialY)].sort((a,b) => a-b);
-                    potentialX = [...new Set(potentialX)].sort((a,b) => a-b);
-
-                    // Filter valid coordinates within sheet
-                    potentialY = potentialY.filter(y => y + item.h <= sheetH);
-                    potentialX = potentialX.filter(x => x + item.w <= sheetW);
-
-                    // Search Loop: Top-Left strategy (Y then X)
-                    searchLoop:
-                    for (let y of potentialY) {
-                        for (let x of potentialX) {
-                            // Check collision with all placed items
-                            let collision = false;
-                            for (let p of placed) {
-                                if (this.rectIntersect(x, y, item.w, item.h, p.x, p.y, p.w, p.h)) {
-                                    collision = true;
-                                    break;
+    
+                    // 2. Sort by height (descending), then width
+                    items.sort((a, b) => (b.h - a.h) || (b.w - a.w));
+    
+                    const placed = [];
+                    let overflowCount = 0;
+    
+                    items.forEach(item => {
+                        let bestX = -1;
+                        let bestY = -1;
+                        let found = false;
+    
+                        // Strategy: Try to place in existing rows (y-levels defined by placed items)
+                        // We collect all unique Y coordinates (bottoms of placed items + margin, and 0)
+                        // And all unique X coordinates (rights of placed items + margin, and 0)
+                        
+                        let potentialY = [0];
+                        let potentialX = [0];
+                        
+                        placed.forEach(p => {
+                            potentialY.push(p.y + p.h + margin);
+                            potentialX.push(p.x + p.w + margin);
+                        });
+                        
+                        // Sort coordinates
+                        potentialY = [...new Set(potentialY)].sort((a,b) => a-b);
+                        potentialX = [...new Set(potentialX)].sort((a,b) => a-b);
+    
+                        // Filter valid coordinates within sheet
+                        potentialY = potentialY.filter(y => y + item.h <= sheetH);
+                        potentialX = potentialX.filter(x => x + item.w <= sheetW);
+    
+                        // Search Loop: Top-Left strategy (Y then X)
+                        searchLoop:
+                        for (let y of potentialY) {
+                            for (let x of potentialX) {
+                                // Check collision with all placed items
+                                let collision = false;
+                                for (let p of placed) {
+                                    if (this.rectIntersect(x, y, item.w, item.h, p.x, p.y, p.w, p.h)) {
+                                        collision = true;
+                                        break;
+                                    }
+                                }
+                                
+                                if (!collision) {
+                                    bestX = x;
+                                    bestY = y;
+                                    found = true;
+                                    break searchLoop;
                                 }
                             }
-                            
-                            if (!collision) {
-                                bestX = x;
-                                bestY = y;
-                                found = true;
-                                break searchLoop;
-                            }
                         }
-                    }
-
-                    if (found) {
-                        placed.push({
-                            id: item.id,
-                            x: bestX,
-                            y: bestY,
-                            w: item.w,
-                            h: item.h
-                        });
-                        // Apply offset to get correct origin position
-                        item.original.x = parseFloat((bestX - item.offsetX).toFixed(2));
-                        item.original.y = parseFloat((bestY - item.offsetY).toFixed(2));
+    
+                        if (found) {
+                            placed.push({
+                                id: item.id,
+                                x: bestX,
+                                y: bestY,
+                                w: item.w,
+                                h: item.h
+                            });
+                            // Apply offset to get correct origin position
+                            item.original.x = parseFloat((bestX - item.offsetX).toFixed(2));
+                            item.original.y = parseFloat((bestY - item.offsetY).toFixed(2));
+                        } else {
+                            // Overflow!
+                            overflowCount++;
+                            // Place outside to the right of the sheet
+                            item.original.x = sheetW + 20 - item.offsetX;
+                            item.original.y = (overflowCount - 1) * 10 - item.offsetY;
+                        }
+                    });
+    
+                    this.centerView();
+                    this.loading = false;
+                    
+                    if (overflowCount > 0) {
+                        alert(this.lang === 'ar' 
+                            ? `تم ترتيب الأشكال، لكن ${overflowCount} شكل لم يكفهم اللوح!` 
+                            : `Nested, but ${overflowCount} shapes did not fit on the sheet!`);
                     } else {
-                        // Overflow!
-                        overflowCount++;
-                        // Place outside to the right of the sheet
-                        item.original.x = sheetW + 20 - item.offsetX;
-                        item.original.y = (overflowCount - 1) * 10 - item.offsetY;
+                        alert(this.lang === 'ar' ? 'تم ترتيب الأشكال بنجاح!' : 'Shapes nested successfully!');
                     }
-                });
+                }, 100);
+            };
 
-                this.centerView();
-                this.loading = false;
-                
-                if (overflowCount > 0) {
-                    alert(this.lang === 'ar' 
-                        ? `تم ترتيب الأشكال، لكن ${overflowCount} شكل لم يكفهم اللوح!` 
-                        : `Nested, but ${overflowCount} shapes did not fit on the sheet!`);
-                } else {
-                    alert(this.lang === 'ar' ? 'تم ترتيب الأشكال بنجاح!' : 'Shapes nested successfully!');
-                }
-            }, 100);
+            if (skipMonetization) { action(); }
+            else { window.Monetization.executeProtectedAction(action); }
         },
 
         rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -1738,6 +1748,11 @@ function app() {
                 window.addEventListener('ad-modal-close', () => {
                     this.showAdModal = false;
                 });
+
+                window.addEventListener('show-upgrade-modal', () => {
+                    this.showPricingModal = true;
+                });
+
 
                 // ... existing init logic ...}
         };
