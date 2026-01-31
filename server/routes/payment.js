@@ -44,33 +44,47 @@ router.post('/verify-paypal', async (req, res) => {
     // if (orderData.status !== 'COMPLETED') return res.status(400).json({ error: 'Payment not completed' });
 
     // 2. Update Database
-    let updateQuery = '';
-    let params = [];
-
-    if (plan) {
-        // Update subscription
-        // If business, set unlimited credits (represented by -1 or high number)
-        updateQuery = `UPDATE users SET plan = ?, credits = CASE WHEN ? = 'business' THEN -1 ELSE credits + ? END WHERE id = ?`;
-        let newCredits = plan === 'starter' ? 30 : (plan === 'pro' ? 100 : 0);
-        params = [plan, plan, newCredits, userId];
-    } else if (credits) {
-        // PAYG (Pay As You Go)
-        updateQuery = `UPDATE users SET credits = CASE WHEN credits = -1 THEN -1 ELSE credits + ? END WHERE id = ?`;
-        params = [credits, userId];
-    } else {
-        return res.status(400).json({ error: 'Invalid purchase type' });
-    }
-
-    db.run(updateQuery, params, function(err) {
+    // Check if user exists first
+    db.get('SELECT id FROM users WHERE id = ?', [userId], (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
-        
-        // Log Payment
-        db.run(`INSERT INTO payments (user_id, amount, currency, payment_method, status, transaction_id) VALUES (?, ?, 'USD', 'paypal', 'succeeded', ?)`, 
-            [userId, amount, orderId], (err) => {
-                if (err) console.error("Payment Log Error:", err);
-            });
+        if (!user) {
+            console.error(`Payment Error: User ID ${userId} not found in database.`);
+            return res.status(404).json({ error: 'User not found. Please contact support.' });
+        }
 
-        res.status(200).json({ success: true, message: 'Payment verified and account updated' });
+        let updateQuery = '';
+        let params = [];
+
+        if (plan) {
+            // Update subscription
+            // If business, set unlimited credits (represented by -1 or high number)
+            updateQuery = `UPDATE users SET plan = ?, credits = CASE WHEN ? = 'business' THEN -1 ELSE credits + ? END WHERE id = ?`;
+            let newCredits = plan === 'starter' ? 30 : (plan === 'pro' ? 100 : 0);
+            params = [plan, plan, newCredits, userId];
+        } else if (credits) {
+            // PAYG (Pay As You Go)
+            updateQuery = `UPDATE users SET credits = CASE WHEN credits = -1 THEN -1 ELSE credits + ? END WHERE id = ?`;
+            params = [credits, userId];
+        } else {
+            return res.status(400).json({ error: 'Invalid purchase type' });
+        }
+
+        db.run(updateQuery, params, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            if (this.changes === 0) {
+                 console.error(`Payment Critical Error: User ID ${userId} found but update failed (changes=0).`);
+                 return res.status(500).json({ error: 'Failed to update account. Please contact support.' });
+            }
+
+            // Log Payment
+            db.run(`INSERT INTO payments (user_id, amount, currency, payment_method, status, transaction_id) VALUES (?, ?, 'USD', 'paypal', 'succeeded', ?)`, 
+                [userId, amount, orderId], (err) => {
+                    if (err) console.error("Payment Log Error:", err);
+                });
+
+            res.status(200).json({ success: true, message: 'Payment verified and account updated' });
+        });
     });
 });
 
