@@ -1,9 +1,9 @@
-const CACHE_NAME = 'acrylic-app-v30';
+const CACHE_NAME = 'acrylic-app-v31';
 const ASSETS = [
     './',
     './index.html',
     './css/style.css',
-    './js/app.bundle.js?v=8',
+    './js/app.bundle.js?v=9',
     './js/auth.js?v=22',
     './js/tour.js?v=22',
     './js/monetization.js?v=22',
