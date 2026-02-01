@@ -280,6 +280,82 @@
         </div>
     </div>
 
+    <!-- 3D Preview Modal -->
+    <div x-show="show3DPreviewModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl p-6 relative flex flex-col h-[80vh]" @click.outside="show3DPreviewModal = false">
+            <button @click="show3DPreviewModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">✕</button>
+            
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold dark:text-white" x-text="t('preview_3d')"></h2>
+                <div class="flex gap-2">
+                    <button @click="exportSTL()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition shadow flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        <span>Download STL</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 bg-gray-900 rounded-lg relative overflow-hidden flex items-center justify-center" 
+                 style="perspective: 1000px;"
+                 @mousedown="startRotate3D" @touchstart="startRotate3D" 
+                 @mousemove="rotate3D" @touchmove="rotate3D"
+                 @mouseup="endRotate3D" @touchend="endRotate3D">
+                 
+                 <!-- Instructions -->
+                 <div class="absolute top-4 left-4 text-white/50 text-xs pointer-events-none select-none z-10">
+                    <span x-text="lang === 'ar' ? 'اسحب للتدوير' : 'Drag to Rotate'"></span>
+                 </div>
+
+                 <!-- 3D Scene -->
+                 <div class="relative transition-transform duration-75"
+                      style="transform-style: preserve-3d;"
+                      :style="`transform: rotateX(${rotX}deg) rotateY(${rotY}deg)`">
+                    
+                    <div class="relative" style="transform-style: preserve-3d;" x-data="{ 
+                        get s() { return activeShape || {width:50, height:30}; },
+                        get w() { return (parseFloat(s.width)||50) * 4; }, 
+                        get h() { return (parseFloat(s.height)||30) * 4; },
+                        get d() { return (parseFloat(thickness)||3) * 4; }
+                    }">
+                        <!-- Front Face -->
+                        <div class="absolute border border-blue-400 bg-blue-500/30 flex items-center justify-center text-white/50 font-mono text-[10px]"
+                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) translateZ(${d/2}px);`">FRONT</div>
+                        
+                        <!-- Back Face -->
+                        <div class="absolute border border-blue-400 bg-blue-500/30"
+                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${d/2}px);`"></div>
+
+                        <!-- Right Face -->
+                        <div class="absolute border border-blue-400 bg-blue-600/40"
+                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${w/2}px);`"></div>
+
+                        <!-- Left Face -->
+                        <div class="absolute border border-blue-400 bg-blue-600/40"
+                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${w/2}px);`"></div>
+
+                        <!-- Top Face -->
+                        <div class="absolute border border-blue-400 bg-blue-400/40"
+                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${h/2}px);`"></div>
+
+                        <!-- Bottom Face -->
+                        <div class="absolute border border-blue-400 bg-blue-400/40"
+                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${h/2}px);`"></div>
+                             
+                        <!-- Axis Indicator -->
+                        <div class="absolute inset-0 pointer-events-none" style="transform: translate(-50%, -50%)">
+                            <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-white rounded-full"></div>
+                        </div>
+                    </div>
+
+                 </div>
+            </div>
+            
+            <div class="mt-4 text-center text-sm text-gray-500">
+                <p x-text="lang === 'ar' ? 'ملاحظة: هذا عرض تقريبي. الملف النهائي سيكون بصيغة STL.' : 'Note: This is an approximate preview. Final output is STL.'"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Admin Dashboard Modal -->
     <div x-show="showAdminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative" @click.outside="showAdminModal = false">
@@ -814,7 +890,7 @@
                                 <button @click="generateBase()" class="py-2 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition shadow-sm">
                                     <span x-text="t('generate_base_btn')"></span>
                                 </button>
-                                <button @click="exportSTL()" class="py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1">
+                                <button @click="preview3D()" class="py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1">
                                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                     <span x-text="t('preview_3d')"></span>
                                 </button>
