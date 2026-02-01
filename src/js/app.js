@@ -953,7 +953,23 @@ function app() {
             }
         },
 
-        init() {
+        async init() {
+            // Restore Session if token exists
+            if (auth.token) {
+                // If user object is missing or we want to validate the token
+                try {
+                    const profile = await auth.getProfile();
+                    if (profile) {
+                        this.user = profile;
+                    } else {
+                        // Token invalid/expired
+                        this.user = null;
+                    }
+                } catch (e) {
+                    console.error("Session restore failed:", e);
+                }
+            }
+
             // Record initial visit
             this.recordVisit('page_view');
             
