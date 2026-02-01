@@ -563,7 +563,7 @@
                                      @click="selectShape(s.id)">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 dark:bg-slate-600" x-text="index + 1"></span>
-                                        <span class="text-sm font-medium" x-text="s.name || 'Shape ' + (index + 1)"></span>
+                                        <span class="text-sm font-medium" x-text="(s.name || 'Shape ' + (index + 1)) + ' (' + s.width + 'x' + s.height + ')'"></span>
                                     </div>
                                     <button @click.stop="removeShape(s.id)" class="text-red-400 hover:text-red-600 px-1" title="Delete">×</button>
                                 </div>
@@ -628,6 +628,7 @@
                             <label for="shape-type" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('shape')"></label>
                             <select id="shape-type" name="shapeType" x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="rectangle" x-text="t('shape_rect')"></option>
+                                <option value="circle" x-text="t('shape_circle')"></option>
                                 <option value="oval" x-text="t('shape_oval')"></option>
                                 <option value="pentagon" x-text="t('shape_pentagon')"></option>
                                 <option value="hexagon" x-text="t('shape_hexagon')"></option>
@@ -654,6 +655,26 @@
                                 <span class="text-xs font-mono" x-text="cornerRadius + ' ' + unit"></span>
                             </div>
                             <input id="corner-radius" name="cornerRadius" type="range" :min="0" :max="Math.min(width, height)/2" :step="limits.step" x-model.number="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            
+                            <!-- Corner Selection -->
+                            <div class="grid grid-cols-2 gap-2 mt-3" x-show="activeShape.cornerSides">
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" x-model="activeShape.cornerSides.tl" class="rounded text-blue-500 accent-blue-500">
+                                    <span x-text="lang === 'ar' ? 'أعلى يسار' : 'Top Left'"></span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" x-model="activeShape.cornerSides.tr" class="rounded text-blue-500 accent-blue-500">
+                                    <span x-text="lang === 'ar' ? 'أعلى يمين' : 'Top Right'"></span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" x-model="activeShape.cornerSides.bl" class="rounded text-blue-500 accent-blue-500">
+                                    <span x-text="lang === 'ar' ? 'أسفل يسار' : 'Bottom Left'"></span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="checkbox" x-model="activeShape.cornerSides.br" class="rounded text-blue-500 accent-blue-500">
+                                    <span x-text="lang === 'ar' ? 'أسفل يمين' : 'Bottom Right'"></span>
+                                </label>
+                            </div>
                         </div>
                         <hr class="mt-4" style="border-color: var(--border)">
                     </div>
