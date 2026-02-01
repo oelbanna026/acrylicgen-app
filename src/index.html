@@ -126,6 +126,10 @@
     <script defer src="js/tour.js?v=30"></script>
     <script defer src="js/monetization.js?v=30"></script>
     <script defer src="js/diagnostics.js?v=30"></script>
+    <!-- Utilities -->
+    <script src="js/utils/calculator.js?v=1"></script>
+    
+    <!-- Main App -->
     <script src="js/app.js?v=30"></script>
     <!-- <script defer src="js/app.bundle.js?v=13"></script> -->
     
@@ -872,17 +876,43 @@
                                 </div>
                             </div>
 
-                             <div>
-                                <label for="cost-thickness" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('thickness_mm')"></label>
-                                <input id="cost-thickness" name="thickness" type="number" min="0" step="0.1" x-model.number="thickness" class="form-input w-full p-2 rounded text-sm">
-                            </div>
-                            <div>
-                                <label for="cost-cutting" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('cutting_price_hr')"></label>
-                                <input id="cost-cutting" name="cuttingPrice" type="number" min="0" x-model.number="cuttingPricePerHour" class="form-input w-full p-2 rounded text-sm">
-                            </div>
-                            <div>
-                                <label for="cost-profit" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('profit_margin')"></label>
-                                <input id="cost-profit" name="profitMargin" type="number" min="0" x-model.number="profitMargin" class="form-input w-full p-2 rounded text-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="col-span-2">
+                                    <label for="cost-thickness" class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('thickness_mm')"></label>
+                                    <input id="cost-thickness" name="thickness" type="number" min="0" step="0.1" x-model.number="thickness" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label for="cost-cutting" class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('cutting_price_hr')"></label>
+                                    <input id="cost-cutting" name="cuttingPrice" type="number" min="0" x-model.number="cuttingPricePerHour" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('cutting_speed') || 'Speed (cm/min)'"></label>
+                                    <input type="number" min="1" x-model.number="cuttingSpeed" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('quantity')"></label>
+                                    <input type="number" min="1" x-model.number="quantity" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('waste_percent')"></label>
+                                    <input type="number" min="0" x-model.number="wastePercent" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('overhead_percent')"></label>
+                                    <input type="number" min="0" x-model.number="overheadPercent" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label for="cost-profit" class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('profit_margin')"></label>
+                                    <input id="cost-profit" name="profitMargin" type="number" min="0" x-model.number="profitMargin" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('setup_fee')"></label>
+                                    <input type="number" min="0" x-model.number="setupFee" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] mb-1 text-gray-700 dark:text-gray-300" x-text="t('min_charge')"></label>
+                                    <input type="number" min="0" x-model.number="minCharge" class="form-input w-full p-1.5 rounded text-sm">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -903,10 +933,38 @@
                             <span class="font-bold text-orange-500 text-sm dir-ltr" x-text="totalCuttingTimeMinutes.toFixed(1) + ' min'"></span>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-between text-lg font-bold mb-4 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
-                        <span x-text="t('cost')"></span>
-                        <span class="text-green-500" x-text="currencySymbol + ' ' + totalPrice"></span>
+
+                    <!-- Detailed Cost Breakdown -->
+                    <div class="space-y-1 mb-4 border-t pt-2 border-dashed text-xs" x-show="costReport">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500" x-text="t('material_cost')"></span>
+                            <span x-text="(currencySymbol || '$') + costReport.results.materialCost.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500" x-text="t('operation_cost')"></span>
+                            <span x-text="(currencySymbol || '$') + costReport.results.operationCost.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between" x-show="costReport.results.wasteCost > 0">
+                            <span class="text-gray-500" x-text="t('waste_cost')"></span>
+                            <span x-text="(currencySymbol || '$') + costReport.results.wasteCost.toFixed(2)"></span>
+                        </div>
+                         <div class="flex justify-between" x-show="costReport.results.overheadCost > 0">
+                            <span class="text-gray-500" x-text="t('overhead_cost')"></span>
+                            <span x-text="(currencySymbol || '$') + costReport.results.overheadCost.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between font-bold mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <span x-text="t('unit_price')"></span>
+                            <span class="text-blue-600" x-text="(currencySymbol || '$') + costReport.results.unitPrice.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between items-center bg-green-50 dark:bg-green-900/20 p-2 rounded mt-1">
+                            <span class="font-bold text-sm"><span x-text="t('total_price')"></span> <span x-show="quantity > 1" x-text="'(' + quantity + ')'"></span>:</span>
+                            <span class="text-xl font-extrabold text-green-600 dark:text-green-400" x-text="(currencySymbol || '$') + costReport.results.totalBatchPrice.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2 gap-2">
+                             <button @click="copyPrice()" class="flex-1 bg-slate-200 dark:bg-slate-700 py-1 rounded hover:bg-slate-300 transition text-[10px]" x-text="t('copy')"></button>
+                             <button @click="resetCostSettings()" class="flex-1 bg-slate-200 dark:bg-slate-700 py-1 rounded hover:bg-slate-300 transition text-[10px]" x-text="t('reset')"></button>
+                             <button @click="exportCostPDF()" class="flex-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 py-1 rounded hover:bg-red-200 transition text-[10px]" x-text="t('export_pdf')"></button>
+                        </div>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-2 mb-4">
