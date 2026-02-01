@@ -470,6 +470,45 @@ function app() {
         set holes(v) { this.activeShape.holes = v; },
 
         // Methods
+        setCurrency(code) {
+            this.currency = code;
+            localStorage.setItem('acrylic_currency', code);
+        },
+
+        getCurrencySymbol() {
+            return this.currencies.find(c => c.code === this.currency)?.symbol || '$';
+        },
+
+        getExchangeRate() {
+            return this.currencies.find(c => c.code === this.currency)?.rate || 1;
+        },
+
+        formatPrice(amountUSD) {
+            const rate = this.getExchangeRate();
+            const symbol = this.getCurrencySymbol();
+            const val = (amountUSD * rate);
+            // Round nicely: if > 100 no decimals, else 2 decimals
+            const formatted = val % 1 === 0 ? val.toFixed(0) : val.toFixed(2);
+            
+            return this.lang === 'ar' ? `${formatted} ${symbol}` : `${symbol}${formatted}`;
+        },
+
+        getPlanPrice(plan, type = 'monthly') {
+            // Base USD Prices
+            const prices = {
+                pro: { monthly: 12, annual_monthly: 10, annual_total: 120 },
+                business: { monthly: 39, annual_monthly: 31, annual_total: 372 }
+            };
+            
+            const p = prices[plan];
+            if (!p) return 0;
+            
+            if (type === 'monthly') return this.formatPrice(p.monthly);
+            if (type === 'annual_monthly') return this.formatPrice(p.annual_monthly);
+            if (type === 'annual_total') return this.formatPrice(p.annual_total);
+            return 0;
+        },
+
         validateAndCleanShapes() {
             if (!Array.isArray(this.shapes) || this.shapes.length === 0) {
                 this.shapes = [defaultShape()];
