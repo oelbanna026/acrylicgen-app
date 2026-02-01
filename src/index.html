@@ -111,7 +111,7 @@
     <script defer src="js/tour.js?v=22"></script>
     <script defer src="js/monetization.js?v=22"></script>
     <script defer src="js/diagnostics.js?v=5"></script>
-    <script src="js/app.js?v=15"></script>
+    <script src="js/app.js?v=16"></script>
     <!-- <script defer src="js/app.bundle.js?v=13"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -172,8 +172,8 @@
     </div>
 
     <!-- Public Stats Modal -->
-    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.outside="showPublicStatsModal = false">
+    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition @click="showPublicStatsModal = false">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.stop>
             <button @click="showPublicStatsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
             
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-800 dark:text-white">
@@ -407,7 +407,7 @@
                     </template>
                 </select>
 
-                <button @click="showPublicStatsModal = true" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition text-blue-500" :title="t('view_stats')">
+                <button @click.stop="showPublicStatsModal = true" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition text-blue-500" :title="t('view_stats')">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
