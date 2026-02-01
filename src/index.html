@@ -313,37 +313,51 @@
                     
                     <div class="relative" style="transform-style: preserve-3d;" x-data="{ 
                         get s() { return activeShape || {width:50, height:30}; },
-                        get w() { return (parseFloat(s.width)||50) * 4; }, 
-                        get h() { return (parseFloat(s.height)||30) * 4; },
-                        get d() { return (parseFloat(thickness)||3) * 4; }
+                        get scale() { 
+                            const rawW = parseFloat(s.width) || 50;
+                            const rawH = parseFloat(s.height) || 30;
+                            const max = Math.max(rawW, rawH, 1);
+                            return 300 / max; // Target 300px size
+                        },
+                        get w() { return (parseFloat(s.width)||50) * this.scale; }, 
+                        get h() { return (parseFloat(s.height)||30) * this.scale; },
+                        get d() { 
+                            let tVal = parseFloat(thickness) || 3; // Thickness is always in mm
+                            // Convert thickness to current unit to match w/h ratio
+                            if (unit === 'cm') tVal = tVal / 10;
+                            else if (unit === 'inch') tVal = tVal / 25.4;
+                            return tVal * this.scale; 
+                        }
                     }">
                         <!-- Front Face -->
-                        <div class="absolute border border-blue-400 bg-blue-500/30 flex items-center justify-center text-white/50 font-mono text-[10px]"
-                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) translateZ(${d/2}px);`">FRONT</div>
+                        <div class="absolute border border-blue-300 bg-blue-500 flex items-center justify-center text-white font-bold font-mono text-sm shadow-inner"
+                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) translateZ(${d/2}px); opacity: 0.9;`">
+                             <span style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">FRONT</span>
+                        </div>
                         
                         <!-- Back Face -->
-                        <div class="absolute border border-blue-400 bg-blue-500/30"
-                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${d/2}px);`"></div>
+                        <div class="absolute border border-blue-300 bg-blue-600"
+                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${d/2}px); opacity: 0.9;`"></div>
 
                         <!-- Right Face -->
-                        <div class="absolute border border-blue-400 bg-blue-600/40"
-                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${w/2}px);`"></div>
+                        <div class="absolute border border-blue-300 bg-blue-700"
+                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${w/2}px); opacity: 0.9;`"></div>
 
                         <!-- Left Face -->
-                        <div class="absolute border border-blue-400 bg-blue-600/40"
-                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${w/2}px);`"></div>
+                        <div class="absolute border border-blue-300 bg-blue-700"
+                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${w/2}px); opacity: 0.9;`"></div>
 
                         <!-- Top Face -->
-                        <div class="absolute border border-blue-400 bg-blue-400/40"
-                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${h/2}px);`"></div>
+                        <div class="absolute border border-blue-300 bg-blue-400"
+                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${h/2}px); opacity: 0.9;`"></div>
 
                         <!-- Bottom Face -->
-                        <div class="absolute border border-blue-400 bg-blue-400/40"
-                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${h/2}px);`"></div>
+                        <div class="absolute border border-blue-300 bg-blue-800"
+                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${h/2}px); opacity: 0.9;`"></div>
                              
                         <!-- Axis Indicator -->
                         <div class="absolute inset-0 pointer-events-none" style="transform: translate(-50%, -50%)">
-                            <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-white rounded-full"></div>
+                            <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-white rounded-full shadow-sm"></div>
                         </div>
                     </div>
 
