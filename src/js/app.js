@@ -84,7 +84,13 @@ const i18n = {
         duplicate_short: "تكرار",
         snap_short: "محاذاة",
         nesting_short: "ترتيب",
-        restart_tour: "بدء الجولة التعريفية"
+        restart_tour: "بدء الجولة التعريفية",
+        stats_dashboard: "لوحة الإحصائيات",
+        active_visitors: "الزوار النشطين",
+        total_views: "إجمالي المشاهدات",
+        sales_24h: "عدد العمليات (24 ساعة)",
+        conversion_rate: "نسبة التحويل",
+        view_stats: "عرض الإحصائيات"
     },
     en: {
         app_title: "Acrylic Designer Pro (v1.1)",
@@ -173,7 +179,7 @@ const i18n = {
         stats_dashboard: "Stats Dashboard",
         active_visitors: "Active Visitors",
         total_views: "Total Views",
-        sales_24h: "Sales (24h)",
+        sales_24h: "Transactions (24h)",
         conversion_rate: "Conversion Rate",
         view_stats: "View Stats"
     }
