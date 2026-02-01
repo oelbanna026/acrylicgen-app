@@ -643,25 +643,34 @@
 
                     <hr style="border-color: var(--border)">
 
-                    <!-- Section: Corners (Only for Rectangle) -->
-                    <div x-show="shapeType === 'rectangle'" x-transition>
-                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('corners')"></h3>
-                        <div class="mb-3">
+                    <!-- Section: Corners (Rectangle) / Curve Depth (Shield) -->
+                    <div x-show="['rectangle', 'banner'].includes(shapeType)" x-transition>
+                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" 
+                            x-text="shapeType === 'rectangle' ? t('corners') : (lang === 'ar' ? 'عمق التقويس' : 'Curve Depth')"></h3>
+                        
+                        <!-- Rectangle Corner Type -->
+                        <div class="mb-3" x-show="shapeType === 'rectangle'">
                             <label for="corner-type" class="sr-only">Corner Type</label>
                             <select id="corner-type" name="cornerType" x-model="cornerType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="straight" x-text="t('straight')"></option>
                                 <option value="rounded" x-text="t('rounded')"></option>
                             </select>
                         </div>
-                        <div x-show="cornerType === 'rounded'" x-transition class="mt-2">
+
+                        <!-- Radius / Depth Slider -->
+                        <div x-show="shapeType === 'banner' || (shapeType === 'rectangle' && cornerType === 'rounded')" x-transition class="mt-2">
                             <div class="flex justify-between mb-1">
-                                <label for="corner-radius" class="text-xs text-gray-700 dark:text-gray-300" x-text="t('radius')"></label>
+                                <label for="corner-radius" class="text-xs text-gray-700 dark:text-gray-300" 
+                                       x-text="shapeType === 'rectangle' ? t('radius') : (lang === 'ar' ? 'العمق' : 'Depth')"></label>
                                 <span class="text-xs font-mono" x-text="cornerRadius + ' ' + unit"></span>
                             </div>
-                            <input id="corner-radius" name="cornerRadius" type="range" :min="0" :max="Math.min(width, height)/2" :step="limits.step" x-model.number="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            <input id="corner-radius" name="cornerRadius" type="range" 
+                                   :min="0" :max="Math.min(width, height)/2" :step="limits.step" 
+                                   x-model.number="cornerRadius" 
+                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             
-                            <!-- Corner Selection -->
-                            <div class="grid grid-cols-2 gap-2 mt-3" x-show="activeShape.cornerSides">
+                            <!-- Rectangle Corner Selection -->
+                            <div class="grid grid-cols-2 gap-2 mt-3" x-show="shapeType === 'rectangle' && activeShape.cornerSides">
                                 <label class="flex items-center gap-2 text-xs cursor-pointer">
                                     <input type="checkbox" x-model="activeShape.cornerSides.tl" class="rounded text-blue-500 accent-blue-500">
                                     <span x-text="lang === 'ar' ? 'أعلى يسار' : 'Top Left'"></span>
