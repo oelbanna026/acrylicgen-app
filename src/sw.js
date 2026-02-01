@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acrylic-app-v38';
+const CACHE_NAME = 'acrylic-app-v39';
 const ASSETS = [
     './',
     './index.html',
