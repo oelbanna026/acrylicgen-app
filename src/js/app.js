@@ -1395,9 +1395,14 @@ function app() {
         },
 
         get totalCuttingTimeMinutes() {
-            let totalTimeHr = 0;
-            const speedCmMin = parseFloat(this.cuttingSpeed) || 100;
-            const speedCmHr = speedCmMin * 60;
+            let totalTimeMinutes = 0;
+            const speedMmSec = parseFloat(this.cuttingSpeed) || 20; // Default 20 mm/s
+            // Convert speed to cm/min for internal calculation consistency or just calculate directly
+            // Speed = X mm/s
+            // Perimeter is in cm. 
+            // Perimeter_mm = Perimeter_cm * 10
+            // Time_sec = Perimeter_mm / Speed_mm_sec
+            // Time_min = Time_sec / 60
 
             this.shapes.forEach(shape => {
                 const w_cm = this.toCm(parseFloat(shape.width) || 0);
@@ -1419,10 +1424,12 @@ function app() {
                     perimeter_cm += shape.holes.length * holePerimeter;
                 }
 
-                totalTimeHr += perimeter_cm / speedCmHr;
+                const perimeter_mm = perimeter_cm * 10;
+                const timeSec = perimeter_mm / speedMmSec;
+                totalTimeMinutes += timeSec / 60;
             });
             
-            return totalTimeHr * 60;
+            return totalTimeMinutes;
         },
 
         saveCostSettings() {
@@ -1439,7 +1446,7 @@ function app() {
         },
 
         resetCostSettings() {
-            this.cuttingSpeed = 100;
+            this.cuttingSpeed = 20;
             this.quantity = 1;
             this.wastePercent = 0;
             this.overheadPercent = 0;
