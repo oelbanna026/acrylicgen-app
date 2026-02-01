@@ -1162,11 +1162,17 @@ function app() {
                  if (!factor || factor === 1) return;
 
                  this.shapes.forEach(s => {
+                     // Scale Dimensions
                      s.width = parseFloat((s.width * factor).toFixed(2));
                      s.height = parseFloat((s.height * factor).toFixed(2));
                      s.cornerRadius = parseFloat((s.cornerRadius * factor).toFixed(2));
                      s.holeDiameter = parseFloat((s.holeDiameter * factor).toFixed(2));
                      s.holeMargin = parseFloat((s.holeMargin * factor).toFixed(2));
+                     
+                     // Scale Position
+                     s.x = parseFloat((s.x * factor).toFixed(2));
+                     s.y = parseFloat((s.y * factor).toFixed(2));
+
                      this.updateHoles(s);
                  });
                  
@@ -1176,6 +1182,11 @@ function app() {
                  if (this.nestingMargin) this.nestingMargin = parseFloat((this.nestingMargin * factor).toFixed(2));
 
                  this.save(); 
+                 
+                 // Reset View to center content
+                 this.$nextTick(() => {
+                     this.centerView();
+                 });
             });
             
             this.$watch('currency', () => { this.save(); });
