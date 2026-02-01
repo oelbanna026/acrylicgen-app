@@ -9,6 +9,7 @@ const i18n = {
         dimensions: "الأبعاد",
         shape: "الشكل",
         shape_rect: "مستطيل",
+        shape_banner: "راية (Banner)",
         shape_oval: "بيضاوي",
         shape_circle: "دائرة",
         shape_pentagon: "خماسي",
@@ -112,6 +113,7 @@ const i18n = {
         dimensions: "Dimensions",
         shape: "Shape",
         shape_rect: "Rectangle",
+        shape_banner: "Banner/Shield",
         shape_oval: "Oval",
         shape_circle: "Circle",
         shape_pentagon: "Pentagon",
@@ -1010,6 +1012,25 @@ function app() {
                 return d;
             }
             
+            if (type === 'banner') {
+                // Rectangle with Concave Bottom Arc
+                // Use cornerRadius as arc depth (default to 20 if 0)
+                const d = parseFloat(shape.cornerRadius) || (h * 0.2);
+                let path = `M 0 0 L ${w} 0 L ${w} ${h} `;
+                
+                // Concave Bottom: Quadratic curve from (w,h) to (0,h) with control point (w/2, h-d)
+                // This creates an arch UPWARDS into the shape
+                path += `Q ${w/2} ${h-d} 0 ${h} `;
+                
+                path += `Z`;
+                return path;
+            }
+            
+            if (type === 'banner') {
+                const d = parseFloat(shape.cornerRadius) || (h * 0.2);
+                // Area approx: w*h - (w*d*2/3) for parabolic segment, simple approximation
+                return (w * h) - (w * d * 0.5); 
+            }
             if (type === 'oval' || type === 'circle') {
                 const rx = w/2;
                 const ry = h/2;
