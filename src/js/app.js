@@ -318,6 +318,13 @@ function app() {
         showPayPalModal: false,
         showNestingPanel: false,
         showCostSettings: false,
+        
+        // 3D Preview State
+        show3DPreviewModal: false,
+        rotX: -20,
+        rotY: 45,
+        isRotating3D: false,
+        lastMouse3D: {x:0, y:0},
         isAnnual: false, // For Pricing Modal
         payPalAmount: 0,
         payPalDescription: '',
@@ -694,48 +701,123 @@ function app() {
             }
         },
 
+        preview3D() {
+            if (!this.activeShape) {
+                alert(this.t('base_warning'));
+                return;
+            }
+            this.show3DPreviewModal = true;
+            this.rotX = -20;
+            this.rotY = 45;
+        },
+        
+        startRotate3D(e) {
+            this.isRotating3D = true;
+            const evt = e.touches ? e.touches[0] : e;
+            this.lastMouse3D = { x: evt.clientX, y: evt.clientY };
+        },
+        
+        rotate3D(e) {
+            if (!this.isRotating3D) return;
+            const evt = e.touches ? e.touches[0] : e;
+            const dx = evt.clientX - this.lastMouse3D.x;
+            const dy = evt.clientY - this.lastMouse3D.y;
+            
+            this.rotY += dx * 0.5;
+            this.rotX -= dy * 0.5;
+            
+            this.lastMouse3D = { x: evt.clientX, y: evt.clientY };
+        },
+        
+        endRotate3D() {
+            this.isRotating3D = false;
+        },
+
         exportSTL() {
-            // Simple STL Export for Rectangular Shapes (Base)
-            // This is a basic implementation for the Base Shape
             const s = this.activeShape;
             if (!s) return;
 
-            if (s.shapeType !== 'rectangle') {
-                alert("STL Export is currently optimized for Rectangular Bases.");
-            }
-
-            const w = parseFloat(s.width);
-            const h = parseFloat(s.height);
-            const d = parseFloat(this.thickness); // Extrude depth
-
-            // Generate a simple cube STL
-            let stl = "solid base\n";
+            // Use mm for STL usually, but let's stick to current unit values or convert?
+            // STL is unitless, but slicers usually assume mm.
+            // Our shape dimensions are in 'this.unit'.
+            // If unit is 'cm', 10 means 10cm = 100mm.
+            // If unit is 'inch', 10 means 10inch = 254mm.
+            // Ideally we should export in mm.
             
-            // Helper to add facet
+            let scale = 1;
+            if (this.unit === 'cm') scale = 10;
+            else if (this.unit === 'inch') scale = 25.4;
+
+            const w = (parseFloat(s.width)||50) * scale;
+            const h = (parseFloat(s.height)||30) * scale;
+            const d = (parseFloat(this.thickness)||3); // thickness is always in mm per requirements? 
+            // Wait, thickness input says (mm). So it's already mm. No scale needed for thickness if it's already mm.
+            // But w/h are in unit. So we scale w/h to mm.
+
+            // STL Header
+            let stl = "solid acrylic_shape\n";
+            
             const addFacet = (v1, v2, v3) => {
-                stl += `facet normal 0 0 0\n  outer loop\n    vertex ${v1.x} ${v1.y} ${v1.z}\n    vertex ${v2.x} ${v2.y} ${v2.z}\n    vertex ${v3.x} ${v3.y} ${v3.z}\n  endloop\nendfacet\n`;
+                // Calculate Normal
+                const u = {x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z};
+                const v = {x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z};
+                const nx = u.y * v.z - u.z * v.y;
+                const ny = u.z * v.x - u.x * v.z;
+                const nz = u.x * v.y - u.y * v.x;
+                // Normalize
+                const len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+                
+                stl += `facet normal ${nx/len} ${ny/len} ${nz/len}\n  outer loop\n    vertex ${v1.x} ${v1.y} ${v1.z}\n    vertex ${v2.x} ${v2.y} ${v2.z}\n    vertex ${v3.x} ${v3.y} ${v3.z}\n  endloop\nendfacet\n`;
             };
 
-            // Vertices (0,0,0) to (w,h,d)
-            // ... (A full STL generator is too long for this snippet, let's keep it simple)
-            // Just export a Cube for now as proof of concept
+            // Define 8 vertices of the box
+            // Origin at (0,0,0) -> (w,h,d)
+            const v000 = {x:0, y:0, z:0};
+            const v100 = {x:w, y:0, z:0};
+            const v110 = {x:w, y:h, z:0};
+            const v010 = {x:0, y:h, z:0};
             
-            // Front Face
-            addFacet({x:0,y:0,z:0}, {x:w,y:0,z:0}, {x:w,y:h,z:0});
-            addFacet({x:0,y:0,z:0}, {x:w,y:h,z:0}, {x:0,y:h,z:0});
+            const v001 = {x:0, y:0, z:d};
+            const v101 = {x:w, y:0, z:d};
+            const v111 = {x:w, y:h, z:d};
+            const v011 = {x:0, y:h, z:d};
+
+            // Front (Z=0) - Normal (0,0,-1)
+            // Vertices order for Normal pointing away: Counter-Clockwise looking from outside
+            // Front face is at Z=0 (bottom in 3D printer terms usually). 
+            // If we want Z-up as thickness:
+            // Let's assume Z is up. Z=0 is bottom, Z=d is top.
             
-            // Back Face
-            addFacet({x:0,y:0,z:d}, {x:w,y:h,z:d}, {x:w,y:0,z:d});
-            addFacet({x:0,y:0,z:d}, {x:0,y:h,z:d}, {x:w,y:h,z:d});
+            // Bottom (Z=0)
+            addFacet(v000, v100, v110);
+            addFacet(v000, v110, v010);
             
-            // ... Sides ... (omitted for brevity in this turn, but structure is here)
+            // Top (Z=d)
+            addFacet(v001, v011, v111);
+            addFacet(v001, v111, v101);
             
-            stl += "endsolid base";
+            // Front (Y=h)
+            addFacet(v010, v110, v111);
+            addFacet(v010, v111, v011);
+            
+            // Back (Y=0)
+            addFacet(v000, v001, v101);
+            addFacet(v000, v101, v100);
+            
+            // Left (X=0)
+            addFacet(v000, v010, v011);
+            addFacet(v000, v011, v001);
+            
+            // Right (X=w)
+            addFacet(v100, v101, v111);
+            addFacet(v100, v111, v110);
+
+            stl += "endsolid acrylic_shape";
             
             const blob = new Blob([stl], { type: 'text/plain' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = s.name + '.stl';
+            link.download = (s.name || 'shape') + '.stl';
             link.click();
         },
 
