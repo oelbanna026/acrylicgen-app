@@ -293,6 +293,7 @@ function app() {
         showPayPalModal: false,
         showNestingPanel: false,
         showCostSettings: false,
+        isAnnual: false, // For Pricing Modal
         payPalAmount: 0,
         payPalDescription: '',
         payPalItemType: '', // 'plan' or 'credits'
@@ -668,10 +669,14 @@ function app() {
 
                 // Check pending plan
                 const pendingPlan = sessionStorage.getItem('pending_plan');
+                const pendingBilling = sessionStorage.getItem('pending_billing');
+                
                 if (pendingPlan) {
                     sessionStorage.removeItem('pending_plan');
+                    sessionStorage.removeItem('pending_billing');
+                    
                     if (confirm(`Do you want to proceed with upgrading to ${pendingPlan} plan?`)) {
-                        this.buyPlan(pendingPlan);
+                        this.buyPlan(pendingPlan, pendingBilling || 'monthly');
                     }
                 }
             } catch (e) {
@@ -690,10 +695,14 @@ function app() {
 
                 // Check pending plan
                 const pendingPlan = sessionStorage.getItem('pending_plan');
+                const pendingBilling = sessionStorage.getItem('pending_billing');
+
                 if (pendingPlan) {
                     sessionStorage.removeItem('pending_plan');
+                    sessionStorage.removeItem('pending_billing');
+
                     if (confirm(`Do you want to proceed with upgrading to ${pendingPlan} plan?`)) {
-                        this.buyPlan(pendingPlan);
+                        this.buyPlan(pendingPlan, pendingBilling || 'monthly');
                     }
                 }
             } catch (e) {
@@ -1387,13 +1396,16 @@ function app() {
             // Check for Plan Purchase URL Param
             const urlParams = new URLSearchParams(window.location.search);
             const planParam = urlParams.get('plan');
+            const billingParam = urlParams.get('billing'); // 'annual' or 'monthly'
+
             if (planParam && ['pro', 'business'].includes(planParam)) {
                 setTimeout(() => {
                     if (this.user) {
-                        this.buyPlan(planParam);
+                        this.buyPlan(planParam, billingParam || 'monthly');
                     } else {
                         this.showLoginModal = true;
                         sessionStorage.setItem('pending_plan', planParam);
+                        if (billingParam) sessionStorage.setItem('pending_billing', billingParam);
                     }
                 }, 1000); // Delay to ensure auth restored
             }
@@ -1950,16 +1962,32 @@ function app() {
 
         // --- Payment Logic ---
 
-        buyPlan(plan) {
+        buyPlan(plan, billing = 'monthly') {
             if (!this.user) {
                 this.showLoginModal = true;
                 return;
             }
-            const prices = { 'starter': 3, 'pro': 12, 'business': 39 };
-            this.payPalAmount = prices[plan];
-            this.payPalDescription = `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`;
+            
+            const prices = {
+                'starter': { monthly: 3, annual: 30 },
+                'pro': { monthly: 12, annual: 120 }, // 12 * 10 = 120 (2 months free)
+                'business': { monthly: 39, annual: 372 } // 31 * 12 = 372 (20% off)
+            };
+            
+            // Check if plan exists
+            if (!prices[plan]) return;
+
+            // Determine amount
+            this.payPalAmount = prices[plan][billing] || prices[plan]['monthly'];
+            
+            // Description
+            const billingText = billing === 'annual' ? 'Yearly' : 'Monthly';
+            this.payPalDescription = `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan (${billingText})`;
+            
             this.payPalItemType = 'plan';
             this.payPalItemValue = plan;
+            this.payPalBillingCycle = billing; // Store for verification
+            
             this.showPricingModal = false;
             this.showPayPalModal = true;
             this.renderPayPalButton();
@@ -2025,6 +2053,7 @@ function app() {
 
                 if (this.payPalItemType === 'plan') {
                     payload.plan = this.payPalItemValue;
+                    payload.billingCycle = this.payPalBillingCycle || 'monthly';
                 } else {
                     payload.credits = this.payPalItemValue;
                 }
