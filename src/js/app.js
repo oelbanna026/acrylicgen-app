@@ -320,21 +320,22 @@ function app() {
 
         // Computed Properties for Active Shape
         get activeShape() {
-            if (!this.activeShapeId && this.shapes.length > 0) {
+            if (this.shapes.length === 0) {
+                 return {
+                    id: null, width: 0, height: 0, x: 0, y: 0, 
+                    rotation: 0, shapeType: 'rectangle', 
+                    cornerType: 'straight', cornerRadius: 0,
+                    holePattern: 'none', holeCount: 0, holeDiameter: 0, holeMargin: 0,
+                    holes: []
+                };
+            }
+
+            // Fallback: If activeShapeId is missing or not found, select the first one
+            if (!this.activeShapeId || !this.shapes.find(s => s.id === this.activeShapeId)) {
                 this.activeShapeId = this.shapes[0].id;
             }
-            const found = this.shapes.find(s => s.id === this.activeShapeId);
-            if (found) return found;
-            if (this.shapes.length > 0) return this.shapes[0];
             
-            // Return safe dummy object to prevent UI crashes when no shapes exist
-            return {
-                id: null, width: 0, height: 0, x: 0, y: 0, 
-                rotation: 0, shapeType: 'rectangle', 
-                cornerType: 'straight', cornerRadius: 0,
-                holePattern: 'none', holeCount: 0, holeDiameter: 0, holeMargin: 0,
-                holes: []
-            };
+            return this.shapes.find(s => s.id === this.activeShapeId) || this.shapes[0];
         },
 
         // Proxy Getters/Setters for Backward Compatibility and UI Binding
