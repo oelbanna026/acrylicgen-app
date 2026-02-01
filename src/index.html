@@ -171,6 +171,100 @@
         </div>
     </div>
 
+    <!-- Public Stats Modal -->
+    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.outside="showPublicStatsModal = false">
+            <button @click="showPublicStatsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-800 dark:text-white">
+                <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span x-text="t('stats_dashboard')"></span>
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Total Views -->
+                <div class="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-bold" x-text="t('total_views')"></div>
+                        <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1" x-text="publicStats.totalViews"></div>
+                    </div>
+                    <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Active Visitors -->
+                <div class="p-4 bg-green-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-bold flex items-center gap-2">
+                            <span x-text="t('active_visitors')"></span>
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                        </div>
+                        <div class="text-3xl font-bold text-green-600 dark:text-green-400 mt-1" x-text="publicStats.activeUsers"></div>
+                    </div>
+                    <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Sales 24h -->
+                <div class="p-4 bg-purple-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-bold" x-text="t('sales_24h')"></div>
+                        <div class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-1" x-text="publicStats.sales24h"></div>
+                    </div>
+                    <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Conversion Rate -->
+                <div class="p-4 bg-orange-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-bold" x-text="t('conversion_rate')"></div>
+                        <div class="text-3xl font-bold text-orange-600 dark:text-orange-400 mt-1">
+                            <span x-text="publicStats.conversionRate"></span>%
+                        </div>
+                    </div>
+                    <div class="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full text-orange-600 dark:text-orange-400">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Total Exports -->
+                <div class="col-span-1 sm:col-span-2 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 font-bold" x-text="t('total_exports')"></div>
+                        <div class="text-3xl font-bold text-gray-600 dark:text-gray-400 mt-1" x-text="publicStats.totalExports"></div>
+                    </div>
+                    <div class="p-3 bg-gray-100 dark:bg-gray-900/30 rounded-full text-gray-600 dark:text-gray-400">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 text-center text-xs text-gray-400">
+                <p>Data updates automatically in real-time</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Admin Dashboard Modal -->
     <div x-show="showAdminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative" @click.outside="showAdminModal = false">
