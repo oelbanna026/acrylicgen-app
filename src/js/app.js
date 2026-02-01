@@ -496,6 +496,15 @@ function app() {
                 this.showRegisterModal = false;
                 // alert('Logged in with Google successfully!');
                 console.log('Logged in with Google successfully!');
+
+                // Check pending plan
+                const pendingPlan = sessionStorage.getItem('pending_plan');
+                if (pendingPlan) {
+                    sessionStorage.removeItem('pending_plan');
+                    if (confirm(`Do you want to proceed with upgrading to ${pendingPlan} plan?`)) {
+                        this.buyPlan(pendingPlan);
+                    }
+                }
             } catch (e) {
                 alert('Google Login Failed: ' + e.message);
             } finally {
@@ -509,6 +518,15 @@ function app() {
                 this.user = auth.user;
                 this.showLoginModal = false;
                 this.authLogin = { email: '', password: '' };
+
+                // Check pending plan
+                const pendingPlan = sessionStorage.getItem('pending_plan');
+                if (pendingPlan) {
+                    sessionStorage.removeItem('pending_plan');
+                    if (confirm(`Do you want to proceed with upgrading to ${pendingPlan} plan?`)) {
+                        this.buyPlan(pendingPlan);
+                    }
+                }
             } catch (e) {
                 alert(e.message);
             }
@@ -611,13 +629,26 @@ function app() {
         },
 
         async buyPlan(plan) {
-            if (!this.user) return this.showLoginModal = true;
+            if (!this.user) {
+                sessionStorage.setItem('pending_plan', plan);
+                return this.showLoginModal = true;
+            }
             try {
-                await auth.mockPurchase(plan, 0, plan === 'starter' ? 3 : plan === 'pro' ? 7 : 30);
+                const amount = plan === 'pro' ? 12 : (plan === 'business' ? 39 : 0);
+                if (amount === 0) return;
+
+                await auth.mockPurchase(plan, 0, amount);
                 this.user = auth.user;
-                alert('Plan upgraded successfully!');
+                alert('Plan upgraded successfully to ' + plan.toUpperCase() + '!');
                 this.showPricingModal = false;
                 window.trackEvent('purchase', { item: plan, type: 'subscription' });
+                
+                // Clear URL param if present
+                const url = new URL(window.location);
+                if (url.searchParams.has('plan')) {
+                    url.searchParams.delete('plan');
+                    window.history.replaceState({}, document.title, url.pathname);
+                }
             } catch (e) {
                 alert(e.message);
             }
@@ -1095,6 +1126,20 @@ function app() {
         },
 
         async init() {
+            // Check for Plan Purchase URL Param
+            const urlParams = new URLSearchParams(window.location.search);
+            const planParam = urlParams.get('plan');
+            if (planParam && ['pro', 'business'].includes(planParam)) {
+                setTimeout(() => {
+                    if (this.user) {
+                        this.buyPlan(planParam);
+                    } else {
+                        this.showLoginModal = true;
+                        sessionStorage.setItem('pending_plan', planParam);
+                    }
+                }, 1000); // Delay to ensure auth restored
+            }
+
             // Check for Programmatic SEO Routes (Client Side Hydration)
             const path = window.location.pathname;
             const boxMatch = path.match(/^\/box\/(\d+)x(\d+)x(\d+)$/);
