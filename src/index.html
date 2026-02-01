@@ -957,7 +957,11 @@
                             <span class="text-blue-600" x-text="(currencySymbol || '$') + costReport.results.unitPrice.toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between items-center bg-green-50 dark:bg-green-900/20 p-2 rounded mt-1">
-                            <span class="font-bold text-sm"><span x-text="t('total_price')"></span> <span x-show="quantity > 1" x-text="'(' + quantity + ')'"></span>:</span>
+                            <div>
+                                <span class="font-bold text-sm"><span x-text="t('total_price')"></span> <span x-show="quantity > 1" x-text="'(' + quantity + ')'"></span>:</span>
+                                <!-- Min Charge Badge -->
+                                <div x-show="costReport.results.isMinChargeApplied" class="text-[10px] text-red-500 font-semibold" x-text="'(Min Charge Applied)'"></div>
+                            </div>
                             <span class="text-xl font-extrabold text-green-600 dark:text-green-400" x-text="(currencySymbol || '$') + costReport.results.totalBatchPrice.toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between items-center mt-2 gap-2">
