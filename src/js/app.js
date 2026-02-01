@@ -718,17 +718,20 @@ function app() {
             
             const baseW = (parseFloat(s.baseWidth) || 0) * toMM;
             const baseD = (parseFloat(s.baseDepth) || 0) * toMM;
-            const baseH = (parseFloat(s.baseThickness) || 3); // Assuming mm input for base thickness
+            const baseH = (parseFloat(s.baseThickness) || 3); 
             
-            // 2. Calculate Scale to fit 300px view
+            // Force base enabled if base dimensions are present, for preview purposes
+            // Even if s.hasBase is false, we want to show what the base WOULD look like
+            const hasBase = s.hasBase || (baseW > 0 && baseD > 0);
+
+            // 2. Calculate Scale to fit 500px view (Increased from 320)
             // Max dimension logic
-            const hasBase = s.hasBase;
             const totalW = Math.max(w, hasBase ? baseW : 0);
             const totalH = h + (hasBase ? baseH : 0); 
             const totalD = Math.max(t, hasBase ? baseD : 0);
             
             const maxDim = Math.max(totalW, totalH, totalD, 10);
-            const scale = 320 / maxDim; // Target 320px
+            const scale = 500 / maxDim; // Target 500px for larger view
             
             return {
                 sw: w * scale,
