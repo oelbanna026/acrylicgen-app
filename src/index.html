@@ -288,10 +288,7 @@
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold dark:text-white" x-text="t('preview_3d')"></h2>
                 <div class="flex gap-2">
-                    <button @click="exportSTL()" class="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition shadow flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        <span>Download STL</span>
-                    </button>
+                    <!-- STL Download Button Removed per user request -->
                 </div>
             </div>
 
@@ -314,37 +311,53 @@
                     <div class="relative" style="transform-style: preserve-3d;" x-data="{ 
                         get s() { return activeShape || {width:50, height:30}; },
                         get baseEnabled() { return !!s.hasBase; },
-                        get mmScale() {
-                            // Returns multiplier to convert current unit to mm
-                            if (unit === 'cm') return 10;
-                            if (unit === 'inch') return 25.4;
-                            return 1; // mm
-                        },
                         get dims() {
-                            // Calculate Dimensions in MM
-                            const shapeW = (parseFloat(s.width)||50) * this.mmScale;
-                            const shapeH = (parseFloat(s.height)||30) * this.mmScale;
-                            const shapeT = (parseFloat(thickness)||3); // Thickness is always mm
+                            // Raw Dimensions (in 'unit')
+                            const rawW = parseFloat(s.width) || 50;
+                            const rawH = parseFloat(s.height) || 30;
+                            const rawT = parseFloat(thickness) || 3; // Thickness in mm usually
                             
-                            const baseW = (parseFloat(s.baseWidth)||80) * this.mmScale;
-                            const baseD = (parseFloat(s.baseDepth)||30) * this.mmScale;
-                            const baseH = (parseFloat(s.baseThickness)||3); // Base thickness is mm (usually) or unit? 
-                            // Input label says 'Acrylic Thickness (Base)'. Usually thickness inputs are mm in this app.
-                            // Let's assume mm.
+                            const rawBaseW = parseFloat(s.baseWidth) || 80;
+                            const rawBaseD = parseFloat(s.baseDepth) || 30;
+                            const rawBaseH = parseFloat(s.baseThickness) || 3;
+
+                            // We need relative proportions.
+                            // Convert everything to a common unit (e.g. pixels relative to W)
+                            // If unit is CM, W=10 means 10cm. Thickness=3mm = 0.3cm.
+                            // If unit is MM, W=100 means 100mm. Thickness=3mm = 3mm.
+                            // If unit is INCH, W=4 means 4in = 101.6mm. Thickness=3mm = 0.118in.
                             
-                            // Calculate View Scale to fit ~300px
-                            // Max dimension could be shape Height + Base Height (if stacked) or Widths
-                            const totalH = shapeH + (this.baseEnabled ? baseH : 0);
-                            const maxDim = Math.max(shapeW, totalH, this.baseEnabled ? baseW : 0, this.baseEnabled ? baseD : 0, 10);
-                            const viewScale = 300 / maxDim;
+                            // Let's normalize everything to MM for ratio calculation
+                            let toMM = 1;
+                            if (unit === 'cm') toMM = 10;
+                            if (unit === 'inch') toMM = 25.4;
+                            
+                            const wMM = rawW * toMM;
+                            const hMM = rawH * toMM;
+                            const tMM = rawT; // Thickness input is explicitly MM in this app
+                            
+                            const bwMM = rawBaseW * toMM;
+                            const bdMM = rawBaseD * toMM;
+                            const bhMM = rawBaseH; // Base thickness is MM
+                            
+                            // Now we have everything in MM.
+                            // Find Max Dimension to scale scene to fit 400px
+                            const maxW = Math.max(wMM, baseEnabled ? bwMM : 0);
+                            const maxH = hMM + (baseEnabled ? bhMM : 0); // Stacked height approx
+                            const maxD = Math.max(baseEnabled ? bdMM : 0, tMM); // Depth
+                            
+                            // We mainly care about W and H for fitting in view
+                            const maxDim = Math.max(maxW, maxH, maxD, 10); // 10mm min to avoid div/0
+                            
+                            const scale = 300 / maxDim; // 300px target size
                             
                             return {
-                                sw: shapeW * viewScale,
-                                sh: shapeH * viewScale,
-                                st: shapeT * viewScale,
-                                bw: baseW * viewScale,
-                                bd: baseD * viewScale,
-                                bh: baseH * viewScale
+                                sw: wMM * scale,
+                                sh: hMM * scale,
+                                st: tMM * scale,
+                                bw: bwMM * scale,
+                                bd: bdMM * scale,
+                                bh: bhMM * scale
                             };
                         }
                     }">
