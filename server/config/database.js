@@ -96,6 +96,30 @@ function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
         )`);
+
+        // Site Statistics Table
+        db.run(`CREATE TABLE IF NOT EXISTS site_stats (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            total_views INTEGER DEFAULT 0
+        )`);
+        
+        // Initialize site_stats if empty
+        db.run(`INSERT OR IGNORE INTO site_stats (id, total_views) VALUES (1, 0)`);
+
+        // Active Sessions Table (for real-time active users)
+        db.run(`CREATE TABLE IF NOT EXISTS active_sessions (
+            id TEXT PRIMARY KEY,
+            last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
+            ip TEXT,
+            user_agent TEXT
+        )`);
+
+        // Daily Unique Visitors (for conversion rate calculation)
+        db.run(`CREATE TABLE IF NOT EXISTS daily_visitors (
+            ip TEXT,
+            date TEXT,
+            PRIMARY KEY (ip, date)
+        )`);
     });
 }
 
