@@ -2443,63 +2443,103 @@ function app() {
         // --- Nesting Logic ---
 
         fillSheet() {
-            if (!this.activeShape) return;
+            if (this.shapes.length === 0) return;
             
             window.Monetization.executeProtectedAction(() => {
-                const shape = this.activeShape;
-                // Use Bounding Box for dimensions to support rotation
-                const dummy = JSON.parse(JSON.stringify(shape));
-                dummy.x = 0; dummy.y = 0;
-                const box = this.getShapeBoundingBox(dummy);
+                // If there's only one shape, duplicate it to fill.
+                // If there are multiple shapes, we might want to duplicate ALL of them?
+                // Or just fill space with the currently selected one?
+                // User input: "only one shape is duplicated and the other is not"
+                // Implies user wants to clone ALL existing shapes to fill the sheet.
+                // But typically nesting fill means "take this single design and make 100 copies".
+                // If the user has multiple distinct designs (e.g. Shape A and Shape B), and clicks Fill,
+                // they likely want to fill the sheet with a mix? Or copies of both?
+                // Let's assume: If multiple shapes exist, we duplicate the ENTIRE set until full.
                 
-                const w = box.width;
-                const h = box.height;
+                // 1. Calculate average area of current set
+                let totalSetArea = 0;
+                this.shapes.forEach(s => {
+                    const dummy = JSON.parse(JSON.stringify(s));
+                    dummy.x = 0; dummy.y = 0;
+                    const box = this.getShapeBoundingBox(dummy);
+                    totalSetArea += (box.width * box.height);
+                });
                 
-                if (w <= 0 || h <= 0) return;
-    
+                if (totalSetArea <= 0) return;
+
                 const sheetW = parseFloat(this.nestingSheetWidth) || 1000;
                 const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
                 const margin = parseFloat(this.nestingMargin) || 0;
-    
-                let countToAdd = 0;
-    
+                
+                // Effective Sheet Area (approx 80% efficiency for simple packing)
+                const sheetArea = sheetW * sheetH * 0.8; 
+                
+                let setsToAdd = 0;
+
                 if (this.fillCount && this.fillCount > 0) {
-                    countToAdd = parseInt(this.fillCount);
+                    // User specified total count. 
+                    // If fillCount is "10", and we have 2 shapes (A, B), do we make 10 sets (20 shapes) or 10 shapes total?
+                    // Let's assume 10 sets for now if logic is "duplicate all".
+                    setsToAdd = parseInt(this.fillCount);
                 } else {
-                    // Auto calculation
-                    // Capacity = (SheetW + Margin) / (ShapeW + Margin)
-                    // Using floor to be safe
-                    const cols = Math.floor((sheetW + margin) / (w + margin));
-                    const rows = Math.floor((sheetH + margin) / (h + margin));
-                    const maxPossible = cols * rows;
+                    // Auto calculation: How many sets fit?
+                    // Capacity = SheetArea / (SetArea + Margins)
+                    // Margin overhead approx: (SetCount * ShapeCount * Margin^2) ... rough estimate
+                    const shapeCount = this.shapes.length;
+                    const areaWithMargin = totalSetArea + (shapeCount * margin * Math.sqrt(totalSetArea/shapeCount) * 2); 
                     
-                    // Subtract existing shapes to avoid overflow
-                    // We assume user wants to fill the board to capacity
-                    const currentCount = this.shapes.length;
-                    countToAdd = Math.max(0, maxPossible - currentCount);
-    
+                    const maxSets = Math.floor(sheetArea / areaWithMargin);
+                    
+                    // We already have 1 set.
+                    setsToAdd = Math.max(0, maxSets - 1);
+
                     // Limit to avoid browser crash
-                    countToAdd = Math.min(countToAdd, 500); 
+                    setsToAdd = Math.min(setsToAdd, 100); 
                 }
-    
-                if (countToAdd <= 0) return;
-    
-                if (countToAdd > 100) {
+
+                if (setsToAdd <= 0) {
+                    // Try to at least nest what we have if no space for more
+                    this.nestShapes(true);
+                    return;
+                }
+
+                if (setsToAdd * this.shapes.length > 200) {
                     if (!confirm(this.t('fill_warning'))) return;
                 }
-    
+
                 this.loading = true;
                 
+                // Clone the INITIAL set of shapes
+                const initialSet = JSON.parse(JSON.stringify(this.shapes));
+
                 // Use setTimeout to allow UI to update loading state
                 setTimeout(() => {
-                    for (let i = 0; i < countToAdd; i++) {
-                        const copy = JSON.parse(JSON.stringify(shape));
-                        copy.id = Date.now() + i;
-                        copy.name = shape.name + ' (' + (i+1) + ')';
-                        // Initial position doesn't matter, nestShapes will fix it
-                        copy.x = 0; 
-                        copy.y = 0;
-                        this.shapes.push(copy);
+                    for (let i = 0; i < setsToAdd; i++) {
+                        initialSet.forEach(template => {
+                            const copy = JSON.parse(JSON.stringify(template));
+                            copy.id = Date.now() + Math.random(); // Unique ID
+                            copy.name = template.name + ' (' + (i+2) + ')';
+                            copy.x = 0; 
+                            copy.y = 0;
+                            // Unlink base for copies to prevent shared updates (unless intended?)
+                            // Usually Copies are independent.
+                            copy.linkedBaseId = null; 
+                            copy.hasBase = false; // Disable base for copies to prevent auto-base generation spam?
+                            // Or keep it? If original had base, user probably wants copies to have base.
+                            // But base is a separate shape. 
+                            // If we clone a shape AND its base, we need to maintain link? Too complex for now.
+                            // Let's just clone the shape properties.
+                            if (template.hasBase) {
+                                copy.hasBase = true;
+                                // We don't clone the base shape itself here, user has to generate it?
+                                // Or if the base was in the initialSet, it will be cloned too!
+                                // If base is a separate shape in `shapes` array, it is part of `initialSet`.
+                                // So it gets cloned.
+                                // We just need to ensure we don't double-generate.
+                            }
+                            
+                            this.shapes.push(copy);
+                        });
                     }
                     
                     // Run nesting immediately (skip monetization check)
