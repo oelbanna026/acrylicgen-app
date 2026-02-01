@@ -33,6 +33,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+const bcrypt = require('bcryptjs');
+
 function initDb() {
     db.serialize(() => {
         // Users Table
@@ -48,6 +50,21 @@ function initDb() {
             stripe_customer_id TEXT,
             role TEXT DEFAULT 'user' -- user, admin
         )`);
+
+        // Ensure Admin Exists
+        const adminEmail = 'oelbanna026@gmail.com';
+        db.get('SELECT id FROM users WHERE email = ?', [adminEmail], (err, row) => {
+            if (!row) {
+                const hashedPassword = bcrypt.hashSync('Acrylic@2026', 8);
+                db.run(`INSERT INTO users (name, email, password, role, plan, credits) VALUES (?, ?, ?, ?, ?, ?)`, 
+                    ['Admin User', adminEmail, hashedPassword, 'admin', 'business', -1], 
+                    (err) => {
+                        if (err) console.error('Error seeding admin:', err.message);
+                        else console.log('Admin user seeded automatically.');
+                    }
+                );
+            }
+        });
 
         // Migration: Add role column if it doesn't exist (for existing dbs)
         db.all("PRAGMA table_info(users)", (err, rows) => {
