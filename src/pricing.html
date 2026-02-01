@@ -29,7 +29,7 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white" x-data="{ isAnnual: false }">
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white" x-data="pricingPage()">
 
     <!-- Navbar (Simple) -->
     <nav class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
@@ -44,8 +44,15 @@
                 AcrylicGen
             </a>
             <div class="flex items-center gap-4">
+                <!-- Currency Selector -->
+                <select x-model="currency" @change="setCurrency($event.target.value)" class="text-xs p-1 rounded border bg-slate-100 dark:bg-slate-800 dark:border-slate-700">
+                    <template x-for="c in currencies">
+                        <option :value="c.code" x-text="c.code" :selected="currency === c.code"></option>
+                    </template>
+                </select>
+
                 <a href="/" class="text-sm font-medium hover:text-blue-500">Editor</a>
-                <a href="/" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Get Started</a>
+                <a href="/" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition" x-text="t('get_started')">Get Started</a>
             </div>
         </div>
     </nav>
@@ -54,17 +61,17 @@
         <div class="max-w-7xl mx-auto">
             <!-- Header -->
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-blue-600 font-semibold tracking-wide uppercase text-sm mb-2">Pricing Plans</h2>
-                <h1 class="text-4xl font-extrabold sm:text-5xl mb-4">
+                <h2 class="text-blue-600 font-semibold tracking-wide uppercase text-sm mb-2" x-text="t('pricing_title')">Pricing Plans</h2>
+                <h1 class="text-4xl font-extrabold sm:text-5xl mb-4" x-text="t('pricing_subtitle')">
                     Choose the perfect plan for your business
                 </h1>
-                <p class="text-xl text-slate-600 dark:text-slate-400">
+                <p class="text-xl text-slate-600 dark:text-slate-400" x-text="t('pricing_desc')">
                     Start for free and upgrade as you grow. No hidden fees.
                 </p>
 
                 <!-- Toggle -->
                 <div class="mt-8 flex justify-center items-center gap-4">
-                    <span class="text-sm font-semibold" :class="!isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-500'">Monthly</span>
+                    <span class="text-sm font-semibold" :class="!isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-500'" x-text="t('billing_monthly')">Monthly</span>
                     <button 
                         @click="isAnnual = !isAnnual"
                         class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -72,11 +79,11 @@
                     >
                         <span 
                             class="inline-block h-6 w-6 transform rounded-full bg-white transition-transform"
-                            :class="isAnnual ? 'translate-x-7' : 'translate-x-1'"
+                            :class="isAnnual ? (lang==='ar' ? '-translate-x-7' : 'translate-x-7') : (lang==='ar' ? '-translate-x-1' : 'translate-x-1')"
                         ></span>
                     </button>
                     <span class="text-sm font-semibold" :class="isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-500'">
-                        Yearly <span class="text-green-500 text-xs ml-1">(Save 20%)</span>
+                        <span x-text="t('billing_annual')">Yearly</span> <span class="text-green-500 text-xs ml-1" x-text="t('save_20')">(Save 20%)</span>
                     </span>
                 </div>
             </div>
@@ -87,90 +94,90 @@
                 <!-- Free -->
                 <div class="relative flex flex-col rounded-2xl p-6 shadow-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-transform hover:-translate-y-1">
                     <div class="mb-6">
-                        <h3 class="text-xl font-bold">Free</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]">Perfect for hobbyists and trying out the tool.</p>
+                        <h3 class="text-xl font-bold" x-text="t('plan_free')">Free</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]" x-text="t('free_desc')">Perfect for hobbyists and trying out the tool.</p>
                     </div>
                     <div class="mb-6">
-                        <div class="text-4xl font-extrabold">$0</div>
+                        <div class="text-4xl font-extrabold" x-text="formatPrice(0)">$0</div>
                     </div>
                     <ul class="flex-1 space-y-4 mb-8">
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">3 Exports per day</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Basic Shapes</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Watermarked Exports</span></li>
-                        <li class="flex items-start opacity-50"><span class="text-slate-400 mr-3">×</span> <span class="text-sm text-slate-500">Commercial License</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_3_exports')">3 Exports per day</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_basic_shapes')">Basic Shapes</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_watermark')">Watermarked Exports</span></li>
+                        <li class="flex items-start opacity-50"><span class="text-slate-400 mr-3">×</span> <span class="text-sm text-slate-500" x-text="t('feature_commercial')">Commercial License</span></li>
                     </ul>
-                    <a href="/" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">Start for Free</a>
+                    <a href="/" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition" x-text="t('start_free')">Start for Free</a>
                 </div>
 
                 <!-- Pro -->
                 <div class="relative flex flex-col rounded-2xl p-6 shadow-xl bg-white dark:bg-slate-800 border-2 border-yellow-500 ring-4 ring-yellow-500/20 z-10 scale-105 transition-transform hover:-translate-y-1">
-                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg" x-text="t('most_popular')">
                         Most Popular
                     </div>
                     <div class="mb-6">
                         <h3 class="text-xl font-bold flex items-center gap-2">
-                            Pro 
+                            <span x-text="t('plan_pro')">Pro</span> 
                             <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-0.5 rounded-full border border-yellow-200">Gold</span>
                         </h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]">For professional designers and makers.</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]" x-text="t('pro_desc')">For professional designers and makers.</p>
                     </div>
                     <div class="mb-6">
                         <div class="flex items-baseline">
-                            <span class="text-4xl font-extrabold" x-text="isAnnual ? '$10' : '$12'">$12</span>
-                            <span class="text-slate-500 ml-2">/month</span>
+                            <span class="text-4xl font-extrabold" x-text="getPlanPrice('pro', isAnnual ? 'annual_monthly' : 'monthly')">$12</span>
+                            <span class="text-slate-500 ml-2" x-text="t('per_month')">/month</span>
                         </div>
-                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual">Billed $120 yearly</p>
+                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual" x-text="t('billed_yearly') + ' ' + getPlanPrice('pro', 'annual_total')">Billed $120 yearly</p>
                     </div>
                     <ul class="flex-1 space-y-4 mb-8">
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Unlimited Exports</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">No Watermark & No Ads</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Base Generator (New!)</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Auto Nesting Algorithm</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Save & Load Projects</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">DXF & SVG Export</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_unlimited')">Unlimited Exports</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_no_watermark')">No Watermark & No Ads</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_base_gen')">Base Generator (New!)</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_smart_nest')">Auto Nesting Algorithm</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_save_load')">Save & Load Projects</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_dxf_svg')">DXF & SVG Export</span></li>
                     </ul>
-                    <a :href="'/?plan=pro' + (isAnnual ? '&billing=annual' : '')" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white shadow-lg shadow-yellow-500/30 transition">Get Started</a>
+                    <a :href="'/?plan=pro' + (isAnnual ? '&billing=annual' : '')" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white shadow-lg shadow-yellow-500/30 transition" x-text="t('get_started')">Get Started</a>
                 </div>
 
                 <!-- Business -->
                 <div class="relative flex flex-col rounded-2xl p-6 shadow-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-transform hover:-translate-y-1">
                     <div class="mb-6">
-                        <h3 class="text-xl font-bold">Business</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]">For print shops and factories.</p>
+                        <h3 class="text-xl font-bold" x-text="t('plan_business')">Business</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]" x-text="t('business_desc')">For print shops and factories.</p>
                     </div>
                     <div class="mb-6">
                         <div class="flex items-baseline">
-                            <span class="text-4xl font-extrabold" x-text="isAnnual ? '$31' : '$39'">$39</span>
-                            <span class="text-slate-500 ml-2">/month</span>
+                            <span class="text-4xl font-extrabold" x-text="getPlanPrice('business', isAnnual ? 'annual_monthly' : 'monthly')">$39</span>
+                            <span class="text-slate-500 ml-2" x-text="t('per_month')">/month</span>
                         </div>
-                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual">Billed $372 yearly</p>
+                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual" x-text="t('billed_yearly') + ' ' + getPlanPrice('business', 'annual_total')">Billed $372 yearly</p>
                     </div>
                     <ul class="flex-1 space-y-4 mb-8">
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Everything in Pro</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Bulk Export (Zip)</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Multiple Files Support</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Commercial License</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Priority Support</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_everything_pro')">Everything in Pro</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_bulk')">Bulk Export (Zip)</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_multi_files')">Multiple Files Support</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_commercial')">Commercial License</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_priority')">Priority Support</span></li>
                     </ul>
-                    <a :href="'/?plan=business' + (isAnnual ? '&billing=annual' : '')" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">Get Started</a>
+                    <a :href="'/?plan=business' + (isAnnual ? '&billing=annual' : '')" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition" x-text="t('get_started')">Get Started</a>
                 </div>
 
                 <!-- Enterprise -->
                 <div class="relative flex flex-col rounded-2xl p-6 shadow-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-transform hover:-translate-y-1">
                     <div class="mb-6">
-                        <h3 class="text-xl font-bold">Enterprise</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]">Custom solutions for large organizations.</p>
+                        <h3 class="text-xl font-bold" x-text="t('plan_enterprise')">Enterprise</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-[40px]" x-text="t('enterprise_desc')">Custom solutions for large organizations.</p>
                     </div>
                     <div class="mb-6">
-                        <div class="text-4xl font-extrabold">Custom</div>
+                        <div class="text-4xl font-extrabold" x-text="formatPrice('Custom')">Custom</div>
                     </div>
                     <ul class="flex-1 space-y-4 mb-8">
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">API Access</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Team Management</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">SSO Integration</span></li>
-                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300">Dedicated Account Manager</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_api')">API Access</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_team')">Team Management</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_sso')">SSO Integration</span></li>
+                        <li class="flex items-start"><span class="text-green-500 mr-3">✓</span> <span class="text-sm text-slate-600 dark:text-slate-300" x-text="t('feature_manager')">Dedicated Account Manager</span></li>
                     </ul>
-                    <a href="#" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">Contact Sales</a>
+                    <a href="#" class="w-full py-3 px-4 rounded-lg text-center font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition" x-text="t('contact_sales')">Contact Sales</a>
                 </div>
 
             </div>
@@ -201,7 +208,7 @@
                     <p class="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
                         Join thousands of print shops and designers using AcrylicGen to automate their production.
                     </p>
-                    <a href="#" class="inline-block bg-white text-blue-600 font-bold py-4 px-8 rounded-full hover:bg-blue-50 transition-colors shadow-lg transform hover:scale-105 duration-200">
+                    <a href="/" class="inline-block bg-white text-blue-600 font-bold py-4 px-8 rounded-full hover:bg-blue-50 transition-colors shadow-lg transform hover:scale-105 duration-200" x-text="t('start_free')">
                         Get Started for Free
                     </a>
                 </div>
@@ -217,5 +224,146 @@
             <p>&copy; 2026 AcrylicGen. All rights reserved.</p>
         </div>
     </footer>
+
+    <script>
+        function pricingPage() {
+            return {
+                isAnnual: false,
+                lang: localStorage.getItem('acrylic_lang') || 'ar',
+                currency: localStorage.getItem('acrylic_currency') || 'USD',
+                currencies: [
+                     { code: 'USD', symbol: '$', name: 'USD', rate: 1 },
+                     { code: 'SAR', symbol: 'ر.س', name: 'SAR', rate: 3.75 },
+                     { code: 'EGP', symbol: 'ج.م', name: 'EGP', rate: 49.5 },
+                     { code: 'AED', symbol: 'د.إ', name: 'AED', rate: 3.67 },
+                     { code: 'KWD', symbol: 'د.ك', name: 'KWD', rate: 0.31 },
+                     { code: 'EUR', symbol: '€', name: 'EUR', rate: 0.92 }
+                ],
+                i18n: {
+                    ar: {
+                        pricing_title: "خطط الأسعار",
+                        pricing_subtitle: "اختر الخطة المناسبة لعملك",
+                        pricing_desc: "ابدأ مجاناً وقم بالترقية مع نمو أعمالك. لا رسوم خفية.",
+                        billing_monthly: "شهري",
+                        billing_annual: "سنوي",
+                        save_20: "(وفر 20%)",
+                        most_popular: "الأكثر شعبية",
+                        plan_free: "مجاني",
+                        free_desc: "مثالي للهواة وتجربة الأداة.",
+                        plan_pro: "برو (Pro)",
+                        pro_desc: "للمصممين المحترفين والصناع.",
+                        plan_business: "أعمال (Business)",
+                        business_desc: "للمطابع والمصانع.",
+                        plan_enterprise: "مؤسسات",
+                        enterprise_desc: "حلول مخصصة للمؤسسات الكبيرة.",
+                        per_month: "/شهر",
+                        billed_yearly: "تدفع سنوياً",
+                        start_free: "ابدأ مجاناً",
+                        get_started: "اشترك الآن",
+                        contact_sales: "تواصل مع المبيعات",
+                        feature_3_exports: "3 عمليات تصدير يومياً",
+                        feature_basic_shapes: "أشكال أساسية",
+                        feature_watermark: "علامة مائية على التصدير",
+                        feature_no_commercial: "رخصة تجارية",
+                        feature_unlimited: "تصدير غير محدود",
+                        feature_no_watermark: "بدون علامة مائية وإعلانات",
+                        feature_base_gen: "مولد القواعد (جديد!)",
+                        feature_adv_shapes: "أشكال متقدمة",
+                        feature_smart_nest: "ترتيب ذكي (Nesting)",
+                        feature_save_load: "حفظ وتحميل المشاريع",
+                        feature_dxf_svg: "تصدير DXF و SVG",
+                        feature_everything_pro: "كل مميزات Pro",
+                        feature_bulk: "تصدير بالجملة (Zip)",
+                        feature_multi_files: "دعم ملفات متعددة",
+                        feature_commercial: "رخصة تجارية",
+                        feature_priority: "دعم فني ذو أولوية",
+                        feature_api: "وصول API",
+                        feature_team: "إدارة الفريق",
+                        feature_sso: "تكامل SSO",
+                        feature_manager: "مدير حساب مخصص"
+                    },
+                    en: {
+                        pricing_title: "Pricing Plans",
+                        pricing_subtitle: "Choose the perfect plan for your business",
+                        pricing_desc: "Start for free and upgrade as you grow. No hidden fees.",
+                        billing_monthly: "Monthly",
+                        billing_annual: "Yearly",
+                        save_20: "(Save 20%)",
+                        most_popular: "Most Popular",
+                        plan_free: "Free",
+                        free_desc: "Perfect for hobbyists and trying out the tool.",
+                        plan_pro: "Pro",
+                        pro_desc: "For professional designers and makers.",
+                        plan_business: "Business",
+                        business_desc: "For print shops and factories.",
+                        plan_enterprise: "Enterprise",
+                        enterprise_desc: "Custom solutions for large organizations.",
+                        per_month: "/month",
+                        billed_yearly: "Billed yearly",
+                        start_free: "Start for Free",
+                        get_started: "Get Started",
+                        contact_sales: "Contact Sales",
+                        feature_3_exports: "3 Exports per day",
+                        feature_basic_shapes: "Basic Shapes",
+                        feature_watermark: "Watermarked Exports",
+                        feature_no_commercial: "Commercial License",
+                        feature_unlimited: "Unlimited Exports",
+                        feature_no_watermark: "No Watermark & No Ads",
+                        feature_base_gen: "Base Generator (New!)",
+                        feature_adv_shapes: "Advanced Shapes",
+                        feature_smart_nest: "Smart Nesting",
+                        feature_save_load: "Save & Load Projects",
+                        feature_dxf_svg: "DXF & SVG Export",
+                        feature_everything_pro: "Everything in Pro",
+                        feature_bulk: "Bulk Export (Zip)",
+                        feature_multi_files: "Multiple Files Support",
+                        feature_commercial: "Commercial License",
+                        feature_priority: "Priority Support",
+                        feature_api: "API Access",
+                        feature_team: "Team Management",
+                        feature_sso: "SSO Integration",
+                        feature_manager: "Dedicated Account Manager"
+                    }
+                },
+                t(key) {
+                     const dict = this.i18n[this.lang] || this.i18n['en'];
+                     return dict[key] || key;
+                },
+                setCurrency(code) {
+                     this.currency = code;
+                     localStorage.setItem('acrylic_currency', code);
+                },
+                getCurrencySymbol() {
+                     return this.currencies.find(c => c.code === this.currency)?.symbol || '$';
+                },
+                getExchangeRate() {
+                     return this.currencies.find(c => c.code === this.currency)?.rate || 1;
+                },
+                formatPrice(amountUSD) {
+                     if (amountUSD === 0) return this.getCurrencySymbol() + '0';
+                     if (amountUSD === 'Custom') return this.lang === 'ar' ? 'حسب الطلب' : 'Custom';
+                     
+                     const rate = this.getExchangeRate();
+                     const symbol = this.getCurrencySymbol();
+                     const val = (amountUSD * rate);
+                     const formatted = val % 1 === 0 ? val.toFixed(0) : val.toFixed(2);
+                     
+                     return this.lang === 'ar' ? `${formatted} ${symbol}` : `${symbol}${formatted}`;
+                },
+                getPlanPrice(plan, type) {
+                     const prices = {
+                         pro: { monthly: 12, annual_monthly: 10, annual_total: 120 },
+                         business: { monthly: 39, annual_monthly: 31, annual_total: 372 }
+                     };
+                     const p = prices[plan];
+                     if (!p) return 0;
+                     if (type === 'monthly') return this.formatPrice(p.monthly);
+                     if (type === 'annual_monthly') return this.formatPrice(p.annual_monthly);
+                     if (type === 'annual_total') return this.formatPrice(p.annual_total);
+                     return 0;
+                }
+            }
+        }
+    </script>
 </body>
 </html>
