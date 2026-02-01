@@ -57,4 +57,43 @@ router.get('/users', verifyAdmin, (req, res) => {
     });
 });
 
+// Get Payments
+router.get('/payments', verifyAdmin, (req, res) => {
+    db.all(`SELECT p.*, u.name as user_name, u.email as user_email 
+            FROM payments p 
+            LEFT JOIN users u ON p.user_id = u.id 
+            ORDER BY p.created_at DESC LIMIT 50`, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(rows);
+    });
+});
+
+// Get Exports (Projects)
+router.get('/exports', verifyAdmin, (req, res) => {
+    db.all(`SELECT e.*, u.name as user_name 
+            FROM exports e 
+            LEFT JOIN users u ON e.user_id = u.id 
+            ORDER BY e.created_at DESC LIMIT 50`, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(rows);
+    });
+});
+
+// Get Ads
+router.get('/ads', verifyAdmin, (req, res) => {
+    db.all('SELECT * FROM ads ORDER BY revenue DESC', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(200).json(rows);
+    });
+});
+
+// Update Ad Status
+router.post('/ads/:id/status', verifyAdmin, (req, res) => {
+    const { status } = req.body;
+    db.run('UPDATE ads SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, changes: this.changes });
+    });
+});
+
 module.exports = router;

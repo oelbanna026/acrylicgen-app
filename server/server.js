@@ -35,6 +35,17 @@ app.use((req, res, next) => {
 
 // Static Files (Serve the frontend)
 app.use(express.static(path.join(__dirname, '../src')));
+
+// Serve Admin Dashboard
+const adminPath = path.join(__dirname, '../dist/admin');
+if (fs.existsSync(adminPath)) {
+    app.use('/admin', express.static(adminPath));
+    // Handle client-side routing for admin
+    app.get('/admin/*', (req, res) => {
+        res.sendFile(path.join(adminPath, 'index.html'));
+    });
+}
+
 // Serve dist if production
 // app.use(express.static(path.join(__dirname, '../dist')));
 

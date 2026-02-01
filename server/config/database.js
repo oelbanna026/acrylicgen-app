@@ -137,6 +137,32 @@ function initDb() {
             date TEXT,
             PRIMARY KEY (ip, date)
         )`);
+
+        // Ads Table
+        db.run(`CREATE TABLE IF NOT EXISTS ads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            type TEXT, -- banner, sidebar, interstitial
+            placement TEXT,
+            impressions INTEGER DEFAULT 0,
+            clicks INTEGER DEFAULT 0,
+            revenue REAL DEFAULT 0,
+            status TEXT DEFAULT 'active' -- active, paused
+        )`);
+        
+        // Seed Initial Ads if empty
+        db.get("SELECT count(*) as count FROM ads", (err, row) => {
+            if (!err && row.count === 0) {
+                const initialAds = [
+                    ['Sidebar Banner', 'banner', 'sidebar', 12000, 450, 120.50, 'active'],
+                    ['Export Interstitial', 'interstitial', 'export_flow', 8500, 320, 85.00, 'active'],
+                    ['Footer Leaderboard', 'banner', 'footer', 5000, 120, 30.00, 'paused']
+                ];
+                const stmt = db.prepare("INSERT INTO ads (name, type, placement, impressions, clicks, revenue, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                initialAds.forEach(ad => stmt.run(ad));
+                stmt.finalize();
+            }
+        });
     });
 }
 
