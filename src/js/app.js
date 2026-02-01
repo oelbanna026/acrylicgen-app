@@ -1026,10 +1026,17 @@ function app() {
             if (type === 'arch') {
                 // Arch / Tombstone
                 const r = w / 2;
-                const h_straight = Math.max(0, h - r);
-                let path = `M 0 ${h} L ${w} ${h} L ${w} ${h_straight} `;
-                // Arc Top: from (w, h_straight) to (0, h_straight)
-                path += `A ${r} ${r} 0 0 0 0 ${h_straight} `;
+                // If h < r, shape is shorter than a full semicircle. 
+                // But assuming standard usage where h >= r:
+                // Top of arc is at y=0.
+                // Arc starts at y=r.
+                // Straight part goes from y=h to y=r.
+                const y_start = (h < r) ? h : r; 
+                
+                let path = `M 0 ${h} L ${w} ${h} L ${w} ${y_start} `;
+                // Arc Top: from (w, y_start) to (0, y_start)
+                // Radius r.
+                path += `A ${r} ${r} 0 0 0 0 ${y_start} `;
                 path += `Z`;
                 return path;
             }
@@ -1810,12 +1817,12 @@ function app() {
                 }
             } else if (type === 'arch') {
                 const r = w / 2;
-                const h_straight = Math.max(0, h - r);
+                const y_start = (h < r) ? h : r;
                 return [
                     {x: 0, y: h, bulge: 0},
                     {x: w, y: h, bulge: 0},
-                    {x: w, y: h_straight, bulge: -1}, // Semicircle top (Bulge -1 for CW/Up in SVG coords)
-                    {x: 0, y: h_straight, bulge: 0}
+                    {x: w, y: y_start, bulge: -1}, // Semicircle top (Bulge -1 for CW/Up in SVG coords)
+                    {x: 0, y: y_start, bulge: 0}
                 ];
             } else if (type === 'banner') {
                 const d = parseFloat(shape.cornerRadius) || (h * 0.2);
