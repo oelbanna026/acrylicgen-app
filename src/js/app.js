@@ -21,6 +21,7 @@ const i18n = {
         no_holes: "بدون ثقوب",
         corners_4: "4 زوايا (Corners)",
         side_6: "6 ثقوب (Side Middle)",
+        side_2: "2 ثقوب (وسط الجوانب)",
         custom_count: "عدد مخصص (توزيع متساوي)",
         hole_count: "عدد المسامير",
         diameter: "قطر المسمار",
@@ -112,6 +113,7 @@ const i18n = {
         no_holes: "No Holes",
         corners_4: "4 Corners",
         side_6: "6 Holes (Sides)",
+        side_2: "2 Holes (Side Middle)",
         custom_count: "Custom Count (Even)",
         hole_count: "Hole Count",
         diameter: "Screw Diameter",
@@ -645,6 +647,16 @@ function app() {
                         pts.push({x: offset, y: h/2});
                         pts.push({x: w-offset, y: h/2});
                     }
+                } else if (shape.holePattern === 'side_2') {
+                    if (w > h) {
+                        // Landscape: holes on left and right sides
+                        pts.push({x: offset, y: h/2});
+                        pts.push({x: w-offset, y: h/2});
+                    } else {
+                        // Portrait: holes on top and bottom sides
+                        pts.push({x: w/2, y: offset});
+                        pts.push({x: w/2, y: h-offset});
+                    }
                 } else if (shape.holePattern === 'custom') {
                     const count = parseInt(shape.holeCount) || 4;
                     const effW = w - 2*offset;
@@ -676,7 +688,7 @@ function app() {
                 const cx = w/2;
                 const cy = h/2;
                 const count = shape.holePattern === 'custom' ? (parseInt(shape.holeCount)||4) : 4;
-                const num = (shape.holePattern === 'corners') ? 4 : (shape.holePattern === 'corners_mid' ? 6 : count);
+                const num = (shape.holePattern === 'corners') ? 4 : (shape.holePattern === 'corners_mid' ? 6 : (shape.holePattern === 'side_2' ? 2 : count));
                 
                 for (let i = 0; i < num; i++) {
                     const angle = (2 * Math.PI * i) / num - (Math.PI/4); 
