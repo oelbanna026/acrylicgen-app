@@ -1030,6 +1030,36 @@ function app() {
         },
 
         async init() {
+            // Check for Programmatic SEO Routes (Client Side Hydration)
+            const path = window.location.pathname;
+            const boxMatch = path.match(/^\/box\/(\d+)x(\d+)x(\d+)$/);
+            if (boxMatch) {
+                const [_, w, h, d] = boxMatch;
+                console.log('Hydrating from SEO Route:', w, h, d);
+                // Reset to default shape but with these dims
+                this.shapes = [{
+                    id: Date.now(),
+                    name: `Box ${w}x${h}x${d}`,
+                    x: 0, y: 0,
+                    width: parseFloat(w),
+                    height: parseFloat(h),
+                    shapeType: 'rectangle',
+                    cornerType: 'straight',
+                    cornerRadius: 0,
+                    holePattern: 'none',
+                    holeCount: 0,
+                    holeDiameter: 0,
+                    holeMargin: 0,
+                    holes: []
+                }];
+                this.activeShapeId = this.shapes[0].id;
+                this.unit = 'cm'; // Assume CM for these routes
+                // Force Update
+                this.updateHoles(this.shapes[0]);
+                // Don't load from localStorage if we are on a specific route
+                localStorage.removeItem('acrylic-pro-v1'); 
+            }
+
             // Restore Session if token exists
             if (auth.token) {
                 // If user object is missing or we want to validate the token
