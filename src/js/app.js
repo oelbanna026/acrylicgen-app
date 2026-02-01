@@ -289,7 +289,12 @@ function app() {
         ],
         
         // Shapes Model
-        unit: 'cm',
+        unit: (function() {
+            try {
+                const s = localStorage.getItem('acrylic-pro-v1');
+                return s ? (JSON.parse(s).unit || 'cm') : 'cm';
+            } catch(e) { return 'cm'; }
+        })(),
         shapes: [defaultShape()],
         activeShapeId: null,
 
@@ -1295,7 +1300,18 @@ function app() {
             let maxX = dims.maxX;
             let maxY = dims.maxY;
             
-            if (minX === Infinity) { minX = 0; minY = 0; maxX = 50; maxY = 30; }
+            // Include Sheet in Bounding Box if it exists
+            const sheetW = parseFloat(this.nestingSheetWidth) || 0;
+            const sheetH = parseFloat(this.nestingSheetHeight) || 0;
+            
+            if (sheetW > 0 && sheetH > 0) {
+                minX = Math.min(minX === Infinity ? 0 : minX, 0);
+                minY = Math.min(minY === Infinity ? 0 : minY, 0);
+                maxX = Math.max(maxX === -Infinity ? sheetW : maxX, sheetW);
+                maxY = Math.max(maxY === -Infinity ? sheetH : maxY, sheetH);
+            } else if (minX === Infinity) { 
+                minX = 0; minY = 0; maxX = 50; maxY = 30; 
+            }
 
             const contentW = maxX - minX;
             const contentH = maxY - minY;
