@@ -733,6 +733,13 @@ function app() {
             const maxDim = Math.max(totalW, totalH, totalD, 10);
             const scale = 500 / maxDim; // Target 500px for larger view
             
+            // Shape Style
+            let radius = '0px';
+            if (s.shapeType === 'circle' || s.shapeType === 'oval') radius = '50%';
+            else if (s.shapeType === 'rectangle' && s.cornerType === 'rounded') {
+                radius = (parseFloat(s.cornerRadius) || 0) * toMM * scale + 'px';
+            }
+
             return {
                 sw: w * scale,
                 sh: h * scale,
@@ -740,7 +747,9 @@ function app() {
                 bw: baseW * scale,
                 bd: baseD * scale,
                 bh: baseH * scale,
-                baseEnabled: hasBase
+                baseEnabled: hasBase,
+                radius: radius,
+                isCircle: s.shapeType === 'circle' || s.shapeType === 'oval'
             };
         },
 
@@ -781,80 +790,116 @@ function app() {
             const s = this.activeShape;
             if (!s) return;
 
-            // Use mm for STL usually, but let's stick to current unit values or convert?
-            // STL is unitless, but slicers usually assume mm.
-            // Our shape dimensions are in 'this.unit'.
-            // If unit is 'cm', 10 means 10cm = 100mm.
-            // If unit is 'inch', 10 means 10inch = 254mm.
-            // Ideally we should export in mm.
-            
+            // Scale to mm
             let scale = 1;
             if (this.unit === 'cm') scale = 10;
             else if (this.unit === 'inch') scale = 25.4;
 
             const w = (parseFloat(s.width)||50) * scale;
             const h = (parseFloat(s.height)||30) * scale;
-            const d = (parseFloat(this.thickness)||3); // thickness is always in mm per requirements? 
-            // Wait, thickness input says (mm). So it's already mm. No scale needed for thickness if it's already mm.
-            // But w/h are in unit. So we scale w/h to mm.
+            const d = (parseFloat(this.thickness)||3); // Thickness is already mm
 
-            // STL Header
+            // Generate 2D Path (Counter-Clockwise)
+            const points = [];
+            const steps = 32; // Resolution for curves
+
+            if (s.shapeType === 'circle' || s.shapeType === 'oval') {
+                const rx = w / 2;
+                const ry = h / 2;
+                const cx = w / 2;
+                const cy = h / 2;
+                for (let i = 0; i < steps; i++) {
+                    const theta = (i / steps) * Math.PI * 2;
+                    points.push({
+                        x: cx + rx * Math.cos(theta),
+                        y: cy + ry * Math.sin(theta)
+                    });
+                }
+            } else if (s.shapeType === 'rectangle' && s.cornerType === 'rounded') {
+                const r = (parseFloat(s.cornerRadius) || 0) * scale;
+                const safeR = Math.min(r, w/2, h/2);
+                
+                // Helper for corner arc
+                const addCorner = (cx, cy, startAngle, endAngle) => {
+                    const segs = 8;
+                    for (let i = 0; i <= segs; i++) {
+                        const theta = startAngle + (i / segs) * (endAngle - startAngle);
+                        points.push({
+                            x: cx + safeR * Math.cos(theta),
+                            y: cy + safeR * Math.sin(theta)
+                        });
+                    }
+                };
+
+                // Bottom Right (0 to 90 deg)
+                addCorner(w - safeR, h - safeR, 0, Math.PI/2);
+                // Bottom Left (90 to 180 deg)
+                addCorner(safeR, h - safeR, Math.PI/2, Math.PI);
+                // Top Left (180 to 270 deg)
+                addCorner(safeR, safeR, Math.PI, 1.5 * Math.PI);
+                // Top Right (270 to 360 deg)
+                addCorner(w - safeR, safeR, 1.5 * Math.PI, 2 * Math.PI);
+
+            } else {
+                // Rectangle (Default)
+                points.push({x: w, y: h}); // BR
+                points.push({x: 0, y: h}); // BL
+                points.push({x: 0, y: 0}); // TL
+                points.push({x: w, y: 0}); // TR
+            }
+
+            // STL Generation
             let stl = "solid acrylic_shape\n";
             
             const addFacet = (v1, v2, v3) => {
-                // Calculate Normal
+                // Normal Calc
                 const u = {x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z};
                 const v = {x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z};
                 const nx = u.y * v.z - u.z * v.y;
                 const ny = u.z * v.x - u.x * v.z;
                 const nz = u.x * v.y - u.y * v.x;
-                // Normalize
                 const len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+                // Avoid NaN for degenerate triangles
+                if (isNaN(nx) || isNaN(ny) || isNaN(nz)) return;
                 
                 stl += `facet normal ${nx/len} ${ny/len} ${nz/len}\n  outer loop\n    vertex ${v1.x} ${v1.y} ${v1.z}\n    vertex ${v2.x} ${v2.y} ${v2.z}\n    vertex ${v3.x} ${v3.y} ${v3.z}\n  endloop\nendfacet\n`;
             };
 
-            // Define 8 vertices of the box
-            // Origin at (0,0,0) -> (w,h,d)
-            const v000 = {x:0, y:0, z:0};
-            const v100 = {x:w, y:0, z:0};
-            const v110 = {x:w, y:h, z:0};
-            const v010 = {x:0, y:h, z:0};
-            
-            const v001 = {x:0, y:0, z:d};
-            const v101 = {x:w, y:0, z:d};
-            const v111 = {x:w, y:h, z:d};
-            const v011 = {x:0, y:h, z:d};
+            // 1. Bottom Face (Z=0)
+            // Fan triangulation from centroid (works for convex shapes)
+            const cx = w/2, cy = h/2;
+            const centerBottom = {x: cx, y: cy, z: 0};
+            for (let i = 0; i < points.length; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % points.length];
+                // Clockwise for bottom face to point down (0,0,-1)
+                addFacet(centerBottom, {x: p2.x, y: p2.y, z:0}, {x: p1.x, y: p1.y, z:0});
+            }
 
-            // Front (Z=0) - Normal (0,0,-1)
-            // Vertices order for Normal pointing away: Counter-Clockwise looking from outside
-            // Front face is at Z=0 (bottom in 3D printer terms usually). 
-            // If we want Z-up as thickness:
-            // Let's assume Z is up. Z=0 is bottom, Z=d is top.
-            
-            // Bottom (Z=0)
-            addFacet(v000, v100, v110);
-            addFacet(v000, v110, v010);
-            
-            // Top (Z=d)
-            addFacet(v001, v011, v111);
-            addFacet(v001, v111, v101);
-            
-            // Front (Y=h)
-            addFacet(v010, v110, v111);
-            addFacet(v010, v111, v011);
-            
-            // Back (Y=0)
-            addFacet(v000, v001, v101);
-            addFacet(v000, v101, v100);
-            
-            // Left (X=0)
-            addFacet(v000, v010, v011);
-            addFacet(v000, v011, v001);
-            
-            // Right (X=w)
-            addFacet(v100, v101, v111);
-            addFacet(v100, v111, v110);
+            // 2. Top Face (Z=d)
+            const centerTop = {x: cx, y: cy, z: d};
+            for (let i = 0; i < points.length; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % points.length];
+                // Counter-Clockwise for top face to point up (0,0,1)
+                addFacet(centerTop, {x: p1.x, y: p1.y, z:d}, {x: p2.x, y: p2.y, z:d});
+            }
+
+            // 3. Sides
+            for (let i = 0; i < points.length; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % points.length];
+                
+                const v1 = {x: p1.x, y: p1.y, z: 0}; // Bottom 1
+                const v2 = {x: p2.x, y: p2.y, z: 0}; // Bottom 2
+                const v3 = {x: p2.x, y: p2.y, z: d}; // Top 2
+                const v4 = {x: p1.x, y: p1.y, z: d}; // Top 1
+
+                // Triangle 1
+                addFacet(v1, v2, v3);
+                // Triangle 2
+                addFacet(v1, v3, v4);
+            }
 
             stl += "endsolid acrylic_shape";
             
@@ -863,7 +908,7 @@ function app() {
             link.href = URL.createObjectURL(blob);
             link.download = (s.name || 'shape') + '.stl';
             link.click();
-        },
+        },,
 
         // Auth Methods
         async handleGoogleLogin(credential) {
