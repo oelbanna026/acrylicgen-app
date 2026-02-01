@@ -1466,29 +1466,94 @@ function app() {
              const { jsPDF } = window.jspdf;
              const doc = new jsPDF();
              const r = this.costReport.results;
-             const cur = this.currencySymbol || '$';
+             // Use Currency Code (e.g., SAR, USD) instead of Symbol to avoid encoding issues
+             const cur = this.currency || 'USD'; 
              
-             doc.setFontSize(20);
+             // Header
+             doc.setFontSize(22);
+             doc.setTextColor(40, 40, 40);
              doc.text("Cost Estimation Report", 105, 20, null, null, "center");
              
+             // Meta Data
+             doc.setFontSize(10);
+             doc.setTextColor(100, 100, 100);
+             doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 20, 35);
+             doc.text(`Project Name: ${this.activeShape ? this.activeShape.name : 'Untitled Project'}`, 20, 42);
+             
+             // Divider
+             doc.setDrawColor(200, 200, 200);
+             doc.line(20, 48, 190, 48);
+
+             let y = 60;
+             const lineHeight = 10;
+             
+             // Section 1: Breakdown
+             doc.setFontSize(14);
+             doc.setTextColor(0, 0, 0);
+             doc.text("Cost Breakdown", 20, y);
+             y += 12;
+
+             doc.setFontSize(11);
+             doc.setTextColor(60, 60, 60);
+             
+             const addRow = (label, value) => {
+                 doc.text(label, 20, y);
+                 doc.text(`${value} ${cur}`, 190, y, null, null, "right");
+                 y += lineHeight;
+             };
+
+             addRow("Material Cost:", r.materialCost.toFixed(2));
+             addRow("Operation Cost (Cutting):", r.operationCost.toFixed(2));
+             
+             if (r.wasteCost > 0) {
+                addRow(`Waste Cost (${this.wastePercent}%):`, r.wasteCost.toFixed(2));
+             }
+             
+             if (r.overheadCost > 0) {
+                addRow(`Overhead Cost (${this.overheadPercent}%):`, r.overheadCost.toFixed(2));
+             }
+
+             y += 5;
+             doc.setDrawColor(220, 220, 220);
+             doc.line(20, y, 190, y);
+             y += 15;
+
+             // Section 2: Unit Price
              doc.setFontSize(12);
-             doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 40);
-             doc.text(`Item: ${this.activeShape ? this.activeShape.name : 'Design'}`, 20, 50);
-             
-             let y = 70;
-             doc.text(`Material Cost: ${cur}${r.materialCost.toFixed(2)}`, 20, y); y+=10;
-             doc.text(`Operation Cost: ${cur}${r.operationCost.toFixed(2)}`, 20, y); y+=10;
-             doc.text(`Waste Cost (${this.wastePercent}%): ${cur}${r.wasteCost.toFixed(2)}`, 20, y); y+=10;
-             doc.text(`Overhead Cost (${this.overheadPercent}%): ${cur}${r.overheadCost.toFixed(2)}`, 20, y); y+=10;
-             doc.line(20, y, 190, y); y+=10;
-             
-             doc.text(`Unit Price: ${cur}${r.unitPrice.toFixed(2)}`, 20, y); y+=10;
-             doc.text(`Quantity: ${this.quantity}`, 20, y); y+=10;
-             doc.text(`Setup Fee: ${cur}${this.setupFee.toFixed(2)}`, 20, y); y+=10;
+             doc.setTextColor(0, 0, 0);
+             doc.text("Unit Price:", 20, y);
+             doc.setFontSize(12);
+             doc.text(`${r.unitPrice.toFixed(2)} ${cur}`, 190, y, null, null, "right");
+             y += lineHeight;
+
+             doc.setFontSize(11);
+             doc.setTextColor(60, 60, 60);
+             doc.text(`Quantity: ${this.quantity}`, 20, y);
+             y += lineHeight;
+
+             if (this.setupFee > 0) {
+                 addRow("Setup Fee:", this.setupFee.toFixed(2));
+             }
+
+             // Section 3: Total
+             y += 10;
+             doc.setFillColor(240, 248, 255); // Light Blue Background
+             doc.rect(15, y - 8, 180, 20, 'F');
              
              doc.setFontSize(16);
-             doc.setTextColor(0, 100, 0);
-             doc.text(`Total Price: ${cur}${r.totalBatchPrice.toFixed(2)}`, 20, y+10);
+             doc.setTextColor(0, 80, 0);
+             doc.setFont(undefined, 'bold');
+             doc.text("Total Price:", 25, y + 5);
+             doc.text(`${r.totalBatchPrice.toFixed(2)} ${cur}`, 185, y + 5, null, null, "right");
+             
+             // Min Charge Note
+             if (r.isMinChargeApplied) {
+                 y += 20;
+                 doc.setFontSize(10);
+                 doc.setTextColor(200, 0, 0);
+                 doc.setFont(undefined, 'normal');
+                 doc.text(`* Minimum Charge of ${this.minCharge} ${cur} has been applied.`, 20, y);
+             }
              
              doc.save("quote.pdf");
         },
