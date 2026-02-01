@@ -81,6 +81,12 @@
             localStorage.setItem('daily_usage', JSON.stringify(usage));
         },
 
+        // Check feature availability
+        hasFeature(featureName) {
+            const plan = this.getUserPlan();
+            return plan.features && plan.features[featureName];
+        },
+
         // Main entry point for protected actions
         executeProtectedAction(callback) {
             if (!this.checkLimit()) return;
