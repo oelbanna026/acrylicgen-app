@@ -295,8 +295,8 @@ function app() {
 
         // Pricing Global Settings
         thickness: 3,
-        sheetWidth: 244,
-        sheetHeight: 122,
+        sheetWidth: 122,
+        sheetHeight: 244,
         sheetPrice: 100,
         cuttingPricePerHour: 50,
         profitMargin: 20,
@@ -315,8 +315,8 @@ function app() {
         snapThreshold: 1.5, // units
 
         // Nesting State
-        nestingSheetWidth: 244,
-        nestingSheetHeight: 122,
+        nestingSheetWidth: 122,
+        nestingSheetHeight: 244,
         nestingMargin: 0.1,
         fillCount: null,
 
