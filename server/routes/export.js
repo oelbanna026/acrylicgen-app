@@ -23,10 +23,10 @@ router.post('/deduct', verifyToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!user) return res.status(404).json({ error: 'User not found' });
 
-        // Business plan has unlimited exports (logic can be adjusted)
-        if (user.plan === 'business') {
+        // Business and Pro plans have unlimited exports
+        if (user.plan === 'business' || user.plan === 'pro') {
             logExport(req.userId, type, filename, 0);
-            return res.status(200).json({ success: true, credits: 'unlimited', message: 'Export allowed (Business Plan)' });
+            return res.status(200).json({ success: true, credits: 'unlimited', message: 'Export allowed (' + user.plan + ' Plan)' });
         }
 
         if (user.credits <= 0) {
