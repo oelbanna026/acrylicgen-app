@@ -70,14 +70,14 @@
             }
             return {
                 token: 'mock_user_token',
-                user: { id: 2, name: 'Demo User', email: body.email, plan: 'free', credits: 5, role: 'user' }
+                user: { id: 2, name: 'Demo User', email: body.email, plan: 'free', credits: 3, role: 'user' }
             };
         }
 
         if (endpoint === '/auth/register') {
             return {
                 token: 'mock_user_token',
-                user: { id: 3, name: body.name, email: body.email, plan: 'free', credits: 5, role: 'user' }
+                user: { id: 3, name: body.name, email: body.email, plan: 'free', credits: 3, role: 'user' }
             };
         }
 
