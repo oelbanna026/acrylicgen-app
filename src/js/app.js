@@ -701,11 +701,52 @@ function app() {
             }
         },
 
+        preview3DStats: { sw:0, sh:0, st:0, bw:0, bd:0, bh:0, baseEnabled: false },
+
+        get3DPreviewDims() {
+            const s = this.activeShape;
+            if (!s) return { sw:0, sh:0, st:0, bw:0, bd:0, bh:0, baseEnabled: false };
+            
+            // 1. Normalize to MM
+            let toMM = 1;
+            if (this.unit === 'cm') toMM = 10;
+            else if (this.unit === 'inch') toMM = 25.4;
+            
+            const w = (parseFloat(s.width) || 0) * toMM;
+            const h = (parseFloat(s.height) || 0) * toMM;
+            const t = (parseFloat(this.thickness) || 3); // Thickness is always mm input
+            
+            const baseW = (parseFloat(s.baseWidth) || 0) * toMM;
+            const baseD = (parseFloat(s.baseDepth) || 0) * toMM;
+            const baseH = (parseFloat(s.baseThickness) || 3); // Assuming mm input for base thickness
+            
+            // 2. Calculate Scale to fit 300px view
+            // Max dimension logic
+            const hasBase = s.hasBase;
+            const totalW = Math.max(w, hasBase ? baseW : 0);
+            const totalH = h + (hasBase ? baseH : 0); 
+            const totalD = Math.max(t, hasBase ? baseD : 0);
+            
+            const maxDim = Math.max(totalW, totalH, totalD, 10);
+            const scale = 320 / maxDim; // Target 320px
+            
+            return {
+                sw: w * scale,
+                sh: h * scale,
+                st: t * scale,
+                bw: baseW * scale,
+                bd: baseD * scale,
+                bh: baseH * scale,
+                baseEnabled: hasBase
+            };
+        },
+
         preview3D() {
             if (!this.activeShape) {
                 alert(this.t('base_warning'));
                 return;
             }
+            this.preview3DStats = this.get3DPreviewDims();
             this.show3DPreviewModal = true;
             this.rotX = -20;
             this.rotY = 45;
