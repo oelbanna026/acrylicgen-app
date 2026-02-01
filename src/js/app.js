@@ -98,6 +98,30 @@ const i18n = {
         preview_3d: "معاينة ثلاثية الأبعاد",
         base_generated: "تم إنشاء القاعدة بنجاح!",
         base_warning: "يرجى تحديد شكل لتوليد القاعدة له",
+        upgrade_plan: "ترقية الخطة",
+        plan_pro: "برو (Pro)",
+        plan_business: "أعمال (Business)",
+        billing_monthly: "شهري",
+        billing_annual: "سنوي",
+        save_20: "(وفر 20%)",
+        most_popular: "الأكثر شعبية",
+        per_month: "/شهر",
+        billed_yearly: "تدفع سنوياً",
+        feature_unlimited: "تصدير غير محدود",
+        feature_no_watermark: "بدون علامة مائية وإعلانات",
+        feature_base_gen: "مولد القواعد (جديد!)",
+        feature_adv_shapes: "أشكال متقدمة (نجمة، إلخ)",
+        feature_smart_nest: "ترتيب ذكي (Nesting)",
+        feature_everything_pro: "كل مميزات Pro",
+        feature_commercial: "رخصة تجارية",
+        feature_priority: "دعم فني ذو أولوية",
+        feature_bulk: "تصدير بالجملة (Zip)",
+        pay_as_you_go: "الدفع حسب الاستخدام",
+        exports_count: "عمليات تصدير",
+        top_up: "شحن رصيد",
+        buy_credits: "شراء رصيد / ترقية",
+        upgrade_to_pro: "ترقية إلى Pro",
+        upgrade_to_business: "ترقية إلى Business",
         stats_dashboard: "لوحة الإحصائيات",
         active_visitors: "الزوار النشطين",
         total_views: "إجمالي المشاهدات",
@@ -310,14 +334,14 @@ function app() {
         // Settings
         lang: localStorage.getItem('acrylic_lang') || 'ar',
         theme: localStorage.getItem('acrylic_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
-        currency: 'USD',
+        currency: localStorage.getItem('acrylic_currency') || 'USD',
         currencies: [
-            { code: 'USD', symbol: '$', name: 'USD' },
-            { code: 'SAR', symbol: 'ر.س', name: 'SAR' },
-            { code: 'EGP', symbol: 'ج.م', name: 'EGP' },
-            { code: 'AED', symbol: 'د.إ', name: 'AED' },
-            { code: 'KWD', symbol: 'د.ك', name: 'KWD' },
-            { code: 'EUR', symbol: '€', name: 'EUR' }
+            { code: 'USD', symbol: '$', name: 'USD', rate: 1 },
+            { code: 'SAR', symbol: 'ر.س', name: 'SAR', rate: 3.75 },
+            { code: 'EGP', symbol: 'ج.م', name: 'EGP', rate: 49.5 },
+            { code: 'AED', symbol: 'د.إ', name: 'AED', rate: 3.67 },
+            { code: 'KWD', symbol: 'د.ك', name: 'KWD', rate: 0.31 },
+            { code: 'EUR', symbol: '€', name: 'EUR', rate: 0.92 }
         ],
         
         // Shapes Model
@@ -830,20 +854,40 @@ function app() {
             auth.logout();
         },
 
-        async buyPlan(plan) {
+        async buyPlan(plan, billing = 'monthly') {
             if (!this.user) {
                 sessionStorage.setItem('pending_plan', plan);
+                sessionStorage.setItem('pending_billing', billing);
                 return this.showLoginModal = true;
             }
             try {
-                const amount = plan === 'pro' ? 12 : (plan === 'business' ? 39 : 0);
-                if (amount === 0) return;
+                // Calculate Amount in USD (PayPal usually prefers major currencies, but let's stick to USD for payment logic 
+                // while showing local currency to user. Or we can convert if PayPal supports it.)
+                // For safety and consistency with previous logic, we keep payment in USD internally 
+                // but we could theoretically charge the converted amount.
+                // To avoid complexity with PayPal currency support, we'll charge USD.
+                // BUT user requested "Show payment plans in user's currency".
+                
+                let amountUSD = 0;
+                if (plan === 'pro') {
+                    amountUSD = billing === 'annual' ? 120 : 12;
+                } else if (plan === 'business') {
+                    amountUSD = billing === 'annual' ? 372 : 39;
+                }
+                
+                if (amountUSD === 0) return;
 
-                // Open PayPal Modal instead of direct mock purchase
-                this.payPalAmount = amount;
+                // Open PayPal Modal
+                // We will display the price in the user's currency in the modal using formatPrice
+                this.payPalAmount = this.formatPrice(amountUSD); // Display string
+                this.payPalAmountValue = amountUSD; // Actual USD value for backend/paypal
+                
                 this.payPalItemType = 'plan';
                 this.payPalItemValue = plan;
-                this.payPalDescription = `Upgrade to ${plan.toUpperCase()} Plan`;
+                this.payPalDescription = this.lang === 'ar' 
+                    ? `ترقية لـ ${this.t('plan_' + plan)} (${billing === 'annual' ? this.t('billing_annual') : this.t('billing_monthly')})`
+                    : `Upgrade to ${plan.toUpperCase()} Plan (${billing})`;
+                
                 this.showPayPalModal = true;
                 this.showPricingModal = false;
                 
