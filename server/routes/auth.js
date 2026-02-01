@@ -53,7 +53,7 @@ router.post('/google', async (req, res) => {
                 const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
                 const hashedPassword = bcrypt.hashSync(randomPassword, 8);
 
-                db.run(`INSERT INTO users (name, email, password, credits, plan, role) VALUES (?, ?, ?, 5, 'free', 'user')`, 
+                db.run(`INSERT INTO users (name, email, password, credits, plan, role) VALUES (?, ?, ?, 3, 'free', 'user')`, 
                     [name, email, hashedPassword], 
                     function(err) {
                         if (err) {
@@ -90,7 +90,7 @@ router.post('/google', async (req, res) => {
                                 id: newUserId,
                                 name: name,
                                 email: email,
-                                credits: 5,
+                                credits: 3,
                                 plan: 'free',
                                 role: 'user'
                             }
@@ -124,7 +124,7 @@ router.post('/register', (req, res) => {
         }
 
         const token = jwt.sign({ id: this.lastID }, JWT_SECRET, { expiresIn: '24h' });
-        res.status(201).json({ token, user: { id: this.lastID, name, email, credits: 5, plan: 'free', role: 'user' } });
+        res.status(201).json({ token, user: { id: this.lastID, name, email, credits: 3, plan: 'free', role: 'user' } });
     });
 });
 
