@@ -33,9 +33,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Static Files (Serve the frontend)
-app.use(express.static(path.join(__dirname, '../src')));
-
 // Serve Admin Dashboard
 const adminPath = path.join(__dirname, '../dist/admin');
 if (fs.existsSync(adminPath)) {
@@ -45,6 +42,9 @@ if (fs.existsSync(adminPath)) {
         res.sendFile(path.join(adminPath, 'index.html'));
     });
 }
+
+// Static Files (Serve the frontend)
+app.use(express.static(path.join(__dirname, '../src')));
 
 // Serve dist if production
 // app.use(express.static(path.join(__dirname, '../dist')));

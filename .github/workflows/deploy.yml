@@ -77,7 +77,24 @@ jobs:
             echo "Navigating to $DEPLOY_DIR..."
             cd "$DEPLOY_DIR"
             
-            # 3. Build and Start
+            # 3. Build Admin Dashboard
+            echo "Building Admin Dashboard..."
+            # Ensure dist directory exists
+            mkdir -p dist/admin
+            
+            if [ -d "admin-dashboard" ]; then
+                cd admin-dashboard
+                # Install dependencies and build
+                npm install
+                npm run build
+                # Copy build artifacts to dist/admin
+                cp -r out/* ../dist/admin/
+                cd ..
+            else
+                echo "Warning: admin-dashboard directory not found!"
+            fi
+
+            # 4. Build and Start
             echo "Building and starting containers..."
             export PAYPAL_CLIENT_ID="${{ secrets.PAYPAL_CLIENT_ID }}"
             export PAYPAL_SECRET="${{ secrets.PAYPAL_SECRET }}"
