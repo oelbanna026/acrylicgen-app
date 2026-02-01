@@ -169,7 +169,13 @@ const i18n = {
         duplicate_short: "Clone",
         snap_short: "Snap",
         nesting_short: "Nest",
-        restart_tour: "Start Tour"
+        restart_tour: "Start Tour",
+        stats_dashboard: "Stats Dashboard",
+        active_visitors: "Active Visitors",
+        total_views: "Total Views",
+        sales_24h: "Sales (24h)",
+        conversion_rate: "Conversion Rate",
+        view_stats: "View Stats"
     }
 };
 
@@ -239,6 +245,10 @@ function app() {
         showForgotPasswordModal: false,
         showHistoryModal: false,
         showAdminModal: false,
+        showPublicStatsModal: false,
+        publicStats: { totalViews: 0, activeUsers: 0, sales24h: 0, conversionRate: 0, totalExports: 0 },
+        statsInterval: null,
+        visitInterval: null,
         showAboutModal: false,
         showAdModal: false,
         showPayPalModal: false,
@@ -907,7 +917,55 @@ function app() {
             return i18n[this.lang][key] || key; 
         },
 
+        async fetchPublicStats() {
+            try {
+                const res = await fetch('/api/stats/dashboard');
+                if (res.ok) {
+                    this.publicStats = await res.json();
+                }
+            } catch (e) {
+                console.error("Failed to fetch stats:", e);
+            }
+        },
+
+        async recordVisit(type = 'heartbeat') {
+            try {
+                let sessionId = sessionStorage.getItem('acrylic_session_id');
+                if (!sessionId) {
+                    sessionId = 'sess_' + Date.now() + Math.random().toString(36).substr(2, 9);
+                    sessionStorage.setItem('acrylic_session_id', sessionId);
+                    type = 'page_view'; // First time
+                }
+
+                await fetch('/api/stats/visit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, type })
+                });
+            } catch (e) {
+                console.error("Failed to record visit:", e);
+            }
+        },
+
         init() {
+            // Record initial visit
+            this.recordVisit('page_view');
+            
+            // Heartbeat every minute
+            this.visitInterval = setInterval(() => {
+                this.recordVisit('heartbeat');
+            }, 60000);
+
+            // Watch for stats modal
+            this.$watch('showPublicStatsModal', (val) => {
+                if (val) {
+                    this.fetchPublicStats();
+                    this.statsInterval = setInterval(() => this.fetchPublicStats(), 5000);
+                } else {
+                    if (this.statsInterval) clearInterval(this.statsInterval);
+                }
+            });
+
             // Initialize Monetization Listeners
             window.addEventListener('ad-modal-open', () => {
                 this.showAdModal = true;
