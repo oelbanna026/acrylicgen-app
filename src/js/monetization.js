@@ -42,6 +42,9 @@
             const user = window.AuthService?.user;
             if (!user) return PLANS.FREE;
             
+            // Admin gets Business features (all unlocked)
+            if (user.role === 'admin') return PLANS.BUSINESS;
+
             const planKey = user.plan?.toUpperCase() || 'FREE';
             return PLANS[planKey] || PLANS.FREE;
         },
@@ -83,6 +86,9 @@
 
         // Check feature availability
         hasFeature(featureName) {
+            const user = window.AuthService?.user;
+            if (user && user.role === 'admin') return true;
+
             const plan = this.getUserPlan();
             return plan.features && plan.features[featureName];
         },
