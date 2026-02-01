@@ -98,9 +98,9 @@ router.post('/mock-purchase', (req, res) => {
 
     if (plan) {
         // Update subscription
-        updateQuery = `UPDATE users SET plan = ?, credits = CASE WHEN ? = 'business' THEN 999999 ELSE credits + ? END WHERE id = ?`;
-        let newCredits = plan === 'starter' ? 30 : (plan === 'pro' ? 100 : 0);
-        params = [plan, plan, newCredits, userId];
+        // Both Pro and Business get unlimited credits
+        updateQuery = `UPDATE users SET plan = ?, credits = -1 WHERE id = ?`;
+        params = [plan, userId];
     } else if (credits) {
         // PAYG
         updateQuery = `UPDATE users SET credits = credits + ? WHERE id = ?`;
