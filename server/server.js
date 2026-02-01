@@ -11,6 +11,7 @@ const userRoutes = require('./routes/user');
 const exportRoutes = require('./routes/export');
 const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
