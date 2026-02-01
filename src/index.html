@@ -1032,30 +1032,41 @@
                         </svg>
                     </template>
 
-                    <!-- Base Preview (Ghost) -->
+                    <!-- Base Preview (Real-time) -->
                     <template x-if="activeShape && activeShape.hasBase && !activeShape.linkedBaseId">
                         <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" xmlns="http://www.w3.org/2000/svg">
                             <g :transform="`translate(${parseFloat(pan.x) || 0}, ${parseFloat(pan.y) || 0}) scale(${parseFloat(zoom) || 1})`">
                                 <g :transform="`translate(${parseFloat(activeShape.x) + 50}, ${parseFloat(activeShape.y) + parseFloat(activeShape.height) + 20})`"
                                    class="transition-all duration-300">
                                     
-                                    <!-- Base Body Ghost -->
+                                    <!-- Base Body (Solid) -->
                                     <rect :width="parseFloat(activeShape.baseWidth) || 80" 
                                           :height="parseFloat(activeShape.baseDepth) || 30" 
                                           :rx="parseFloat(activeShape.baseRadius) || 5"
-                                          fill="rgba(59, 130, 246, 0.1)" 
+                                          fill="#ffffff" 
+                                          fill-opacity="0.9"
                                           stroke="#3b82f6" 
-                                          stroke-width="1.5" 
-                                          stroke-dasharray="5,3" />
+                                          stroke-width="2" />
                                     
+                                    <!-- Slot/Hole Preview -->
+                                    <rect :x="((parseFloat(activeShape.baseWidth) || 80) - getTabWidth(activeShape)) / 2"
+                                          :y="((parseFloat(activeShape.baseDepth) || 30) - mmToUnit(parseFloat(thickness) || 3)) / 2"
+                                          :width="getTabWidth(activeShape)"
+                                          :height="mmToUnit(parseFloat(thickness) || 3)"
+                                          fill="none"
+                                          stroke="#ef4444"
+                                          stroke-width="1" />
+
                                     <!-- Label -->
                                     <text :x="(parseFloat(activeShape.baseWidth) || 80)/2" 
-                                          y="-5" 
+                                          y="-8" 
                                           text-anchor="middle" 
                                           font-size="10" 
                                           fill="#3b82f6" 
                                           font-weight="bold"
-                                          x-text="lang === 'ar' ? 'معاينة القاعدة' : 'Base Preview'"></text>
+                                          class="bg-white px-1"
+                                          style="text-shadow: 0 0 2px white;"
+                                          x-text="lang === 'ar' ? 'معاينة (اضغط إنشاء)' : 'Preview (Click Create)'"></text>
                                 </g>
                             </g>
                         </svg>
