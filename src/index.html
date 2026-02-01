@@ -738,11 +738,19 @@
 
                     <!-- Section: Base Generator -->
                     <div id="base-section">
-                        <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('base_generator')"></h3>
+                        <div class="flex items-center gap-2 mb-3">
+                            <h3 class="text-sm font-bold uppercase tracking-wider" style="color: var(--text-muted)" x-text="t('base_generator')"></h3>
+                            <!-- Pro Badge -->
+                            <span x-show="user && user.plan === 'free' && !Monetization.hasFeature('advanced_shapes')" 
+                                  class="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                                PRO
+                            </span>
+                        </div>
                         
                         <div class="mb-3">
-                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer">
-                                <input type="checkbox" x-model="activeShape.hasBase" class="rounded text-blue-500 accent-blue-500 w-4 h-4">
+                            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer" :class="{'opacity-75': user && user.plan === 'free' && !Monetization.hasFeature('advanced_shapes')}">
+                                <input type="checkbox" x-model="activeShape.hasBase" @change="if(activeShape.hasBase) generateBase()" class="rounded text-blue-500 accent-blue-500 w-4 h-4">
                                 <span x-text="t('enable_base')"></span>
                             </label>
                         </div>
