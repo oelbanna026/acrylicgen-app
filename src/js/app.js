@@ -34,6 +34,21 @@ const i18n = {
         thickness_mm: "السمك (مم)",
         cutting_price_hr: "سعر ساعة القص",
         profit_margin: "نسبة الربح %",
+        cutting_speed: "سرعة القص (سم/دقيقة)",
+        cutting_time: "زمن القص",
+        quantity: "الكمية",
+        waste_percent: "نسبة الهالك %",
+        overhead_percent: "مصاريف إدارية %",
+        setup_fee: "تكلفة تجهيز",
+        min_charge: "الحد الأدنى",
+        material_cost: "تكلفة الخامة",
+        operation_cost: "تكلفة التشغيل",
+        waste_cost: "تكلفة الهالك",
+        overhead_cost: "مصاريف إدارية",
+        unit_price: "سعر القطعة",
+        total_price: "الإجمالي",
+        copy: "نسخ",
+        price_copied: "تم نسخ السعر!",
         area: "مساحة التصميم:",
         cost: "السعر الإجمالي:",
         toggle_theme: "تغيير السمة",
@@ -163,6 +178,21 @@ const i18n = {
         thickness_mm: "Thickness (mm)",
         cutting_price_hr: "Cutting Price/Hour",
         profit_margin: "Profit Margin %",
+        cutting_speed: "Cutting Speed (cm/min)",
+        cutting_time: "Cutting Time",
+        quantity: "Quantity",
+        waste_percent: "Waste %",
+        overhead_percent: "Overhead %",
+        setup_fee: "Setup Fee",
+        min_charge: "Min Charge",
+        material_cost: "Material Cost",
+        operation_cost: "Operation Cost",
+        waste_cost: "Waste Cost",
+        overhead_cost: "Overhead Cost",
+        unit_price: "Unit Price",
+        total_price: "Total",
+        copy: "Copy",
+        price_copied: "Price copied!",
         area: "Design Area:",
         cost: "Total Price:",
         toggle_theme: "Toggle Theme",
@@ -365,6 +395,15 @@ function app() {
         sheetPrice: 100,
         cuttingPricePerHour: 50,
         profitMargin: 20,
+        
+        // Advanced Cost Settings
+        cuttingSpeed: 100, // cm/min
+        quantity: 1,
+        wastePercent: 0,
+        overheadPercent: 0,
+        setupFee: 0,
+        minCharge: 0,
+        calculatorResults: null,
 
         // Viewport State
         zoom: 1,
@@ -1386,56 +1425,106 @@ function app() {
             return totalTimeHr * 60;
         },
 
-        get totalPrice() {
-            let totalCuttingCost = 0;
+        saveCostSettings() {
+            const settings = {
+                cuttingSpeed: this.cuttingSpeed,
+                quantity: this.quantity,
+                wastePercent: this.wastePercent,
+                overheadPercent: this.overheadPercent,
+                setupFee: this.setupFee,
+                minCharge: this.minCharge,
+                profitMargin: this.profitMargin
+            };
+            localStorage.setItem('acrylic_cost_settings', JSON.stringify(settings));
+        },
 
+        resetCostSettings() {
+            this.cuttingSpeed = 100;
+            this.quantity = 1;
+            this.wastePercent = 0;
+            this.overheadPercent = 0;
+            this.setupFee = 0;
+            this.minCharge = 0;
+            this.profitMargin = 20;
+            this.saveCostSettings();
+        },
+
+        copyPrice() {
+            if (!this.costReport) return;
+            const price = this.costReport.results.totalBatchPrice.toFixed(2);
+            const text = `${this.currencySymbol || '$'}${price}`;
+            navigator.clipboard.writeText(text).then(() => {
+                alert(this.t('price_copied') || 'Price copied!');
+            });
+        },
+
+        exportCostPDF() {
+             if (!window.jspdf) {
+                 alert('PDF library not loaded');
+                 return;
+             }
+             const { jsPDF } = window.jspdf;
+             const doc = new jsPDF();
+             const r = this.costReport.results;
+             const cur = this.currencySymbol || '$';
+             
+             doc.setFontSize(20);
+             doc.text("Cost Estimation Report", 105, 20, null, null, "center");
+             
+             doc.setFontSize(12);
+             doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 40);
+             doc.text(`Item: ${this.activeShape ? this.activeShape.name : 'Design'}`, 20, 50);
+             
+             let y = 70;
+             doc.text(`Material Cost: ${cur}${r.materialCost.toFixed(2)}`, 20, y); y+=10;
+             doc.text(`Operation Cost: ${cur}${r.operationCost.toFixed(2)}`, 20, y); y+=10;
+             doc.text(`Waste Cost (${this.wastePercent}%): ${cur}${r.wasteCost.toFixed(2)}`, 20, y); y+=10;
+             doc.text(`Overhead Cost (${this.overheadPercent}%): ${cur}${r.overheadCost.toFixed(2)}`, 20, y); y+=10;
+             doc.line(20, y, 190, y); y+=10;
+             
+             doc.text(`Unit Price: ${cur}${r.unitPrice.toFixed(2)}`, 20, y); y+=10;
+             doc.text(`Quantity: ${this.quantity}`, 20, y); y+=10;
+             doc.text(`Setup Fee: ${cur}${this.setupFee.toFixed(2)}`, 20, y); y+=10;
+             
+             doc.setFontSize(16);
+             doc.setTextColor(0, 100, 0);
+             doc.text(`Total Price: ${cur}${r.totalBatchPrice.toFixed(2)}`, 20, y+10);
+             
+             doc.save("quote.pdf");
+        },
+
+        get costReport() {
+            if (!window.AcrylicCalculator) return null;
+            
+            const dims = this.designDimensions;
+            const w_cm = this.toCm(dims.width);
+            const h_cm = this.toCm(dims.height);
+            
             const sheetW = parseFloat(this.sheetWidth) || 1;
             const sheetH = parseFloat(this.sheetHeight) || 1;
-            
-            // Convert sheet dims to cm for area calculation
             const sheetW_cm = this.convertUnitToCm(sheetW, this.sheetUnit);
             const sheetH_cm = this.convertUnitToCm(sheetH, this.sheetUnit);
-            
-            const sheetAreaCm2 = sheetW_cm * sheetH_cm;
-            const sheetPrice = parseFloat(this.sheetPrice) || 0;
-            const cuttingPrice = parseFloat(this.cuttingPricePerHour) || 0;
 
-            // Material Cost based on Bounding Box Area
-            const usedAreaCm2 = this.designDimensions.areaCm2;
-            const totalBaseCost = (sheetAreaCm2 > 0) ? (usedAreaCm2 / sheetAreaCm2) * sheetPrice : 0;
-
-            this.shapes.forEach(shape => {
-                const w_cm = this.toCm(parseFloat(shape.width) || 0);
-                const h_cm = this.toCm(parseFloat(shape.height) || 0);
-                
-                // Cutting Cost (Perimeter)
-                let perimeter_cm = 0;
-                const type = shape.shapeType;
-                if (type === 'rectangle') perimeter_cm = 2 * (w_cm + h_cm);
-                else if (type === 'oval') {
-                    const a = w_cm/2;
-                    const b = h_cm/2;
-                    perimeter_cm = Math.PI * (3*(a+b) - Math.sqrt((3*a+b)*(a+3*b)));
-                }
-                else perimeter_cm = (w_cm + h_cm) * 2;
-                
-                if (shape.holes.length > 0) {
-                    const r_cm = this.toCm((parseFloat(shape.holeDiameter)||0) / 2);
-                    const holePerimeter = 2 * Math.PI * r_cm;
-                    perimeter_cm += shape.holes.length * holePerimeter;
-                }
-
-                const speedCmMin = parseFloat(this.cuttingSpeed) || 100;
-                const speedCmHr = speedCmMin * 60;
-                const cuttingTimeHr = perimeter_cm / speedCmHr;
-                totalCuttingCost += cuttingTimeHr * cuttingPrice;
+            return window.AcrylicCalculator.calculate({
+                width: w_cm,
+                height: h_cm,
+                sheetWidth: sheetW_cm,
+                sheetHeight: sheetH_cm,
+                sheetPrice: parseFloat(this.sheetPrice) || 0,
+                cuttingTimeMinutes: this.totalCuttingTimeMinutes,
+                cuttingPricePerHour: parseFloat(this.cuttingPricePerHour) || 0,
+                wastePercent: parseFloat(this.wastePercent) || 0,
+                overheadPercent: parseFloat(this.overheadPercent) || 0,
+                profitPercent: parseFloat(this.profitMargin) || 0,
+                quantity: parseFloat(this.quantity) || 1,
+                setupFee: parseFloat(this.setupFee) || 0,
+                minCharge: parseFloat(this.minCharge) || 0
             });
-            
-            const baseCost = totalBaseCost + totalCuttingCost;
-            const profitMargin = parseFloat(this.profitMargin) || 0;
-            const profit = baseCost * (profitMargin / 100);
-            
-            return (baseCost + profit).toFixed(2);
+        },
+
+        get totalPrice() {
+            if (!this.costReport) return "0.00";
+            return this.costReport.results.totalBatchPrice.toFixed(2);
         },
 
         get currencySymbol() {
@@ -1487,6 +1576,25 @@ function app() {
         },
 
         async init() {
+            // Load Cost Settings
+            const savedCost = localStorage.getItem('acrylic_cost_settings');
+            if (savedCost) {
+                try {
+                    const parsed = JSON.parse(savedCost);
+                    if (parsed.cuttingSpeed) this.cuttingSpeed = parsed.cuttingSpeed;
+                    if (parsed.quantity) this.quantity = parsed.quantity;
+                    if (parsed.wastePercent) this.wastePercent = parsed.wastePercent;
+                    if (parsed.overheadPercent) this.overheadPercent = parsed.overheadPercent;
+                    if (parsed.setupFee) this.setupFee = parsed.setupFee;
+                    if (parsed.minCharge) this.minCharge = parsed.minCharge;
+                } catch(e) { console.error("Error loading cost settings", e); }
+            }
+
+            // Watch Cost Settings
+            ['cuttingSpeed', 'quantity', 'wastePercent', 'overheadPercent', 'setupFee', 'minCharge', 'profitMargin'].forEach(key => {
+                this.$watch(key, () => this.saveCostSettings());
+            });
+
             // Check for Plan Purchase URL Param
             const urlParams = new URLSearchParams(window.location.search);
             const planParam = urlParams.get('plan');
