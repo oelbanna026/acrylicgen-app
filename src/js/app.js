@@ -1170,6 +1170,11 @@ function app() {
                      this.updateHoles(s);
                  });
                  
+                 // Also convert nesting sheet dimensions to match the new unit
+                 if (this.nestingSheetWidth) this.nestingSheetWidth = parseFloat((this.nestingSheetWidth * factor).toFixed(2));
+                 if (this.nestingSheetHeight) this.nestingSheetHeight = parseFloat((this.nestingSheetHeight * factor).toFixed(2));
+                 if (this.nestingMargin) this.nestingMargin = parseFloat((this.nestingMargin * factor).toFixed(2));
+
                  this.save(); 
             });
             
