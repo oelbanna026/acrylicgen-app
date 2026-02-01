@@ -43,7 +43,7 @@ function initDb() {
             name TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             plan TEXT DEFAULT 'free', -- free, starter, pro, business
-            credits INTEGER DEFAULT 5,
+            credits INTEGER DEFAULT 3,
             subscription_status TEXT DEFAULT 'active', -- active, canceled, past_due
             stripe_customer_id TEXT,
             role TEXT DEFAULT 'user' -- user, admin
