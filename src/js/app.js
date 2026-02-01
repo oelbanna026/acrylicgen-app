@@ -113,7 +113,8 @@ const i18n = {
         dimensions: "Dimensions",
         shape: "Shape",
         shape_rect: "Rectangle",
-        shape_banner: "Banner/Shield",
+        shape_banner: "Shield",
+        shape_arch: "Arch",
         shape_oval: "Oval",
         shape_circle: "Circle",
         shape_pentagon: "Pentagon",
@@ -1013,23 +1014,24 @@ function app() {
             }
             
             if (type === 'banner') {
-                // Rectangle with Concave Bottom Arc
-                // Use cornerRadius as arc depth (default to 20 if 0)
+                // Shield / Convex Bottom
                 const d = parseFloat(shape.cornerRadius) || (h * 0.2);
                 let path = `M 0 0 L ${w} 0 L ${w} ${h} `;
-                
-                // Concave Bottom: Quadratic curve from (w,h) to (0,h) with control point (w/2, h-d)
-                // This creates an arch UPWARDS into the shape
-                path += `Q ${w/2} ${h-d} 0 ${h} `;
-                
+                // Convex Bottom: Control point below (h+d)
+                path += `Q ${w/2} ${h+d} 0 ${h} `;
                 path += `Z`;
                 return path;
             }
-            
-            if (type === 'banner') {
-                const d = parseFloat(shape.cornerRadius) || (h * 0.2);
-                // Area approx: w*h - (w*d*2/3) for parabolic segment, simple approximation
-                return (w * h) - (w * d * 0.5); 
+
+            if (type === 'arch') {
+                // Arch / Tombstone
+                const r = w / 2;
+                const h_straight = Math.max(0, h - r);
+                let path = `M 0 ${h} L ${w} ${h} L ${w} ${h_straight} `;
+                // Arc Top: from (w, h_straight) to (0, h_straight)
+                path += `A ${r} ${r} 0 0 0 0 ${h_straight} `;
+                path += `Z`;
+                return path;
             }
             if (type === 'oval' || type === 'circle') {
                 const rx = w/2;
@@ -1080,6 +1082,18 @@ function app() {
                     return (w * h) - removed;
                 }
                 return w * h;
+            }
+            if (type === 'banner') {
+                const d = parseFloat(shape.cornerRadius) || (h * 0.2);
+                // Rectangle part (w*h) + Parabolic segment ((2/3)*w*d)
+                // Note: The shape extends beyond h by d.
+                return (w * h) + (w * d * (2/3));
+            }
+            if (type === 'arch') {
+                const r = w / 2;
+                const h_straight = Math.max(0, h - r);
+                // Rect (w * h_straight) + Semicircle (PI * r^2 / 2)
+                return (w * h_straight) + (Math.PI * r * r / 2);
             }
             if (type === 'oval' || type === 'circle') {
                 // Area = PI * a * b
@@ -1755,6 +1769,31 @@ function app() {
                         {x: 0, y: h, bulge: 0}
                     ];
                 }
+            } else if (type === 'arch') {
+                const r = w / 2;
+                const h_straight = Math.max(0, h - r);
+                return [
+                    {x: 0, y: h, bulge: 0},
+                    {x: w, y: h, bulge: 0},
+                    {x: w, y: h_straight, bulge: 1}, 
+                    {x: 0, y: h_straight, bulge: 0}
+                ];
+            } else if (type === 'banner') {
+                const d = parseFloat(shape.cornerRadius) || (h * 0.2);
+                const pts = [
+                    {x: 0, y: 0, bulge: 0},
+                    {x: w, y: 0, bulge: 0},
+                    {x: w, y: h, bulge: 0}
+                ];
+                const steps = 16;
+                for (let i = 1; i <= steps; i++) {
+                    const t = i / steps;
+                    const mt = 1-t;
+                    const x = mt*mt*w + 2*mt*t*(w/2) + t*t*0;
+                    const y = mt*mt*h + 2*mt*t*(h+d) + t*t*h;
+                    pts.push({x: x, y: y, bulge: 0});
+                }
+                return pts;
             } else if (type === 'oval' || type === 'circle') {
                 const cx = w/2, cy = h/2, rx = w/2, ry = h/2;
                 const steps = 128;
