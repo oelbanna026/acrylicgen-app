@@ -529,6 +529,25 @@ function app() {
         },
 
         generateBase(isUpdate = false) {
+            // Monetization Check: Base Generator is a Paid Feature
+            // We only check on initial generation, not auto-updates (to avoid spamming modals during drag)
+            if (!isUpdate) {
+                if (!window.Monetization.hasFeature('advanced_shapes')) { // Reusing advanced_shapes or creating a new feature key
+                    this.showPricingModal = true;
+                    // Reset checkbox if they tried to enable it
+                    if (this.activeShape) this.activeShape.hasBase = false;
+                    return;
+                }
+            } else {
+                // For live updates, if user downgraded or logged out, we should technically stop updating?
+                // But for UX, let's just check if they are authorized.
+                // If not, we silently return or allow it if they already have it enabled?
+                // Let's adhere to strict check:
+                 if (!window.Monetization.hasFeature('advanced_shapes')) {
+                     return;
+                 }
+            }
+
             if (!this.activeShape) {
                 alert(this.t('base_warning'));
                 return;
