@@ -527,7 +527,7 @@ function app() {
             this.activeShapeId = id;
         },
 
-        generateBase() {
+        generateBase(isUpdate = false) {
             if (!this.activeShape) {
                 alert(this.t('base_warning'));
                 return;
@@ -554,30 +554,60 @@ function app() {
             // So convert mm thickness to 'unit' then apply tolerance.
             const slotH = this.mmToUnit(matThickness) * (1 - tolerance);
             
-            const newShape = {
-                id: Date.now(),
-                name: s.name + ' Base',
-                x: s.x + 50,
-                y: s.y + s.height + 20,
-                width: baseW,
-                height: baseD, // Depth on table = Height in 2D View
-                shapeType: 'rectangle',
-                cornerType: 'rounded',
-                cornerRadius: parseFloat(s.baseRadius) || 5,
-                cornerSides: { tl: true, tr: true, br: true, bl: true },
-                holePattern: 'none',
-                holes: [{
-                    type: 'rect',
-                    x: baseW / 2,
-                    y: baseD / 2,
-                    width: tabW, // Slot width = Tab width
-                    height: slotH // Slot height = Material thickness (tight)
-                }]
-            };
-            
-            this.shapes.push(newShape);
-            this.activeShapeId = newShape.id;
-            alert(this.t('base_generated'));
+            // Check if Linked Base exists
+            let existingBase = null;
+            if (s.linkedBaseId) {
+                existingBase = this.shapes.find(sh => sh.id === s.linkedBaseId);
+            }
+
+            if (existingBase) {
+                // Update Existing Base
+                existingBase.width = baseW;
+                existingBase.height = baseD;
+                existingBase.cornerRadius = parseFloat(s.baseRadius) || 5;
+                // Update Slot
+                if (existingBase.holes && existingBase.holes[0]) {
+                    existingBase.holes[0].x = baseW / 2;
+                    existingBase.holes[0].y = baseD / 2;
+                    existingBase.holes[0].width = tabW;
+                    existingBase.holes[0].height = slotH;
+                }
+                // Do not switch selection if it's an auto-update
+                if (!isUpdate) {
+                    this.activeShapeId = existingBase.id;
+                    alert(this.t('base_generated'));
+                }
+            } else {
+                // Create New Base
+                const newShape = {
+                    id: Date.now(),
+                    name: s.name + ' Base',
+                    x: s.x + 50,
+                    y: s.y + s.height + 20,
+                    width: baseW,
+                    height: baseD, // Depth on table = Height in 2D View
+                    shapeType: 'rectangle',
+                    cornerType: 'rounded',
+                    cornerRadius: parseFloat(s.baseRadius) || 5,
+                    cornerSides: { tl: true, tr: true, br: true, bl: true },
+                    holePattern: 'none',
+                    holes: [{
+                        type: 'rect',
+                        x: baseW / 2,
+                        y: baseD / 2,
+                        width: tabW, // Slot width = Tab width
+                        height: slotH // Slot height = Material thickness (tight)
+                    }]
+                };
+                
+                this.shapes.push(newShape);
+                s.linkedBaseId = newShape.id; // Link it
+                
+                if (!isUpdate) {
+                    this.activeShapeId = newShape.id;
+                    alert(this.t('base_generated'));
+                }
+            }
         },
 
         exportSTL() {
