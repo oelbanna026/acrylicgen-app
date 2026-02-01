@@ -57,10 +57,19 @@ router.post('/verify-paypal', async (req, res) => {
 
         if (plan) {
             // Update subscription
-            // If business, set unlimited credits (represented by -1 or high number)
+            // Support lowercase plan IDs: free, pro, business
+            const planId = plan.toLowerCase();
             updateQuery = `UPDATE users SET plan = ?, credits = CASE WHEN ? = 'business' THEN -1 ELSE credits + ? END WHERE id = ?`;
-            let newCredits = plan === 'starter' ? 30 : (plan === 'pro' ? 100 : 0);
-            params = [plan, plan, newCredits, userId];
+            
+            // Credits logic: 
+            // Pro: 100 per day (we might just give a large chunk or rely on daily reset logic in app)
+            // Business: Unlimited (-1)
+            let newCredits = 0;
+            if (planId === 'starter') newCredits = 30; // Legacy
+            else if (planId === 'pro') newCredits = 100;
+            else if (planId === 'business') newCredits = -1;
+
+            params = [planId, planId, newCredits, userId];
         } else if (credits) {
             // PAYG (Pay As You Go)
             updateQuery = `UPDATE users SET credits = CASE WHEN credits = -1 THEN -1 ELSE credits + ? END WHERE id = ?`;
@@ -93,37 +102,30 @@ router.post('/mock-purchase', (req, res) => {
     const { userId, plan, credits, amount } = req.body;
     
     // Simulate successful payment
-    let updateQuery = '';
-    let params = [];
+    // Reuse the same logic by calling the verify route handler internally or just duplicating for safety
+    // For now, we'll just do the DB update directly to save time
+    
+    db.get('SELECT id FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
 
-    if (plan) {
-        // Update subscription
-        // Both Pro and Business get unlimited credits
-        updateQuery = `UPDATE users SET plan = ?, credits = -1 WHERE id = ?`;
-        params = [plan, userId];
-    } else if (credits) {
-        // PAYG
-        updateQuery = `UPDATE users SET credits = credits + ? WHERE id = ?`;
-        params = [credits, userId];
-    }
+        let updateQuery = '';
+        let params = [];
 
-    db.run(updateQuery, params, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        // Log Payment
-        db.run(`INSERT INTO payments (user_id, amount, currency, payment_method, status) VALUES (?, ?, 'USD', 'mock_card', 'succeeded')`, 
-            [userId, amount]);
+        if (plan) {
+            const planId = plan.toLowerCase();
+            updateQuery = `UPDATE users SET plan = ?, credits = CASE WHEN ? = 'business' THEN -1 ELSE credits + ? END WHERE id = ?`;
+            let newCredits = planId === 'pro' ? 100 : (planId === 'business' ? -1 : 30);
+            params = [planId, planId, newCredits, userId];
+        } else {
+            updateQuery = `UPDATE users SET credits = credits + ? WHERE id = ?`;
+            params = [credits, userId];
+        }
 
-        res.status(200).json({ success: true, message: 'Payment successful (Mock)' });
+        db.run(updateQuery, params, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Mock purchase successful' });
+        });
     });
-});
-
-// Stripe Checkout Session (Structure)
-router.post('/create-checkout-session', async (req, res) => {
-    // In production, use Stripe API to create session
-    // const session = await stripe.checkout.sessions.create({ ... });
-    // res.json({ url: session.url });
-    res.status(501).json({ error: 'Stripe keys not configured. Use Mock Payment.' });
 });
 
 module.exports = router;
