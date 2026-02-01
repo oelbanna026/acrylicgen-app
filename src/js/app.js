@@ -376,6 +376,52 @@ function app() {
         set holes(v) { this.activeShape.holes = v; },
 
         // Methods
+        validateAndCleanShapes() {
+            if (!Array.isArray(this.shapes) || this.shapes.length === 0) {
+                this.shapes = [defaultShape()];
+            }
+
+            // Filter out null/undefined
+            this.shapes = this.shapes.filter(s => s && typeof s === 'object');
+
+            // Fix individual shapes
+            const seenIds = new Set();
+            
+            this.shapes.forEach((s, index) => {
+                // Ensure ID exists and is unique
+                if (!s.id || seenIds.has(s.id)) {
+                    s.id = Date.now() + index + Math.floor(Math.random() * 1000);
+                }
+                seenIds.add(s.id);
+
+                // Ensure basic numbers are finite
+                ['x', 'y', 'width', 'height', 'rotation', 'cornerRadius', 'holeDiameter', 'holeMargin'].forEach(prop => {
+                    s[prop] = parseFloat(s[prop]);
+                    if (!isFinite(s[prop])) s[prop] = 0;
+                });
+
+                // Ensure Min Dimensions (prevent invisible shapes)
+                if (s.width < 1) s.width = 50;
+                if (s.height < 1) s.height = 30;
+
+                // Ensure Strings
+                if (!s.shapeType) s.shapeType = 'rectangle';
+                if (!s.cornerType) s.cornerType = 'straight';
+                if (!s.holePattern) s.holePattern = 'none';
+
+                // Ensure Holes Array
+                if (!Array.isArray(s.holes)) s.holes = [];
+            });
+
+            // Re-validate Active Shape
+            if (!this.activeShapeId || !this.shapes.find(s => s.id === this.activeShapeId)) {
+                this.activeShapeId = this.shapes[0].id;
+            }
+            
+            // Force save cleaned state
+            this.save();
+        },
+
         addShape() {
             const newShape = defaultShape();
             // Offset slightly so they don't overlap perfectly
@@ -1067,6 +1113,9 @@ function app() {
                     }
                 } catch(e) { console.error(e); }
             }
+
+            // Validate and Clean Shapes (Fixes "Undeletable Shape" bug)
+            this.validateAndCleanShapes();
 
             // Fetch Public Stats
             auth.getPublicStats().then(stats => {
