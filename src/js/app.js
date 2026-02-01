@@ -1738,27 +1738,62 @@ function app() {
 
                     // TR Corner
                     if (sides.tr) {
-                        pts.push({x: w-r, y: 0, bulge: b});
-                        pts.push({x: w, y: r, bulge: 0});
+                        const nextX = w-r;
+                        const nextY = 0;
+                        const last = pts[pts.length-1];
+                        // Check for zero-length edge (w=2r case)
+                        if (pts.length > 0 && Math.abs(last.x - nextX) < 0.001 && Math.abs(last.y - nextY) < 0.001) {
+                             // Merge: Update last point's bulge to start the next arc
+                             last.bulge = b;
+                             pts.push({x: w, y: r, bulge: 0});
+                        } else {
+                            pts.push({x: w-r, y: 0, bulge: b});
+                            pts.push({x: w, y: r, bulge: 0});
+                        }
                     } else {
                         pts.push({x: w, y: 0, bulge: 0});
                     }
 
+                    // Right Edge
+                    // ... (implicitly handled by connecting to next point)
+
                     // BR Corner
                     if (sides.br) {
-                        pts.push({x: w, y: h-r, bulge: b});
-                        pts.push({x: w-r, y: h, bulge: 0});
+                        const nextX = w;
+                        const nextY = h-r;
+                        const last = pts[pts.length-1];
+                        if (pts.length > 0 && Math.abs(last.x - nextX) < 0.001 && Math.abs(last.y - nextY) < 0.001) {
+                             last.bulge = b;
+                             pts.push({x: w-r, y: h, bulge: 0});
+                        } else {
+                            pts.push({x: w, y: h-r, bulge: b});
+                            pts.push({x: w-r, y: h, bulge: 0});
+                        }
                     } else {
                         pts.push({x: w, y: h, bulge: 0});
                     }
 
                     // BL Corner
                     if (sides.bl) {
-                        pts.push({x: r, y: h, bulge: b});
-                        pts.push({x: 0, y: h-r, bulge: 0});
+                        const nextX = r;
+                        const nextY = h;
+                        const last = pts[pts.length-1];
+                        if (pts.length > 0 && Math.abs(last.x - nextX) < 0.001 && Math.abs(last.y - nextY) < 0.001) {
+                             last.bulge = b;
+                             pts.push({x: 0, y: h-r, bulge: 0});
+                        } else {
+                            pts.push({x: r, y: h, bulge: b});
+                            pts.push({x: 0, y: h-r, bulge: 0});
+                        }
                     } else {
                         pts.push({x: 0, y: h, bulge: 0});
                     }
+                    
+                    // Close loop check (Last to First)
+                    // If Last is (0, h-r) and First is (0, r), and h=2r, they are same.
+                    // But we don't connect last to first explicitly here, DXF loop does it.
+                    // However, if h=2r, the closing segment is length 0.
+                    // DXF viewer should handle closing segment of length 0 fine as long as bulge is 0.
                     
                     return pts;
                 } else {
@@ -1775,7 +1810,7 @@ function app() {
                 return [
                     {x: 0, y: h, bulge: 0},
                     {x: w, y: h, bulge: 0},
-                    {x: w, y: h_straight, bulge: 1}, 
+                    {x: w, y: h_straight, bulge: -1}, // Semicircle top (Bulge -1 for CW/Up in SVG coords)
                     {x: 0, y: h_straight, bulge: 0}
                 ];
             } else if (type === 'banner') {
