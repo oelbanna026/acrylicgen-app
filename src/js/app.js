@@ -1718,7 +1718,11 @@ function app() {
             
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
-                const b = -0.41421356; 
+                // Bulge for 90 degree arc. 
+                // In SVG coords (Y-down), CW arc is convex.
+                // But DXF (Y-up) mirrors the shape vertically, flipping winding to CCW.
+                // So we need Positive Bulge to maintain convex look in DXF.
+                const b = 0.41421356; 
                 
                 if (r > 0) {
                     const sides = shape.cornerSides || { tl: true, tr: true, br: true, bl: true };
