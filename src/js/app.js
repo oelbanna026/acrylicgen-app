@@ -95,7 +95,7 @@ const i18n = {
         base_depth: "عرض القاعدة",
         base_radius: "تقويس الزوايا",
         generate_base_btn: "إنشاء القاعدة",
-        preview_3d: "معاينة ثلاثية الأبعاد",
+
         base_generated: "تم إنشاء القاعدة بنجاح!",
         base_warning: "يرجى تحديد شكل لتوليد القاعدة له",
         upgrade_plan: "ترقية الخطة",
@@ -224,7 +224,7 @@ const i18n = {
         base_depth: "Base Width",
         base_radius: "Corner Radius",
         generate_base_btn: "Create Base Shape",
-        preview_3d: "3D Preview",
+
         base_generated: "Base generated successfully!",
         base_warning: "Please select a shape first",
         stats_dashboard: "Stats Dashboard",
@@ -319,12 +319,7 @@ function app() {
         showNestingPanel: false,
         showCostSettings: false,
         
-        // 3D Preview State
-        show3DPreviewModal: false,
-        rotX: -20,
-        rotY: 45,
-        isRotating3D: false,
-        lastMouse3D: {x:0, y:0},
+
         isAnnual: false, // For Pricing Modal
         payPalAmount: 0,
         payPalDescription: '',
@@ -701,214 +696,7 @@ function app() {
             }
         },
 
-        preview3DStats: { sw:0, sh:0, st:0, bw:0, bd:0, bh:0, baseEnabled: false },
 
-        get3DPreviewDims() {
-            const s = this.activeShape;
-            if (!s) return { sw:0, sh:0, st:0, bw:0, bd:0, bh:0, baseEnabled: false };
-            
-            // 1. Normalize to MM
-            let toMM = 1;
-            if (this.unit === 'cm') toMM = 10;
-            else if (this.unit === 'inch') toMM = 25.4;
-            
-            const w = (parseFloat(s.width) || 0) * toMM;
-            const h = (parseFloat(s.height) || 0) * toMM;
-            const t = (parseFloat(this.thickness) || 3); // Thickness is always mm input
-            
-            const baseW = (parseFloat(s.baseWidth) || 0) * toMM;
-            const baseD = (parseFloat(s.baseDepth) || 0) * toMM;
-            const baseH = (parseFloat(s.baseThickness) || 3); 
-            
-            // Force base enabled if base dimensions are present, for preview purposes
-            // Even if s.hasBase is false, we want to show what the base WOULD look like
-            const hasBase = s.hasBase || (baseW > 0 && baseD > 0);
-
-            // 2. Calculate Scale to fit 500px view (Increased from 320)
-            // Max dimension logic
-            const totalW = Math.max(w, hasBase ? baseW : 0);
-            const totalH = h + (hasBase ? baseH : 0); 
-            const totalD = Math.max(t, hasBase ? baseD : 0);
-            
-            const maxDim = Math.max(totalW, totalH, totalD, 10);
-            const scale = 500 / maxDim; // Target 500px for larger view
-            
-            // Shape Style
-            let radius = '0px';
-            if (s.shapeType === 'circle' || s.shapeType === 'oval') radius = '50%';
-            else if (s.shapeType === 'rectangle' && s.cornerType === 'rounded') {
-                radius = (parseFloat(s.cornerRadius) || 0) * toMM * scale + 'px';
-            }
-
-            return {
-                sw: w * scale,
-                sh: h * scale,
-                st: t * scale,
-                bw: baseW * scale,
-                bd: baseD * scale,
-                bh: baseH * scale,
-                baseEnabled: hasBase,
-                radius: radius,
-                isCircle: s.shapeType === 'circle' || s.shapeType === 'oval'
-            };
-        },
-
-        preview3D() {
-            if (!this.activeShape) {
-                alert(this.t('base_warning'));
-                return;
-            }
-            this.preview3DStats = this.get3DPreviewDims();
-            this.show3DPreviewModal = true;
-            this.rotX = -20;
-            this.rotY = 45;
-        },
-        
-        startRotate3D(e) {
-            this.isRotating3D = true;
-            const evt = e.touches ? e.touches[0] : e;
-            this.lastMouse3D = { x: evt.clientX, y: evt.clientY };
-        },
-        
-        rotate3D(e) {
-            if (!this.isRotating3D) return;
-            const evt = e.touches ? e.touches[0] : e;
-            const dx = evt.clientX - this.lastMouse3D.x;
-            const dy = evt.clientY - this.lastMouse3D.y;
-            
-            this.rotY += dx * 0.5;
-            this.rotX -= dy * 0.5;
-            
-            this.lastMouse3D = { x: evt.clientX, y: evt.clientY };
-        },
-        
-        endRotate3D() {
-            this.isRotating3D = false;
-        },
-
-        exportSTL() {
-            const s = this.activeShape;
-            if (!s) return;
-
-            // Scale to mm
-            let scale = 1;
-            if (this.unit === 'cm') scale = 10;
-            else if (this.unit === 'inch') scale = 25.4;
-
-            const w = (parseFloat(s.width)||50) * scale;
-            const h = (parseFloat(s.height)||30) * scale;
-            const d = (parseFloat(this.thickness)||3); // Thickness is already mm
-
-            // Generate 2D Path (Counter-Clockwise)
-            const points = [];
-            const steps = 32; // Resolution for curves
-
-            if (s.shapeType === 'circle' || s.shapeType === 'oval') {
-                const rx = w / 2;
-                const ry = h / 2;
-                const cx = w / 2;
-                const cy = h / 2;
-                for (let i = 0; i < steps; i++) {
-                    const theta = (i / steps) * Math.PI * 2;
-                    points.push({
-                        x: cx + rx * Math.cos(theta),
-                        y: cy + ry * Math.sin(theta)
-                    });
-                }
-            } else if (s.shapeType === 'rectangle' && s.cornerType === 'rounded') {
-                const r = (parseFloat(s.cornerRadius) || 0) * scale;
-                const safeR = Math.min(r, w/2, h/2);
-                
-                // Helper for corner arc
-                const addCorner = (cx, cy, startAngle, endAngle) => {
-                    const segs = 8;
-                    for (let i = 0; i <= segs; i++) {
-                        const theta = startAngle + (i / segs) * (endAngle - startAngle);
-                        points.push({
-                            x: cx + safeR * Math.cos(theta),
-                            y: cy + safeR * Math.sin(theta)
-                        });
-                    }
-                };
-
-                // Bottom Right (0 to 90 deg)
-                addCorner(w - safeR, h - safeR, 0, Math.PI/2);
-                // Bottom Left (90 to 180 deg)
-                addCorner(safeR, h - safeR, Math.PI/2, Math.PI);
-                // Top Left (180 to 270 deg)
-                addCorner(safeR, safeR, Math.PI, 1.5 * Math.PI);
-                // Top Right (270 to 360 deg)
-                addCorner(w - safeR, safeR, 1.5 * Math.PI, 2 * Math.PI);
-
-            } else {
-                // Rectangle (Default)
-                points.push({x: w, y: h}); // BR
-                points.push({x: 0, y: h}); // BL
-                points.push({x: 0, y: 0}); // TL
-                points.push({x: w, y: 0}); // TR
-            }
-
-            // STL Generation
-            let stl = "solid acrylic_shape\n";
-            
-            const addFacet = (v1, v2, v3) => {
-                // Normal Calc
-                const u = {x: v2.x - v1.x, y: v2.y - v1.y, z: v2.z - v1.z};
-                const v = {x: v3.x - v1.x, y: v3.y - v1.y, z: v3.z - v1.z};
-                const nx = u.y * v.z - u.z * v.y;
-                const ny = u.z * v.x - u.x * v.z;
-                const nz = u.x * v.y - u.y * v.x;
-                const len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
-                // Avoid NaN for degenerate triangles
-                if (isNaN(nx) || isNaN(ny) || isNaN(nz)) return;
-                
-                stl += `facet normal ${nx/len} ${ny/len} ${nz/len}\n  outer loop\n    vertex ${v1.x} ${v1.y} ${v1.z}\n    vertex ${v2.x} ${v2.y} ${v2.z}\n    vertex ${v3.x} ${v3.y} ${v3.z}\n  endloop\nendfacet\n`;
-            };
-
-            // 1. Bottom Face (Z=0)
-            // Fan triangulation from centroid (works for convex shapes)
-            const cx = w/2, cy = h/2;
-            const centerBottom = {x: cx, y: cy, z: 0};
-            for (let i = 0; i < points.length; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % points.length];
-                // Clockwise for bottom face to point down (0,0,-1)
-                addFacet(centerBottom, {x: p2.x, y: p2.y, z:0}, {x: p1.x, y: p1.y, z:0});
-            }
-
-            // 2. Top Face (Z=d)
-            const centerTop = {x: cx, y: cy, z: d};
-            for (let i = 0; i < points.length; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % points.length];
-                // Counter-Clockwise for top face to point up (0,0,1)
-                addFacet(centerTop, {x: p1.x, y: p1.y, z:d}, {x: p2.x, y: p2.y, z:d});
-            }
-
-            // 3. Sides
-            for (let i = 0; i < points.length; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % points.length];
-                
-                const v1 = {x: p1.x, y: p1.y, z: 0}; // Bottom 1
-                const v2 = {x: p2.x, y: p2.y, z: 0}; // Bottom 2
-                const v3 = {x: p2.x, y: p2.y, z: d}; // Top 2
-                const v4 = {x: p1.x, y: p1.y, z: d}; // Top 1
-
-                // Triangle 1
-                addFacet(v1, v2, v3);
-                // Triangle 2
-                addFacet(v1, v3, v4);
-            }
-
-            stl += "endsolid acrylic_shape";
-            
-            const blob = new Blob([stl], { type: 'text/plain' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = (s.name || 'shape') + '.stl';
-            link.click();
-        },
 
         // Auth Methods
         async handleGoogleLogin(credential) {
