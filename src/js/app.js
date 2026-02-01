@@ -10,6 +10,7 @@ const i18n = {
         shape: "الشكل",
         shape_rect: "مستطيل",
         shape_oval: "بيضاوي",
+        shape_circle: "دائرة",
         shape_pentagon: "خماسي",
         shape_hexagon: "سداسي",
         shape_star: "نجمة",
@@ -102,6 +103,7 @@ const i18n = {
         shape: "Shape",
         shape_rect: "Rectangle",
         shape_oval: "Oval",
+        shape_circle: "Circle",
         shape_pentagon: "Pentagon",
         shape_hexagon: "Hexagon",
         shape_star: "Star",
@@ -218,6 +220,7 @@ function app() {
             shapeType: 'rectangle',
             cornerType: 'straight',
             cornerRadius: 5,
+            cornerSides: { tl: true, tr: true, br: true, bl: true },
             holePattern: 'corners',
             holeCount: 8,
             holeDiameter: 0.8,
@@ -348,10 +351,18 @@ function app() {
 
         // Proxy Getters/Setters for Backward Compatibility and UI Binding
         get width() { return this.activeShape.width; },
-        set width(v) { this.activeShape.width = v; this.updateHoles(this.activeShape); },
+        set width(v) { 
+            this.activeShape.width = v; 
+            if (this.activeShape.shapeType === 'circle') this.activeShape.height = v;
+            this.updateHoles(this.activeShape); 
+        },
 
         get height() { return this.activeShape.height; },
-        set height(v) { this.activeShape.height = v; this.updateHoles(this.activeShape); },
+        set height(v) { 
+            this.activeShape.height = v; 
+            if (this.activeShape.shapeType === 'circle') this.activeShape.width = v;
+            this.updateHoles(this.activeShape); 
+        },
         
         get x() { return this.activeShape.x; },
         set x(v) { this.activeShape.x = v; },
@@ -360,7 +371,15 @@ function app() {
         set y(v) { this.activeShape.y = v; },
 
         get shapeType() { return this.activeShape.shapeType; },
-        set shapeType(v) { this.activeShape.shapeType = v; this.updateHoles(this.activeShape); },
+        set shapeType(v) { 
+            this.activeShape.shapeType = v; 
+            if (v === 'circle') {
+                const dim = Math.min(this.activeShape.width, this.activeShape.height);
+                this.activeShape.width = dim;
+                this.activeShape.height = dim;
+            }
+            this.updateHoles(this.activeShape); 
+        },
 
         get cornerType() { return this.activeShape.cornerType; },
         set cornerType(v) { this.activeShape.cornerType = v; this.updateHoles(this.activeShape); },
@@ -416,6 +435,11 @@ function app() {
                 if (!s.shapeType) s.shapeType = 'rectangle';
                 if (!s.cornerType) s.cornerType = 'straight';
                 if (!s.holePattern) s.holePattern = 'none';
+
+                // Ensure Corner Sides
+                if (!s.cornerSides || typeof s.cornerSides !== 'object') {
+                    s.cornerSides = { tl: true, tr: true, br: true, bl: true };
+                }
 
                 // Ensure Holes Array
                 if (!Array.isArray(s.holes)) s.holes = [];
@@ -763,11 +787,44 @@ function app() {
             
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
-                if (r === 0) return `M 0 0 H ${w} V ${h} H 0 Z`;
-                return `M ${r} 0 H ${w-r} A ${r} ${r} 0 0 1 ${w} ${r} V ${h-r} A ${r} ${r} 0 0 1 ${w-r} ${h} H ${r} A ${r} ${r} 0 0 1 0 ${h-r} V ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
+                
+                if (r > 0) {
+                    const sides = shape.cornerSides || { tl: true, tr: true, br: true, bl: true };
+                    // Start at Top-Left (0, r) if TL is rounded, or (0,0) if not
+                    let d = `M 0 ${sides.tl ? r : 0} `;
+                    
+                    // TL Corner
+                    if (sides.tl) d += `A ${r} ${r} 0 0 1 ${r} 0 `;
+                    else d += `L 0 0 `; // Ensure we are at corner
+                    
+                    // Top Edge
+                    d += `L ${w - (sides.tr ? r : 0)} 0 `;
+                    
+                    // TR Corner
+                    if (sides.tr) d += `A ${r} ${r} 0 0 1 ${w} ${r} `;
+                    else d += `L ${w} 0 `;
+                    
+                    // Right Edge
+                    d += `L ${w} ${h - (sides.br ? r : 0)} `;
+                    
+                    // BR Corner
+                    if (sides.br) d += `A ${r} ${r} 0 0 1 ${w - r} ${h} `;
+                    else d += `L ${w} ${h} `;
+                    
+                    // Bottom Edge
+                    d += `L ${sides.bl ? r : 0} ${h} `;
+                    
+                    // BL Corner
+                    if (sides.bl) d += `A ${r} ${r} 0 0 1 0 ${h - r} `;
+                    else d += `L 0 ${h} `;
+                    
+                    d += `Z`;
+                    return d;
+                }
+                return `M 0 0 H ${w} V ${h} H 0 Z`;
             }
             
-            if (type === 'oval') {
+            if (type === 'oval' || type === 'circle') {
                 const rx = w/2;
                 const ry = h/2;
                 return `M ${w/2} 0 A ${rx} ${ry} 0 1 1 ${w/2} ${h} A ${rx} ${ry} 0 1 1 ${w/2} 0 Z`;
@@ -796,12 +853,20 @@ function app() {
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
                 if (r > 0) {
-                    // Area = w*h - 4*r^2 + PI*r^2
-                    return (w * h) - (r * r * (4 - Math.PI));
+                    const sides = shape.cornerSides || { tl: true, tr: true, br: true, bl: true };
+                    // Approximate area: w*h - sum(corners)
+                    // Each corner area removed: r^2 - (PI*r^2)/4 = r^2 * (1 - PI/4)
+                    const cornerAreaRemoved = (r * r) * (1 - Math.PI/4);
+                    let removed = 0;
+                    if (sides.tl) removed += cornerAreaRemoved;
+                    if (sides.tr) removed += cornerAreaRemoved;
+                    if (sides.br) removed += cornerAreaRemoved;
+                    if (sides.bl) removed += cornerAreaRemoved;
+                    return (w * h) - removed;
                 }
                 return w * h;
             }
-            if (type === 'oval') {
+            if (type === 'oval' || type === 'circle') {
                 // Area = PI * a * b
                 return Math.PI * (w / 2) * (h / 2);
             }
@@ -1413,25 +1478,55 @@ function app() {
                 const b = -0.41421356; 
                 
                 if (r > 0) {
-                    return [
-                        {x: w-r, y: h, bulge: b},
-                        {x: w, y: h-r, bulge: 0},
-                        {x: w, y: r, bulge: b},
-                        {x: w-r, y: 0, bulge: 0},
-                        {x: r, y: 0, bulge: b},
-                        {x: 0, y: r, bulge: 0},
-                        {x: 0, y: h-r, bulge: b},
-                        {x: r, y: h, bulge: 0}
-                    ];
+                    const sides = shape.cornerSides || { tl: true, tr: true, br: true, bl: true };
+                    const pts = [];
+
+                    // TL Corner
+                    if (sides.tl) {
+                         pts.push({x: 0, y: r, bulge: b}); // Start of arc (CW) -> bulge negative? Wait, my previous analysis said CW bulge is -0.414.
+                         // Let's re-verify bulge sign.
+                         // CW Arc from (0,r) to (r,0).
+                         // Start angle 180, End 90. Delta -90.
+                         // tan(-90/4) = tan(-22.5) = -0.414. Correct.
+                         pts.push({x: r, y: 0, bulge: 0}); // End of arc
+                    } else {
+                         pts.push({x: 0, y: 0, bulge: 0});
+                    }
+
+                    // TR Corner
+                    if (sides.tr) {
+                        pts.push({x: w-r, y: 0, bulge: b});
+                        pts.push({x: w, y: r, bulge: 0});
+                    } else {
+                        pts.push({x: w, y: 0, bulge: 0});
+                    }
+
+                    // BR Corner
+                    if (sides.br) {
+                        pts.push({x: w, y: h-r, bulge: b});
+                        pts.push({x: w-r, y: h, bulge: 0});
+                    } else {
+                        pts.push({x: w, y: h, bulge: 0});
+                    }
+
+                    // BL Corner
+                    if (sides.bl) {
+                        pts.push({x: r, y: h, bulge: b});
+                        pts.push({x: 0, y: h-r, bulge: 0});
+                    } else {
+                        pts.push({x: 0, y: h, bulge: 0});
+                    }
+                    
+                    return pts;
                 } else {
                     return [
-                        {x: 0, y: h, bulge: 0},
-                        {x: w, y: h, bulge: 0},
+                        {x: 0, y: 0, bulge: 0},
                         {x: w, y: 0, bulge: 0},
-                        {x: 0, y: 0, bulge: 0}
+                        {x: w, y: h, bulge: 0},
+                        {x: 0, y: h, bulge: 0}
                     ];
                 }
-            } else if (type === 'oval') {
+            } else if (type === 'oval' || type === 'circle') {
                 const cx = w/2, cy = h/2, rx = w/2, ry = h/2;
                 const steps = 128;
                 for(let i=0; i<steps; i++) {
