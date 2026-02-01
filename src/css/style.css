@@ -98,76 +98,8 @@ body {
 }
 
 /* Driver.js Custom Theme */
-.driver-popover.custom-driver-popover {
-    background-color: var(--bg-panel);
-    color: var(--text-main);
-    border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    padding: 15px;
-    font-family: inherit;
-    border: 1px solid var(--border);
-    z-index: 100000 !important;
-}
 
-.driver-popover.custom-driver-popover .driver-popover-title {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #3b82f6; /* Primary Blue */
-    margin-bottom: 8px;
-}
-
-.driver-popover.custom-driver-popover .driver-popover-description {
-    font-size: 0.9rem;
-    line-height: 1.5;
-    color: var(--text-main);
-}
-
-.driver-popover.custom-driver-popover .driver-popover-footer {
-    margin-top: 15px;
-}
-
-.driver-popover.custom-driver-popover button {
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.driver-popover.custom-driver-popover .driver-popover-next-btn {
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    text-shadow: none;
-}
-.driver-popover.custom-driver-popover .driver-popover-next-btn:hover {
-    background-color: #2563eb;
-}
-
-.driver-popover.custom-driver-popover .driver-popover-prev-btn,
-.driver-popover.custom-driver-popover .driver-popover-close-btn {
-    background-color: transparent;
-    color: var(--text-muted);
-    border: 1px solid var(--border);
-}
-.driver-popover.custom-driver-popover .driver-popover-prev-btn:hover {
-    background-color: rgba(0,0,0,0.05);
-}
-
-/* Dark mode specific overrides if parent has .dark class */
-.dark .driver-popover.custom-driver-popover {
-    background-color: #1e293b;
-    border-color: #334155;
-    color: #f1f5f9;
-}
-.dark .driver-popover.custom-driver-popover .driver-popover-description {
-    color: #cbd5e1;
-}
-.dark .driver-popover.custom-driver-popover .driver-popover-prev-btn {
-    color: #94a3b8;
-    border-color: #475569;
-}
-.dark .driver-popover.custom-driver-popover .driver-popover-prev-btn:hover {
-    background-color: rgba(255,255,255,0.05);
-}
+/* 3D Preview Utilities */
+.perspective-1000 { perspective: 1000px; }
+.transform-style-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
