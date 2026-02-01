@@ -27,7 +27,7 @@ const i18n = {
         diameter: "قطر المسمار",
         margin: "الهامش من الحافة",
         pricing_settings: "حساب التكلفة",
-        sheet_dims: "أبعاد اللوح الخام (سم)",
+        sheet_dims: "أبعاد اللوح الخام",
         sheet_price: "سعر اللوح الخام",
         thickness_mm: "السمك (مم)",
         cutting_price_hr: "سعر ساعة القص",
@@ -119,7 +119,7 @@ const i18n = {
         diameter: "Screw Diameter",
         margin: "Margin",
         pricing_settings: "Cost Calculation",
-        sheet_dims: "Raw Sheet Dims (cm)",
+        sheet_dims: "Raw Sheet Dims",
         sheet_price: "Raw Sheet Price",
         thickness_mm: "Thickness (mm)",
         cutting_price_hr: "Cutting Price/Hour",
@@ -297,6 +297,7 @@ function app() {
         thickness: 3,
         sheetWidth: 122,
         sheetHeight: 244,
+        sheetUnit: 'cm', // New state
         sheetPrice: 100,
         cuttingPricePerHour: 50,
         profitMargin: 20,
@@ -914,6 +915,12 @@ function app() {
             return val;
         },
 
+        convertUnitToCm(val, unit) {
+            if (unit === 'mm') return val / 10;
+            if (unit === 'inch') return val * 2.54;
+            return val; // cm
+        },
+
         get totalAreaCm2() {
             return this.designDimensions.areaCm2;
         },
@@ -923,7 +930,12 @@ function app() {
 
             const sheetW = parseFloat(this.sheetWidth) || 1;
             const sheetH = parseFloat(this.sheetHeight) || 1;
-            const sheetAreaCm2 = sheetW * sheetH;
+            
+            // Convert sheet dims to cm for area calculation
+            const sheetW_cm = this.convertUnitToCm(sheetW, this.sheetUnit);
+            const sheetH_cm = this.convertUnitToCm(sheetH, this.sheetUnit);
+            
+            const sheetAreaCm2 = sheetW_cm * sheetH_cm;
             const sheetPrice = parseFloat(this.sheetPrice) || 0;
             const cuttingPrice = parseFloat(this.cuttingPricePerHour) || 0;
 
