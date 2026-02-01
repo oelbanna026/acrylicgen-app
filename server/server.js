@@ -46,23 +46,7 @@ apiRouter.use('/user', userRoutes);
 apiRouter.use('/export', exportRoutes);
 apiRouter.use('/payment', paymentRoutes);
 apiRouter.use('/admin', adminRoutes);
-
-// Public Stats Route (Moved from auth.js)
-apiRouter.get('/public/stats', (req, res) => {
-    const stats = {};
-    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.totalUsers = row.count;
-        
-        db.get('SELECT COUNT(*) as count FROM exports', (err, row) => {
-            if (err) stats.totalExports = 0;
-            else stats.totalExports = row.count;
-            
-            stats.activeUsers = Math.floor(Math.random() * 20) + 5; // Mock
-            res.status(200).json(stats);
-        });
-    });
-});
+apiRouter.use('/stats', statsRoutes);
 
 // SPA Fallback
 app.get('*', (req, res) => {
