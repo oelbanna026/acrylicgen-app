@@ -866,6 +866,10 @@
                                     <span x-text="t('area')"></span>
                                     <span class="font-bold" x-text="totalAreaCm2.toFixed(2) + ' cm²'"></span>
                                 </div>
+                                <div class="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    <span x-text="t('cutting_time')"></span>
+                                    <span class="font-bold" x-text="totalCuttingTimeMinutes.toFixed(1) + ' min'"></span>
+                                </div>
                             </div>
 
                              <div>
@@ -893,6 +897,10 @@
                         <div class="flex justify-between items-center">
                             <span class="text-xs text-gray-500" x-text="t('area')"></span>
                             <span class="font-bold text-blue-500 text-sm dir-ltr" x-text="areaTotalFormatted"></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-xs text-gray-500" x-text="t('cutting_time')"></span>
+                            <span class="font-bold text-orange-500 text-sm dir-ltr" x-text="totalCuttingTimeMinutes.toFixed(1) + ' min'"></span>
                         </div>
                     </div>
                     
