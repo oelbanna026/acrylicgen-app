@@ -549,7 +549,10 @@ function app() {
             // User requirement: "reduce diameter by 6.7%"
             const tolerance = 0.067;
             const matThickness = parseFloat(this.thickness) || 3;
-            const slotH = matThickness * (1 - tolerance);
+            // matThickness is in mm. Convert to unit first? 
+            // Wait, thickness input is in mm. slotH should be in 'unit'.
+            // So convert mm thickness to 'unit' then apply tolerance.
+            const slotH = this.mmToUnit(matThickness) * (1 - tolerance);
             
             const newShape = {
                 id: Date.now(),
@@ -954,6 +957,13 @@ function app() {
             return d;
         },
 
+        mmToUnit(val) {
+            if (this.unit === 'mm') return val;
+            if (this.unit === 'cm') return val / 10;
+            if (this.unit === 'inch') return val / 25.4;
+            return val;
+        },
+
         getTabWidth(shape) {
             if (shape.baseTabWidth && parseFloat(shape.baseTabWidth) > 0) {
                 return parseFloat(shape.baseTabWidth);
@@ -1001,7 +1011,7 @@ function app() {
                 
                 // Bottom Edge (with Tab if hasBase)
                 if (shape.hasBase) {
-                    const th = parseFloat(shape.baseThickness) || 3;
+                    const th = this.mmToUnit(parseFloat(shape.baseThickness) || 3);
                     const tw = this.getTabWidth(shape);
                     const mx = w / 2;
                     
@@ -1799,7 +1809,7 @@ function app() {
 
                     // Tab Logic for DXF
                     if (shape.hasBase) {
-                        const th = parseFloat(shape.baseThickness) || 3;
+                        const th = this.mmToUnit(parseFloat(shape.baseThickness) || 3);
                         const tw = this.getTabWidth(shape);
                         const mx = w / 2;
                         
