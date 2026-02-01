@@ -41,7 +41,7 @@
     <script src="js/auth.js?v=22"></script>
     
     <!-- App Logic -->
-    <script src="js/app.js?v=15"></script>
+    <script src="js/app.js?v=16"></script>
 
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -455,10 +455,10 @@
         </div>
     </div>
 
-    <!-- Register Modal -->
-    <div x-show="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showRegisterModal = false">
-            <button @click="showRegisterModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+    <!-- Public Stats Modal -->
+    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition @click="showPublicStatsModal = false">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.stop>
+            <button @click="showPublicStatsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
             <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
             <form @submit.prevent="register">
                 <div class="mb-4">
