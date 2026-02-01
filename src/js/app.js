@@ -988,8 +988,8 @@ function app() {
                 // Bottom Edge (with Tab if hasBase)
                 if (shape.hasBase) {
                     const th = parseFloat(shape.baseThickness) || 3;
-                    // Tab Width: 50% of width, capped at 60mm
-                    const tw = Math.min(w * 0.5, 60); 
+                    // Tab Width: 30% of width, capped at 40mm
+                    const tw = Math.min(w * 0.3, 40); 
                     const mx = w / 2;
                     
                     // Line to Tab Start
@@ -1784,6 +1784,18 @@ function app() {
                         pts.push({x: w, y: h, bulge: 0});
                     }
 
+                    // Tab Logic for DXF
+                    if (shape.hasBase) {
+                        const th = parseFloat(shape.baseThickness) || 3;
+                        const tw = Math.min(w * 0.3, 40); 
+                        const mx = w / 2;
+                        
+                        pts.push({x: mx + tw/2, y: h, bulge: 0});
+                        pts.push({x: mx + tw/2, y: h + th, bulge: 0});
+                        pts.push({x: mx - tw/2, y: h + th, bulge: 0});
+                        pts.push({x: mx - tw/2, y: h, bulge: 0});
+                    }
+
                     // BL Corner
                     if (sides.bl) {
                         const nextX = r;
@@ -2045,7 +2057,25 @@ function app() {
                     shape.holes.forEach(hole => {
                         const hx = (hole.x + ox) * scale;
                         const hy = (hole.y + oy) * scale;
-                        dxf += `0\nCIRCLE\n8\n0\n10\n${hx}\n20\n${hy}\n40\n${holeR}\n`;
+                        
+                        if (hole.type === 'rect') {
+                            const hw = parseFloat(hole.width) * scale;
+                            const hh = parseFloat(hole.height) * scale;
+                            // Draw Rect as Polyline
+                            // Centered at hx, hy
+                            const x1 = hx - hw/2;
+                            const y1 = hy - hh/2;
+                            const x2 = hx + hw/2;
+                            const y2 = hy + hh/2;
+                            
+                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n4\n70\n1\n";
+                            dxf += `10\n${x1}\n20\n${y1}\n`;
+                            dxf += `10\n${x2}\n20\n${y1}\n`;
+                            dxf += `10\n${x2}\n20\n${y2}\n`;
+                            dxf += `10\n${x1}\n20\n${y2}\n`;
+                        } else {
+                            dxf += `0\nCIRCLE\n8\n0\n10\n${hx}\n20\n${hy}\n40\n${holeR}\n`;
+                        }
                     });
                 });
                 
