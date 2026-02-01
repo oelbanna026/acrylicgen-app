@@ -1355,6 +1355,37 @@ function app() {
             return this.designDimensions.areaCm2;
         },
 
+        get totalCuttingTimeMinutes() {
+            let totalTimeHr = 0;
+            const speedCmMin = parseFloat(this.cuttingSpeed) || 100;
+            const speedCmHr = speedCmMin * 60;
+
+            this.shapes.forEach(shape => {
+                const w_cm = this.toCm(parseFloat(shape.width) || 0);
+                const h_cm = this.toCm(parseFloat(shape.height) || 0);
+                
+                let perimeter_cm = 0;
+                const type = shape.shapeType;
+                if (type === 'rectangle') perimeter_cm = 2 * (w_cm + h_cm);
+                else if (type === 'oval') {
+                    const a = w_cm/2;
+                    const b = h_cm/2;
+                    perimeter_cm = Math.PI * (3*(a+b) - Math.sqrt((3*a+b)*(a+3*b)));
+                }
+                else perimeter_cm = (w_cm + h_cm) * 2;
+                
+                if (shape.holes.length > 0) {
+                    const r_cm = this.toCm((parseFloat(shape.holeDiameter)||0) / 2);
+                    const holePerimeter = 2 * Math.PI * r_cm;
+                    perimeter_cm += shape.holes.length * holePerimeter;
+                }
+
+                totalTimeHr += perimeter_cm / speedCmHr;
+            });
+            
+            return totalTimeHr * 60;
+        },
+
         get totalPrice() {
             let totalCuttingCost = 0;
 
@@ -1394,7 +1425,8 @@ function app() {
                     perimeter_cm += shape.holes.length * holePerimeter;
                 }
 
-                const speedCmHr = 6000;
+                const speedCmMin = parseFloat(this.cuttingSpeed) || 100;
+                const speedCmHr = speedCmMin * 60;
                 const cuttingTimeHr = perimeter_cm / speedCmHr;
                 totalCuttingCost += cuttingTimeHr * cuttingPrice;
             });
