@@ -1237,7 +1237,25 @@
             <button @click="showPricingModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
             
             <h2 class="text-3xl font-bold text-center mb-2">Upgrade Your Plan</h2>
-            <p class="text-center text-gray-500 mb-8">Choose the best plan for your needs</p>
+            <p class="text-center text-gray-500 mb-4">Choose the best plan for your needs</p>
+
+            <!-- Toggle -->
+            <div class="flex justify-center items-center gap-4 mb-8">
+                <span class="text-sm font-semibold" :class="!isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-500'">Monthly</span>
+                <button 
+                    @click="isAnnual = !isAnnual"
+                    class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    :class="isAnnual ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'"
+                >
+                    <span 
+                        class="inline-block h-6 w-6 transform rounded-full bg-white transition-transform"
+                        :class="isAnnual ? 'translate-x-7' : 'translate-x-1'"
+                    ></span>
+                </button>
+                <span class="text-sm font-semibold" :class="isAnnual ? 'text-slate-900 dark:text-white' : 'text-slate-500'">
+                    Yearly <span class="text-green-500 text-xs ml-1">(Save 20%)</span>
+                </span>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-8">
                 <!-- Pro Plan -->
@@ -1250,7 +1268,11 @@
                             Pro
                             <span class="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-0.5 rounded-full border border-yellow-200">Gold</span>
                         </h3>
-                        <div class="text-3xl font-bold mt-2">$12<span class="text-sm font-normal text-gray-500">/mo</span></div>
+                        <div class="text-3xl font-bold mt-2">
+                            <span x-text="isAnnual ? '$10' : '$12'">$12</span>
+                            <span class="text-sm font-normal text-gray-500">/mo</span>
+                        </div>
+                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual">Billed $120 yearly</p>
                     </div>
                     <ul class="space-y-2 mb-6 text-sm">
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Unlimited Exports</li>
@@ -1258,14 +1280,18 @@
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Advanced Shapes (Star, etc)</li>
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Smart Nesting</li>
                     </ul>
-                    <button @click="buyPlan('pro')" class="mt-auto w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white font-bold rounded-lg hover:from-yellow-600 hover:to-amber-700 transition shadow-lg">Upgrade to Pro</button>
+                    <button @click="buyPlan('pro', isAnnual ? 'annual' : 'monthly')" class="mt-auto w-full py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-white font-bold rounded-lg hover:from-yellow-600 hover:to-amber-700 transition shadow-lg">Upgrade to Pro</button>
                 </div>
 
                 <!-- Business Plan -->
                 <div class="relative flex flex-col rounded-xl p-6 shadow-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 transform hover:-translate-y-1 transition">
                     <div class="mb-4">
                         <h3 class="text-xl font-bold">Business</h3>
-                        <div class="text-3xl font-bold mt-2">$39<span class="text-sm font-normal text-gray-500">/mo</span></div>
+                        <div class="text-3xl font-bold mt-2">
+                            <span x-text="isAnnual ? '$31' : '$39'">$39</span>
+                            <span class="text-sm font-normal text-gray-500">/mo</span>
+                        </div>
+                        <p class="text-xs text-green-500 mt-1 font-semibold" x-show="isAnnual">Billed $372 yearly</p>
                     </div>
                     <ul class="space-y-2 mb-6 text-sm">
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Everything in Pro</li>
@@ -1273,7 +1299,7 @@
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Priority Support</li>
                         <li class="flex items-center"><span class="text-green-500 mr-2">✓</span> Bulk Export</li>
                     </ul>
-                    <button @click="buyPlan('business')" class="mt-auto w-full py-2 bg-slate-100 dark:bg-slate-700 text-gray-900 dark:text-white font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">Upgrade to Business</button>
+                    <button @click="buyPlan('business', isAnnual ? 'annual' : 'monthly')" class="mt-auto w-full py-2 bg-slate-100 dark:bg-slate-700 text-gray-900 dark:text-white font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition">Upgrade to Business</button>
                 </div>
             </div>
 
