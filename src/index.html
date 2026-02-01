@@ -750,7 +750,7 @@
                         
                         <div class="mb-3">
                             <label class="flex items-center gap-2 text-sm font-bold cursor-pointer" :class="{'opacity-75': user && user.plan === 'free' && !Monetization.hasFeature('advanced_shapes')}">
-                                <input type="checkbox" x-model="activeShape.hasBase" @change="if(activeShape.hasBase) generateBase()" class="rounded text-blue-500 accent-blue-500 w-4 h-4">
+                                <input type="checkbox" x-model="activeShape.hasBase" class="rounded text-blue-500 accent-blue-500 w-4 h-4">
                                 <span x-text="t('enable_base')"></span>
                             </label>
                         </div>
@@ -761,14 +761,14 @@
                                 <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('base_thickness')"></label>
                                 <div class="flex gap-2 mb-2">
                                     <template x-for="th in [3, 5, 8]">
-                                        <button @click="activeShape.baseThickness = th; generateBase(true)"
+                                        <button @click="activeShape.baseThickness = th; if(activeShape.linkedBaseId) generateBase(true)"
                                                 class="flex-1 py-1 text-xs rounded border transition"
                                                 :class="activeShape.baseThickness === th ? 'bg-blue-500 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-50'"
                                                 x-text="th + ' mm'"></button>
                                     </template>
                                 </div>
                                 <div class="relative">
-                                     <input type="number" step="0.1" x-model.number="activeShape.baseThickness" @input="generateBase(true)" class="form-input w-full p-2 rounded text-sm" placeholder="Custom Thickness">
+                                     <input type="number" step="0.1" x-model.number="activeShape.baseThickness" @input="if(activeShape.linkedBaseId) generateBase(true)" class="form-input w-full p-2 rounded text-sm" placeholder="Custom Thickness">
                                      <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none">mm</span>
                                 </div>
                             </div>
@@ -778,14 +778,14 @@
                                 <div>
                                     <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('base_width')"></label>
                                     <div class="relative">
-                                        <input type="number" x-model.number="activeShape.baseWidth" @input="generateBase(true)" class="form-input w-full p-2 rounded text-sm">
+                                        <input type="number" x-model.number="activeShape.baseWidth" @input="if(activeShape.linkedBaseId) generateBase(true)" class="form-input w-full p-2 rounded text-sm">
                                         <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('base_depth')"></label>
                                     <div class="relative">
-                                        <input type="number" x-model.number="activeShape.baseDepth" @input="generateBase(true)" class="form-input w-full p-2 rounded text-sm">
+                                        <input type="number" x-model.number="activeShape.baseDepth" @input="if(activeShape.linkedBaseId) generateBase(true)" class="form-input w-full p-2 rounded text-sm">
                                         <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="unit"></span>
                                     </div>
                                 </div>
@@ -795,7 +795,7 @@
                             <div>
                                 <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="lang === 'ar' ? 'عرض النتوء (اتركه فارغاً للتلقائي)' : 'Tab Width (Auto if empty)'"></label>
                                 <div class="relative">
-                                    <input type="number" x-model.number="activeShape.baseTabWidth" @input="generateBase(true)" class="form-input w-full p-2 rounded text-sm" placeholder="Auto">
+                                    <input type="number" x-model.number="activeShape.baseTabWidth" @input="if(activeShape.linkedBaseId) generateBase(true)" class="form-input w-full p-2 rounded text-sm" placeholder="Auto">
                                     <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none">mm</span>
                                 </div>
                             </div>
@@ -806,7 +806,7 @@
                                     <label class="text-xs text-gray-700 dark:text-gray-300" x-text="t('base_radius')"></label>
                                     <span class="text-xs font-mono" x-text="activeShape.baseRadius + ' ' + unit"></span>
                                 </div>
-                                <input type="range" :min="0" :max="Math.min(activeShape.baseWidth || 0, activeShape.baseDepth || 0)/2" :step="limits.step" x-model.number="activeShape.baseRadius" @input="generateBase(true)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                                <input type="range" :min="0" :max="Math.min(activeShape.baseWidth || 0, activeShape.baseDepth || 0)/2" :step="limits.step" x-model.number="activeShape.baseRadius" @input="if(activeShape.linkedBaseId) generateBase(true)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             </div>
 
                             <!-- Actions -->
