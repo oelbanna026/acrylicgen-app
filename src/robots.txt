@@ -1,3 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+
 Sitemap: https://acrylicgen-app.com/sitemap.xml
