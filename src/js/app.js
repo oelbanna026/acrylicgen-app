@@ -274,6 +274,7 @@ function app() {
             holeMargin: 3,
             holes: [],
             hasBase: false,
+            linkedBaseId: null,
             baseThickness: 3,
             baseWidth: 80,
             baseDepth: 30,
