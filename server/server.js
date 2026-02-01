@@ -50,6 +50,93 @@ apiRouter.use('/payment', paymentRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/stats', statsRoutes);
 
+// -------------------------------------------------------------------------
+// Programmatic SEO: Dynamic Sitemap & Directory
+// -------------------------------------------------------------------------
+
+// 1. Dynamic Sitemap for Boxes (/sitemap-boxes.xml)
+app.get('/sitemap-boxes.xml', (req, res) => {
+    res.header('Content-Type', 'application/xml');
+    
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+
+    // Generate combinations: 10-50cm width, 10-50cm height, 5-30cm depth (step 5)
+    // This creates valuable long-tail keywords
+    const sizes = [10, 15, 20, 25, 30, 35, 40, 45, 50];
+    const depths = [5, 10, 15, 20, 25, 30];
+
+    sizes.forEach(w => {
+        sizes.forEach(h => {
+            depths.forEach(d => {
+                xml += `
+    <url>
+        <loc>https://acrylicgen-app.com/box/${w}x${h}x${d}</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>`;
+            });
+        });
+    });
+
+    xml += '</urlset>';
+    res.send(xml);
+});
+
+// 2. Internal Linking Directory (/designs)
+app.get('/designs', (req, res) => {
+    let html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Popular Acrylic Box Designs | Free Templates</title>
+        <meta name="description" content="Browse our collection of free laser cut acrylic box templates. Download SVG and DXF files for hundreds of sizes.">
+        <style>
+            body { font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 2rem; line-height: 1.5; }
+            h1 { color: #2563eb; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 2rem; }
+            .card { border: 1px solid #e5e7eb; padding: 1rem; border-radius: 0.5rem; text-decoration: none; color: #374151; transition: all 0.2s; }
+            .card:hover { border-color: #2563eb; color: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+            .dim { font-weight: bold; font-size: 1.1rem; }
+            .meta { font-size: 0.875rem; color: #6b7280; }
+        </style>
+    </head>
+    <body>
+        <h1>Popular Acrylic Box Designs</h1>
+        <p>Select a size to customize and download your laser cutting files instantly.</p>
+        <div class="grid">
+    `;
+
+    const sizes = [10, 15, 20, 25, 30, 35, 40, 45, 50];
+    const depths = [5, 10, 15, 20, 25, 30];
+
+    sizes.forEach(w => {
+        sizes.forEach(h => {
+            depths.forEach(d => {
+                html += `
+            <a href="/box/${w}x${h}x${d}" class="card">
+                <div class="dim">${w}x${h}x${d} cm</div>
+                <div class="meta">Free SVG Plan</div>
+            </a>`;
+            });
+        });
+    });
+
+    html += `
+        </div>
+        <footer style="margin-top: 4rem; text-align: center; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 2rem;">
+            <p>&copy; ${new Date().getFullYear()} Acrylic Generator. All rights reserved.</p>
+            <p><a href="/">Back to Home</a></p>
+        </footer>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
+});
+
 // SPA Fallback with Dynamic SEO Injection
 app.get('*', (req, res) => {
     const indexPath = path.join(__dirname, '../src/index.html');
