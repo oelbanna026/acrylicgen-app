@@ -996,7 +996,7 @@ function app() {
 
         getTabWidth(shape) {
             if (shape.baseTabWidth && parseFloat(shape.baseTabWidth) > 0) {
-                return parseFloat(shape.baseTabWidth);
+                return this.mmToUnit(parseFloat(shape.baseTabWidth));
             }
             
             const w = parseFloat(shape.width) || 0;
@@ -2542,14 +2542,14 @@ function app() {
                         });
                     }
                     
-                    // Run nesting immediately (skip monetization check)
-                    this.nestShapes(true);
+                    // Run nesting immediately (skip monetization check, fill remaining)
+                    this.nestShapes(true, true);
                     // nestShapes will handle loading = false
                 }, 50);
             });
         },
 
-        nestShapes(skipMonetization = false) {
+        nestShapes(skipMonetization = false, fillRemainingSpace = false) {
             if (this.shapes.length === 0) return;
             
             const action = () => {
@@ -2574,7 +2574,9 @@ function app() {
                             h: box.height,
                             offsetX: box.minX,
                             offsetY: box.minY,
-                            original: s
+                            original: s,
+                            // Keep type info for cloning candidates later
+                            typeKey: s.shapeType + '-' + s.width + '-' + s.height + '-' + s.rotation
                         };
                     });
     
@@ -2583,65 +2585,57 @@ function app() {
     
                     const placed = [];
                     let overflowCount = 0;
-    
-                    items.forEach(item => {
-                        let bestX = -1;
-                        let bestY = -1;
-                        let found = false;
-    
-                        // Strategy: Try to place in existing rows (y-levels defined by placed items)
-                        // We collect all unique Y coordinates (bottoms of placed items + margin, and 0)
-                        // And all unique X coordinates (rights of placed items + margin, and 0)
-                        
-                        let potentialY = [0];
-                        let potentialX = [0];
-                        
-                        placed.forEach(p => {
-                            potentialY.push(p.y + p.h + margin);
-                            potentialX.push(p.x + p.w + margin);
-                        });
-                        
-                        // Sort coordinates
-                        potentialY = [...new Set(potentialY)].sort((a,b) => a-b);
-                        potentialX = [...new Set(potentialX)].sort((a,b) => a-b);
-    
-                        // Filter valid coordinates within sheet
-                        potentialY = potentialY.filter(y => y + item.h <= sheetH);
-                        potentialX = potentialX.filter(x => x + item.w <= sheetW);
-    
-                        // Search Loop: Top-Left strategy (Y then X)
-                        searchLoop:
-                        for (let y of potentialY) {
-                            for (let x of potentialX) {
-                                // Check collision with all placed items
+                    
+                    // Helper to find position
+                    const findPosition = (item, pX, pY, placedItems) => {
+                         // Filter valid coordinates
+                        const validY = pY.filter(y => y + item.h <= sheetH);
+                        const validX = pX.filter(x => x + item.w <= sheetW);
+
+                        for (let y of validY) {
+                            for (let x of validX) {
                                 let collision = false;
-                                for (let p of placed) {
+                                for (let p of placedItems) {
                                     if (this.rectIntersect(x, y, item.w, item.h, p.x, p.y, p.w, p.h)) {
                                         collision = true;
                                         break;
                                     }
                                 }
-                                
-                                if (!collision) {
-                                    bestX = x;
-                                    bestY = y;
-                                    found = true;
-                                    break searchLoop;
-                                }
+                                if (!collision) return { x, y, found: true };
                             }
                         }
+                        return { found: false };
+                    };
     
-                        if (found) {
+                    // We collect all unique Y coordinates (bottoms of placed items + margin, and 0)
+                    // And all unique X coordinates (rights of placed items + margin, and 0)
+                    let potentialY = [0];
+                    let potentialX = [0];
+                    
+                    const updatePotentials = (x, y, w, h) => {
+                        potentialY.push(y + h + margin);
+                        potentialX.push(x + w + margin);
+                        potentialY = [...new Set(potentialY)].sort((a,b) => a-b);
+                        potentialX = [...new Set(potentialX)].sort((a,b) => a-b);
+                    };
+
+                    // Initial Placement Loop
+                    items.forEach(item => {
+                        const res = findPosition(item, potentialX, potentialY, placed);
+    
+                        if (res.found) {
                             placed.push({
                                 id: item.id,
-                                x: bestX,
-                                y: bestY,
+                                x: res.x,
+                                y: res.y,
                                 w: item.w,
                                 h: item.h
                             });
+                            updatePotentials(res.x, res.y, item.w, item.h);
+                            
                             // Apply offset to get correct origin position
-                            item.original.x = parseFloat((bestX - item.offsetX).toFixed(2));
-                            item.original.y = parseFloat((bestY - item.offsetY).toFixed(2));
+                            item.original.x = parseFloat((res.x - item.offsetX).toFixed(2));
+                            item.original.y = parseFloat((res.y - item.offsetY).toFixed(2));
                         } else {
                             // Overflow!
                             overflowCount++;
@@ -2650,6 +2644,62 @@ function app() {
                             item.original.y = (overflowCount - 1) * 10 - item.offsetY;
                         }
                     });
+
+                    // 3. Fill Remaining Space (if requested and no overflow)
+                    if (fillRemainingSpace && overflowCount === 0) {
+                        // Identify unique candidates (templates)
+                        const templates = [];
+                        const seenTypes = new Set();
+                        items.forEach(item => {
+                            if (!seenTypes.has(item.typeKey)) {
+                                seenTypes.add(item.typeKey);
+                                templates.push(item);
+                            }
+                        });
+
+                        // Try to fit as many as possible
+                        // We loop until no template fits anymore
+                        let addedCount = 0;
+                        const maxExtra = 100; // Safety limit
+                        
+                        while (addedCount < maxExtra) {
+                            let placedAnyInPass = false;
+                            
+                            for (let template of templates) {
+                                const res = findPosition(template, potentialX, potentialY, placed);
+                                if (res.found) {
+                                    // Create new shape instance
+                                    const copy = JSON.parse(JSON.stringify(template.original));
+                                    copy.id = Date.now() + Math.random();
+                                    copy.name = template.original.name + ' (Fill)';
+                                    copy.x = parseFloat((res.x - template.offsetX).toFixed(2));
+                                    copy.y = parseFloat((res.y - template.offsetY).toFixed(2));
+                                    copy.linkedBaseId = null;
+                                    copy.hasBase = template.original.hasBase; // Keep base flag if present
+
+                                    this.shapes.push(copy);
+                                    
+                                    placed.push({
+                                        id: copy.id,
+                                        x: res.x,
+                                        y: res.y,
+                                        w: template.w,
+                                        h: template.h
+                                    });
+                                    updatePotentials(res.x, res.y, template.w, template.h);
+                                    
+                                    placedAnyInPass = true;
+                                    addedCount++;
+                                }
+                            }
+                            
+                            if (!placedAnyInPass) break; // No more space for any template
+                        }
+                        
+                        if (addedCount > 0) {
+                            console.log(`Filled remaining space with ${addedCount} extra shapes.`);
+                        }
+                    }
     
                     this.centerView();
                     this.loading = false;
