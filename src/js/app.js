@@ -655,11 +655,13 @@ function app() {
                 const amount = plan === 'pro' ? 12 : (plan === 'business' ? 39 : 0);
                 if (amount === 0) return;
 
-                await auth.mockPurchase(plan, 0, amount);
-                this.user = auth.user;
-                alert('Plan upgraded successfully to ' + plan.toUpperCase() + '!');
+                // Open PayPal Modal instead of direct mock purchase
+                this.payPalAmount = amount;
+                this.payPalItemType = 'plan';
+                this.payPalItemValue = plan;
+                this.payPalDescription = `Upgrade to ${plan.toUpperCase()} Plan`;
+                this.showPayPalModal = true;
                 this.showPricingModal = false;
-                window.trackEvent('purchase', { item: plan, type: 'subscription' });
                 
                 // Clear URL param if present
                 const url = new URL(window.location);
