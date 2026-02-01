@@ -542,8 +542,7 @@ function app() {
             const baseH = parseFloat(s.baseThickness) || 3;
             
             // Slot Dims
-            // Tab Width on shape = Math.min(s.width * 0.5, 60) (Must match getShapePath logic)
-            const tabW = Math.min(s.width * 0.5, 60);
+            const tabW = this.getTabWidth(s);
             
             // Slot Height (Thickness of shape material going into base)
             // We use global thickness setting for this, minus tolerance
@@ -955,6 +954,21 @@ function app() {
             return d;
         },
 
+        getTabWidth(shape) {
+            if (shape.baseTabWidth && parseFloat(shape.baseTabWidth) > 0) {
+                return parseFloat(shape.baseTabWidth);
+            }
+            
+            const w = parseFloat(shape.width) || 0;
+            // Default: 30% of width
+            // Max cap depends on unit: 40mm, 4cm, 1.5 inch
+            let maxW = 40; // mm
+            if (this.unit === 'cm') maxW = 4;
+            else if (this.unit === 'inch') maxW = 1.5;
+            
+            return Math.min(w * 0.3, maxW);
+        },
+
         getShapePath(shape) {
             const w = parseFloat(shape.width) || 0;
             const h = parseFloat(shape.height) || 0;
@@ -988,8 +1002,7 @@ function app() {
                 // Bottom Edge (with Tab if hasBase)
                 if (shape.hasBase) {
                     const th = parseFloat(shape.baseThickness) || 3;
-                    // Tab Width: 30% of width, capped at 40mm
-                    const tw = Math.min(w * 0.3, 40); 
+                    const tw = this.getTabWidth(shape);
                     const mx = w / 2;
                     
                     // Line to Tab Start
@@ -1787,7 +1800,7 @@ function app() {
                     // Tab Logic for DXF
                     if (shape.hasBase) {
                         const th = parseFloat(shape.baseThickness) || 3;
-                        const tw = Math.min(w * 0.3, 40); 
+                        const tw = this.getTabWidth(shape);
                         const mx = w / 2;
                         
                         pts.push({x: mx + tw/2, y: h, bulge: 0});
