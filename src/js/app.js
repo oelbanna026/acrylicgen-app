@@ -1641,7 +1641,7 @@ function app() {
                 this.showLoginModal = true;
                 return;
             }
-            const prices = { 'starter': 3, 'pro': 7, 'business': 30 };
+            const prices = { 'starter': 3, 'pro': 12, 'business': 39 };
             this.payPalAmount = prices[plan];
             this.payPalDescription = `Upgrade to ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`;
             this.payPalItemType = 'plan';
