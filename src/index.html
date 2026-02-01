@@ -1031,6 +1031,35 @@
                             </g>
                         </svg>
                     </template>
+
+                    <!-- Base Preview (Ghost) -->
+                    <template x-if="activeShape && activeShape.hasBase && !activeShape.linkedBaseId">
+                        <svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                            <g :transform="`translate(${parseFloat(pan.x) || 0}, ${parseFloat(pan.y) || 0}) scale(${parseFloat(zoom) || 1})`">
+                                <g :transform="`translate(${parseFloat(activeShape.x) + 50}, ${parseFloat(activeShape.y) + parseFloat(activeShape.height) + 20})`"
+                                   class="transition-all duration-300">
+                                    
+                                    <!-- Base Body Ghost -->
+                                    <rect :width="parseFloat(activeShape.baseWidth) || 80" 
+                                          :height="parseFloat(activeShape.baseDepth) || 30" 
+                                          :rx="parseFloat(activeShape.baseRadius) || 5"
+                                          fill="rgba(59, 130, 246, 0.1)" 
+                                          stroke="#3b82f6" 
+                                          stroke-width="1.5" 
+                                          stroke-dasharray="5,3" />
+                                    
+                                    <!-- Label -->
+                                    <text :x="(parseFloat(activeShape.baseWidth) || 80)/2" 
+                                          y="-5" 
+                                          text-anchor="middle" 
+                                          font-size="10" 
+                                          fill="#3b82f6" 
+                                          font-weight="bold"
+                                          x-text="lang === 'ar' ? 'معاينة القاعدة' : 'Base Preview'"></text>
+                                </g>
+                            </g>
+                        </svg>
+                    </template>
                 </div>
 
                 <!-- Zoom Controls Overlay -->
