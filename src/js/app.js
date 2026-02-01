@@ -908,7 +908,7 @@ function app() {
             link.href = URL.createObjectURL(blob);
             link.download = (s.name || 'shape') + '.stl';
             link.click();
-        },,
+        },
 
         // Auth Methods
         async handleGoogleLogin(credential) {
