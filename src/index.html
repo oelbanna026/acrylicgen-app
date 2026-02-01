@@ -313,47 +313,117 @@
                     
                     <div class="relative" style="transform-style: preserve-3d;" x-data="{ 
                         get s() { return activeShape || {width:50, height:30}; },
-                        get scale() { 
-                            const rawW = parseFloat(s.width) || 50;
-                            const rawH = parseFloat(s.height) || 30;
-                            const max = Math.max(rawW, rawH, 1);
-                            return 300 / max; // Target 300px size
+                        get baseEnabled() { return !!s.hasBase; },
+                        get mmScale() {
+                            // Returns multiplier to convert current unit to mm
+                            if (unit === 'cm') return 10;
+                            if (unit === 'inch') return 25.4;
+                            return 1; // mm
                         },
-                        get w() { return (parseFloat(s.width)||50) * this.scale; }, 
-                        get h() { return (parseFloat(s.height)||30) * this.scale; },
-                        get d() { 
-                            let tVal = parseFloat(thickness) || 3; // Thickness is always in mm
-                            // Convert thickness to current unit to match w/h ratio
-                            if (unit === 'cm') tVal = tVal / 10;
-                            else if (unit === 'inch') tVal = tVal / 25.4;
-                            return tVal * this.scale; 
+                        get dims() {
+                            // Calculate Dimensions in MM
+                            const shapeW = (parseFloat(s.width)||50) * this.mmScale;
+                            const shapeH = (parseFloat(s.height)||30) * this.mmScale;
+                            const shapeT = (parseFloat(thickness)||3); // Thickness is always mm
+                            
+                            const baseW = (parseFloat(s.baseWidth)||80) * this.mmScale;
+                            const baseD = (parseFloat(s.baseDepth)||30) * this.mmScale;
+                            const baseH = (parseFloat(s.baseThickness)||3); // Base thickness is mm (usually) or unit? 
+                            // Input label says 'Acrylic Thickness (Base)'. Usually thickness inputs are mm in this app.
+                            // Let's assume mm.
+                            
+                            // Calculate View Scale to fit ~300px
+                            // Max dimension could be shape Height + Base Height (if stacked) or Widths
+                            const totalH = shapeH + (this.baseEnabled ? baseH : 0);
+                            const maxDim = Math.max(shapeW, totalH, this.baseEnabled ? baseW : 0, this.baseEnabled ? baseD : 0, 10);
+                            const viewScale = 300 / maxDim;
+                            
+                            return {
+                                sw: shapeW * viewScale,
+                                sh: shapeH * viewScale,
+                                st: shapeT * viewScale,
+                                bw: baseW * viewScale,
+                                bd: baseD * viewScale,
+                                bh: baseH * viewScale
+                            };
                         }
                     }">
-                        <!-- Front Face -->
-                        <div class="absolute border border-blue-300 bg-blue-500 flex items-center justify-center text-white font-bold font-mono text-sm shadow-inner"
-                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) translateZ(${d/2}px); opacity: 0.9;`">
-                             <span style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">FRONT</span>
-                        </div>
+                        <!-- Group: Shape (Vertical) -->
+                        <!-- Position: Center horizontally. Vertically: sits on top of base (or origin if no base) -->
+                        <!-- If Base exists, move Shape UP by BaseHeight/2? 
+                             Actually, assembly usually means shape tabs INTO base.
+                             So Shape bottom is at Base bottom (or middle).
+                             Let's sit the Shape on top of the Base for clear visibility, or slightly inserted.
+                             Let's center the whole assembly at (0,0,0).
+                             
+                             Center of Assembly Y:
+                             Shape Height = SH. Base Height = BH.
+                             Total Height = SH. (If inserted).
+                             Let's place Base at Y = +SH/2 (Screen Y down).
+                             Wait, 3D transform origin is center.
+                             Let's treat (0,0,0) as the center of the SHAPE.
+                             Then Base is relative to it.
+                        -->
                         
-                        <!-- Back Face -->
-                        <div class="absolute border border-blue-300 bg-blue-600"
-                             :style="`width: ${w}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${d/2}px); opacity: 0.9;`"></div>
+                        <!-- SHAPE OBJECT -->
+                        <div class="absolute top-1/2 left-1/2" style="transform-style: preserve-3d;"
+                             :style="`transform: translate(-50%, -50%) translateY(${baseEnabled ? -dims.bh/2 : 0}px)`">
+                            
+                             <!-- Front Face -->
+                             <div class="absolute border border-blue-400/50 bg-blue-500/40 backdrop-blur-[1px]"
+                                  :style="`width: ${dims.sw}px; height: ${dims.sh}px; transform: translate(-50%, -50%) translateZ(${dims.st/2}px);`"></div>
+                             
+                             <!-- Back Face -->
+                             <div class="absolute border border-blue-400/50 bg-blue-500/40 backdrop-blur-[1px]"
+                                  :style="`width: ${dims.sw}px; height: ${dims.sh}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${dims.st/2}px);`"></div>
+    
+                             <!-- Right Face -->
+                             <div class="absolute border border-blue-600/50 bg-blue-600/60"
+                                  :style="`width: ${dims.st}px; height: ${dims.sh}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${dims.sw/2}px);`"></div>
+    
+                             <!-- Left Face -->
+                             <div class="absolute border border-blue-600/50 bg-blue-600/60"
+                                  :style="`width: ${dims.st}px; height: ${dims.sh}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${dims.sw/2}px);`"></div>
+    
+                             <!-- Top Face -->
+                             <div class="absolute border border-blue-400/50 bg-blue-400/60"
+                                  :style="`width: ${dims.sw}px; height: ${dims.st}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${dims.sh/2}px);`"></div>
+    
+                             <!-- Bottom Face -->
+                             <div class="absolute border border-blue-400/50 bg-blue-400/60"
+                                  :style="`width: ${dims.sw}px; height: ${dims.st}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${dims.sh/2}px);`"></div>
+                        </div>
 
-                        <!-- Right Face -->
-                        <div class="absolute border border-blue-300 bg-blue-700"
-                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${w/2}px); opacity: 0.9;`"></div>
-
-                        <!-- Left Face -->
-                        <div class="absolute border border-blue-300 bg-blue-700"
-                             :style="`width: ${d}px; height: ${h}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${w/2}px); opacity: 0.9;`"></div>
-
-                        <!-- Top Face -->
-                        <div class="absolute border border-blue-300 bg-blue-400"
-                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${h/2}px); opacity: 0.9;`"></div>
-
-                        <!-- Bottom Face -->
-                        <div class="absolute border border-blue-300 bg-blue-800"
-                             :style="`width: ${w}px; height: ${d}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${h/2}px); opacity: 0.9;`"></div>
+                        <!-- BASE OBJECT (If Enabled) -->
+                        <template x-if="baseEnabled">
+                            <div class="absolute top-1/2 left-1/2" style="transform-style: preserve-3d;"
+                                 :style="`transform: translate(-50%, -50%) translateY(${dims.sh/2}px) rotateX(90deg)`">
+                                
+                                 <!-- Top Face (Visible) -->
+                                 <div class="absolute border border-gray-500 bg-gray-800/90 flex items-center justify-center text-white/30 text-[10px]"
+                                      :style="`width: ${dims.bw}px; height: ${dims.bd}px; transform: translate(-50%, -50%) translateZ(${dims.bh/2}px);`">BASE</div>
+                                 
+                                 <!-- Bottom Face -->
+                                 <div class="absolute border border-gray-600 bg-gray-900"
+                                      :style="`width: ${dims.bw}px; height: ${dims.bd}px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(${dims.bh/2}px);`"></div>
+        
+                                 <!-- Right Face -->
+                                 <div class="absolute border border-gray-600 bg-gray-700"
+                                      :style="`width: ${dims.bh}px; height: ${dims.bd}px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(${dims.bw/2}px);`"></div>
+        
+                                 <!-- Left Face -->
+                                 <div class="absolute border border-gray-600 bg-gray-700"
+                                      :style="`width: ${dims.bh}px; height: ${dims.bd}px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(${dims.bw/2}px);`"></div>
+        
+                                 <!-- Front Face (Thickness side) -->
+                                 <div class="absolute border border-gray-500 bg-gray-700"
+                                      :style="`width: ${dims.bw}px; height: ${dims.bh}px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(${dims.bd/2}px);`"></div>
+        
+                                 <!-- Back Face -->
+                                 <div class="absolute border border-gray-500 bg-gray-700"
+                                      :style="`width: ${dims.bw}px; height: ${dims.bh}px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(${dims.bd/2}px);`"></div>
+                            </div>
+                        </template>
                              
                         <!-- Axis Indicator -->
                         <div class="absolute inset-0 pointer-events-none" style="transform: translate(-50%, -50%)">
