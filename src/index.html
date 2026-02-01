@@ -698,10 +698,18 @@
                         
                         <div x-show="showCostSettings" x-collapse x-cloak class="space-y-3 pt-2">
                             <div>
-                                <label for="cost-sheet-width" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('sheet_dims')"></label>
-                                <div class="flex gap-2">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label for="cost-sheet-width" class="block text-xs text-gray-700 dark:text-gray-300" x-text="t('sheet_dims')"></label>
+                                    <select x-model="sheetUnit" class="text-[10px] p-0.5 border rounded bg-white dark:bg-slate-700 dark:text-white">
+                                        <option value="cm">cm</option>
+                                        <option value="mm">mm</option>
+                                        <option value="inch">inch</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2 relative">
                                     <input id="cost-sheet-width" name="sheetWidth" aria-label="Sheet Width" type="number" x-model.number="sheetWidth" class="form-input w-full p-2 rounded text-sm" placeholder="W">
                                     <input id="cost-sheet-height" name="sheetHeight" aria-label="Sheet Height" type="number" x-model.number="sheetHeight" class="form-input w-full p-2 rounded text-sm" placeholder="H">
+                                    <span class="absolute end-2 top-2.5 text-xs text-gray-500 pointer-events-none" x-text="sheetUnit"></span>
                                 </div>
                             </div>
                             <div>
