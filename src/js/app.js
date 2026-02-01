@@ -372,6 +372,19 @@ function app() {
 
         get shapeType() { return this.activeShape.shapeType; },
         set shapeType(v) { 
+            // Feature Check: Advanced Shapes
+            if (['pentagon', 'hexagon', 'star'].includes(v)) {
+                if (!window.Monetization.hasFeature('advanced_shapes')) {
+                    this.showPricingModal = true;
+                    // Reset selection to rectangle after a tick
+                    setTimeout(() => {
+                        this.activeShape.shapeType = 'rectangle';
+                        // Force UI update if needed
+                    }, 50);
+                    return;
+                }
+            }
+
             this.activeShape.shapeType = v; 
             if (v === 'circle') {
                 const dim = Math.min(this.activeShape.width, this.activeShape.height);
@@ -556,6 +569,11 @@ function app() {
         
         async loadHistory() {
             if (!this.user) return;
+            // Feature Check: Save/Load
+            if (!window.Monetization.hasFeature('save_load')) {
+                this.showPricingModal = true;
+                return;
+            }
             try {
                 this.history = await auth.getHistory();
                 this.showHistoryModal = true;
