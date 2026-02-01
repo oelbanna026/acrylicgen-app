@@ -5,3 +5,4 @@ Disallow: /api/
 Disallow: /private/
 
 Sitemap: https://acrylicgen-app.com/sitemap.xml
+Sitemap: https://acrylicgen-app.com/sitemap-boxes.xml
