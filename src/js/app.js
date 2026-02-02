@@ -2048,9 +2048,22 @@ function app() {
             this.isPanning = false; 
         },
 
-        onStartTouch(e) { if(e.touches.length === 1) this.onStartPan(e.touches[0]); },
-        moveTouch(e) { if(e.touches.length === 1) this.panView(e.touches[0]); },
-        endTouch() { this.onEndPan(); },
+        onStartTouch(e) { 
+            if(e.touches.length === 1) {
+                // If we are already dragging a shape (initiated by child), don't start pan
+                if (this.isDraggingShape) return;
+                this.onStartPan(e.touches[0]); 
+            }
+        },
+        onMoveTouch(e) { 
+            if(e.touches.length === 1) {
+                // Delegate to onMouseMove which handles both Panning and Shape Dragging
+                this.onMouseMove(e);
+            }
+        },
+        onEndTouch(e) { 
+            this.onMouseUp(e); 
+        },
 
         zoomIn() { this.zoom *= 1.2; },
         zoomOut() { this.zoom *= 0.8; },
