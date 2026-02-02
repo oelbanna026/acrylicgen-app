@@ -11,7 +11,7 @@ export function useAuth() {
     // Check localStorage (assuming shared domain or login via admin page)
     const t = localStorage.getItem("token");
     if (!t) {
-      // Redirect to login if needed, or handle in component
+      router.push('/login');
     }
     setToken(t);
   }, []);

@@ -27,6 +27,11 @@ const menuItems = [
 export default function Sidebar() {
   const pathname = usePathname();
 
+  // Hide sidebar on login page
+  if (pathname === '/login' || pathname === '/admin/login') {
+    return null;
+  }
+
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-white">
       <div className="flex h-16 items-center justify-center border-b border-slate-800">
