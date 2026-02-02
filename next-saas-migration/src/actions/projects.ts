@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+import { redirect } from 'next/navigation'
+
 export async function createProject(formData: FormData) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,20 +17,21 @@ export async function createProject(formData: FormData) {
   const width = parseFloat(formData.get('width') as string)
   const height = parseFloat(formData.get('height') as string)
 
-  const { error } = await supabase.from('projects').insert({
+  const { data, error } = await supabase.from('projects').insert({
     user_id: user.id,
     name,
     width,
     height,
     design_json: {}, // Initial empty design
     settings_json: {}
-  })
+  }).select().single()
 
   if (error) {
     throw new Error(error.message)
   }
 
   revalidatePath('/dashboard')
+  redirect(`/project/${data.id}`)
 }
 
 export async function updateProject(id: string, designJson: any) {
