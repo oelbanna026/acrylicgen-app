@@ -37,12 +37,15 @@ app.use((req, res, next) => {
 const adminPath = path.join(__dirname, '../dist/admin');
 if (fs.existsSync(adminPath)) {
     // 1. Serve Static Assets (_next) with cache
+    // IMPORTANT: Next.js export puts _next folder INSIDE dist/admin
+    // We need to serve /admin/_next from dist/admin/_next
     app.use('/admin/_next', express.static(path.join(adminPath, '_next'), {
         maxAge: '1y',
-        immutable: true
+        immutable: true,
+        fallthrough: false // If not found here, 404 immediately (don't fall through to other routes)
     }));
 
-    // 2. Serve other static files (HTML, etc) with NO cache to ensure updates are seen immediately
+    // 2. Serve other static files (HTML, etc)
     app.use('/admin', express.static(adminPath, {
         cacheControl: false,
         etag: false,
@@ -51,18 +54,9 @@ if (fs.existsSync(adminPath)) {
 
     // 3. Handle client-side routing - Force NO CACHE for index.html
     app.get('/admin*', (req, res) => {
-        // Handle explicit file requests that might have slipped through static middleware
-        if (req.path.includes('.')) {
-             // Remove /admin prefix but keep the rest of the path
-             // Example: /admin/_next/static/css/xxx.css -> /_next/static/css/xxx.css
-             // But wait, our adminPath is 'dist/admin', so we need to map correctly.
-             
-             const relativePath = req.path.replace('/admin', '');
-             const requestedFile = path.join(adminPath, relativePath);
-             
-             if (fs.existsSync(requestedFile)) {
-                 return res.sendFile(requestedFile);
-             }
+        // If it's a file request (has dot) and wasn't caught by static middleware above, it's a 404
+        if (req.path.includes('.') && !req.path.endsWith('.html')) {
+             return res.status(404).send('Not Found');
         }
 
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
