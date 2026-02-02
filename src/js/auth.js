@@ -12,7 +12,7 @@
     };
 
     const API_URL = getApiUrl();
-    const MOCK_MODE = false; // Set to false when backend is running
+    const MOCK_MODE = true; // Set to false when backend is running
 
     let storedUser = null;
     try {
