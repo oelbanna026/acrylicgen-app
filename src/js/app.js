@@ -3104,18 +3104,24 @@ function app() {
 
                 // Simple SPA Routing for Vercel/Static hosting
                 const path = window.location.pathname;
-                if (path === '/login') {
-                    this.showLoginModal = true;
-                    window.history.replaceState({}, '', '/');
-                } else if (path === '/admin') {
-                    if (this.user && this.user.role === 'admin') {
-                        this.showAdminModal = true;
-                    } else {
-                        alert(this.lang === 'ar' ? 'يجب عليك تسجيل الدخول كمسؤول أولاً' : 'Admin login required');
+                
+                // Use $nextTick to ensure Alpine state is ready
+                this.$nextTick(() => {
+                    if (path === '/login') {
+                        console.log('SPA Routing: /login detected, opening modal...');
                         this.showLoginModal = true;
+                        window.history.replaceState({}, '', '/');
+                    } else if (path === '/admin') {
+                        console.log('SPA Routing: /admin detected, checking role...');
+                        if (this.user && this.user.role === 'admin') {
+                            this.showAdminModal = true;
+                        } else {
+                            // alert(this.lang === 'ar' ? 'يجب عليك تسجيل الدخول كمسؤول أولاً' : 'Admin login required');
+                            this.showLoginModal = true;
+                        }
+                        window.history.replaceState({}, '', '/');
                     }
-                    window.history.replaceState({}, '', '/');
-                }
+                });
             },
             
 
