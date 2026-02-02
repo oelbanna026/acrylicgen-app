@@ -54,8 +54,38 @@ if (fs.existsSync(adminPath)) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
+        // NUCLEAR OPTION: Clear Service Workers to fix caching issues
+        // We only clear 'storage' (includes SW) and 'executionContexts'
+        // We avoid clearing 'cookies' if possible, but 'storage' might include LocalStorage
+        res.setHeader('Clear-Site-Data', '"storage", "executionContexts"');
         res.sendFile(path.join(adminPath, 'index.html'));
     });
+
+    // DEBUG ROUTE: List files in admin directory
+    app.get('/api/admin-debug-files', (req, res) => {
+        const getAllFiles = function(dirPath, arrayOfFiles) {
+            files = fs.readdirSync(dirPath)
+            arrayOfFiles = arrayOfFiles || []
+            files.forEach(function(file) {
+                if (fs.statSync(dirPath + "/" + file).isDirectory()) {
+                    arrayOfFiles = getAllFiles(dirPath + "/" + file, arrayOfFiles)
+                } else {
+                    arrayOfFiles.push(path.join(dirPath, "/", file))
+                }
+            })
+            return arrayOfFiles
+        }
+        try {
+            const files = getAllFiles(adminPath);
+            res.json({ 
+                basePath: adminPath, 
+                files: files.map(f => f.replace(adminPath, '')) 
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message, stack: e.stack });
+        }
+    });
+}
 }
 
 // Static Files (Serve the frontend)
