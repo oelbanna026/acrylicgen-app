@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acrylic-app-v43';
+const CACHE_NAME = 'acrylic-app-v44';
 const ASSETS = [
     './',
     './index.html',
@@ -50,9 +50,19 @@ self.addEventListener('activate', event => {
 // Fetch Event: Network First strategy (for fresh content), falling back to Cache
 // This ensures users always get the latest version if they are online.
 self.addEventListener('fetch', event => {
-    // Skip cross-origin requests like Google Ads or CDN scripts if needed, 
-    // or cache them if they support CORS.
+    // 1. Skip non-http requests
     if (!event.request.url.startsWith('http')) return;
+
+    // 2. EXCLUDE Admin Dashboard from Service Worker entirely
+    // This is crucial because admin uses its own cache strategy and structure
+    if (event.request.url.includes('/admin')) {
+        return; // Let the network handle it directly without SW interference
+    }
+
+    // 3. Skip POST requests (SW cannot cache POST)
+    if (event.request.method !== 'GET') {
+        return;
+    }
 
     event.respondWith(
         fetch(event.request)
