@@ -38,27 +38,13 @@ export default function Home() {
         <p className="text-slate-400">Welcome back, Admin. Real-time system metrics.</p>
       </div>
 
-      {/* Pass real data to stats component if available, or modify component to accept props */}
-      {/* For now, we inject the fetched values via props or context */}
-      {stats && (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-                <p className="text-sm text-slate-400">Total Users</p>
-                <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-                <p className="text-sm text-slate-400">Total Exports</p>
-                <p className="text-2xl font-bold text-white">{stats.totalExports}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-                <p className="text-sm text-slate-400">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-500">${stats.totalRevenue.toFixed(2)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-                <p className="text-sm text-slate-400">Active Now</p>
-                <p className="text-2xl font-bold text-blue-500">{stats.activeNow}</p>
-            </div>
-          </div>
+      {/* Pass real data to stats component */}
+      <DashboardStats data={stats} />
+      
+      {/* Revenue Chart - To be connected to real data later */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <RevenueChart />
+      </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

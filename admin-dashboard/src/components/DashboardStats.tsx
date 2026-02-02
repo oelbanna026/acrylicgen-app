@@ -1,49 +1,50 @@
 import { ArrowUpRight, ArrowDownRight, Users, Folder, Download, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const stats = [
-  {
-    name: "Total Users",
-    value: "12,345",
-    change: "+12%",
-    trend: "up",
-    icon: Users,
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-  },
-  {
-    name: "Active Projects",
-    value: "45,231",
-    change: "+5.4%",
-    trend: "up",
-    icon: Folder,
-    color: "text-purple-500",
-    bg: "bg-purple-500/10",
-  },
-  {
-    name: "Total Exports",
-    value: "89,432",
-    change: "-1.2%",
-    trend: "down",
-    icon: Download,
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-  },
-  {
-    name: "Total Revenue",
-    value: "$234,567",
-    change: "+18.2%",
-    trend: "up",
-    icon: DollarSign,
-    color: "text-green-500",
-    bg: "bg-green-500/10",
-  },
-];
+export default function DashboardStats({ data }: { data?: any }) {
+  // Use real data if provided, otherwise fallback to 0 (not mock data)
+  const displayStats = [
+    {
+      name: "Total Users",
+      value: data?.totalUsers || "0",
+      change: "+0%", // To be implemented with historical data
+      trend: "neutral",
+      icon: Users,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+    },
+    {
+      name: "Active Now",
+      value: data?.activeNow || "0",
+      change: "Live",
+      trend: "up",
+      icon: Folder, // Using Folder icon for now as placeholder for 'Active'
+      color: "text-purple-500",
+      bg: "bg-purple-500/10",
+    },
+    {
+      name: "Total Exports",
+      value: data?.totalExports || "0",
+      change: "+0%",
+      trend: "neutral",
+      icon: Download,
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+    },
+    {
+      name: "Total Revenue",
+      value: `$${data?.totalRevenue || 0}`,
+      change: "+0%",
+      trend: "up",
+      icon: DollarSign,
+      color: "text-green-500",
+      bg: "bg-green-500/10",
+    },
+  ];
 
-export default function DashboardStats() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => {
+      {displayStats.map((stat) => {
         const Icon = stat.icon;
         return (
           <div
