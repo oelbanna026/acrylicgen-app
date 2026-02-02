@@ -102,6 +102,12 @@ function initDb() {
             FOREIGN KEY(user_id) REFERENCES users(id)
         )`);
 
+        // Settings Table (Global App Config)
+        db.run(`CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )`);
+
         // Payment History Table
         db.run(`CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
