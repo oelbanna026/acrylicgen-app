@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e293b">
     
     <!-- Google AdSense -->
@@ -29,19 +29,20 @@
     </script>
     
     <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
     
     <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="src/css/style.css?v=35">
     
     <!-- Auth Logic -->
-    <script src="js/auth.js?v=27"></script>
+    <script src="src/js/auth.js?v=35"></script>
     
     <!-- App Logic -->
-    <script src="js/app.js?v=24"></script>
+    <script src="src/js/app.js?v=35"></script>
 
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -317,14 +318,14 @@
             <!-- Main Canvas -->
             <main class="flex-1 relative overflow-hidden canvas-area"
                   x-ref="canvas"
-                  @wheel.prevent="handleWheel"
-                  @mousedown="startPan"
-                  @mousemove="panView"
-                  @mouseup="endPan"
-                  @mouseleave="endPan"
-                  @touchstart.prevent="startTouch"
-                  @touchmove.prevent="moveTouch"
-                  @touchend="endTouch">
+                  @wheel.prevent="onWheel"
+                  @mousedown="onStartPan"
+                  @mousemove="onMouseMove"
+                  @mouseup="onMouseUp"
+                  @mouseleave="onEndPan"
+                  @touchstart.prevent="onStartTouch"
+                  @touchmove.prevent="onMoveTouch"
+                  @touchend="onEndTouch">
                 
                 <!-- SVG Canvas -->
                 <svg x-ref="svg" 
