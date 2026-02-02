@@ -6,10 +6,17 @@ server/node_modules
 .env
 server/.env
 
+# Secrets & Keys
+gcs-key.json
+server/gcs-key.json
+*.pem
+*.key
+
 # Database (Local)
 *.sqlite
 *.db
 server/database.sqlite
+backups/
 
 # OS generated files
 .DS_Store
@@ -21,3 +28,5 @@ npm-debug.log*
 
 # Dist (Generated)
 dist/
+.next/
+out/
