@@ -7,14 +7,16 @@ server/node_modules
 server/.env
 
 # Secrets & Keys
-gcs-key.json
-server/gcs-key.json
+gcs-key*
+server/gcs-key*
 *.pem
 *.key
 
 # Database (Local)
 *.sqlite
+*.sqlite*
 *.db
+*.backup
 server/database.sqlite
 backups/
 
