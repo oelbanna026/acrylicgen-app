@@ -22,9 +22,9 @@ export default async function SubscriptionPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="flex flex-col lg:flex-row gap-8">
         {/* Pro Plan */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 hover:border-blue-300 transition-all relative overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 hover:border-blue-300 transition-all relative overflow-hidden flex-1">
           <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs px-3 py-1 rounded-bl-xl font-medium">POPULAR</div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">Pro Plan</h3>
           <div className="flex items-baseline gap-1 mb-6">
@@ -34,13 +34,13 @@ export default async function SubscriptionPage() {
           
           <ul className="space-y-4 mb-8">
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> 50 Exports / month
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> 50 Exports / month
             </li>
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> Unlimited Projects
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Unlimited Projects
             </li>
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> Commercial License
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Commercial License
             </li>
           </ul>
 
@@ -52,7 +52,7 @@ export default async function SubscriptionPage() {
         </div>
 
         {/* Business Plan */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 hover:border-purple-300 transition-all">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 hover:border-purple-300 transition-all flex-1">
           <h3 className="text-xl font-bold text-gray-900 mb-2">Business Plan</h3>
           <div className="flex items-baseline gap-1 mb-6">
             <span className="text-4xl font-bold">$30</span>
@@ -61,13 +61,13 @@ export default async function SubscriptionPage() {
           
           <ul className="space-y-4 mb-8">
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> Unlimited Exports
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Unlimited Exports
             </li>
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> Priority Support
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Priority Support
             </li>
             <li className="flex gap-3 text-sm text-gray-600">
-                <Check className="w-5 h-5 text-green-500" /> Custom Branding
+                <Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Custom Branding
             </li>
           </ul>
 
