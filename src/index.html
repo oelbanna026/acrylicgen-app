@@ -12,7 +12,7 @@
     <link rel="canonical" href="https://acrylicgen-app.com/" />
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e293b">
 
     <!-- Open Graph / Facebook -->
@@ -1067,7 +1067,7 @@
                   @mousedown="onStartPan"
                   @mousemove="onMouseMove"
                   @mouseup="onMouseUp"
-                  @mouseleave="onMouseUp"
+                  @mouseleave="onEndPan"
                   @touchstart.prevent="onStartTouch"
                   @touchmove.prevent="onMoveTouch"
                   @touchend="onEndTouch">
