@@ -53,7 +53,13 @@ if (fs.existsSync(adminPath)) {
     app.get('/admin*', (req, res) => {
         // Handle explicit file requests that might have slipped through static middleware
         if (req.path.includes('.')) {
-             const requestedFile = path.join(adminPath, req.path.replace('/admin', ''));
+             // Remove /admin prefix but keep the rest of the path
+             // Example: /admin/_next/static/css/xxx.css -> /_next/static/css/xxx.css
+             // But wait, our adminPath is 'dist/admin', so we need to map correctly.
+             
+             const relativePath = req.path.replace('/admin', '');
+             const requestedFile = path.join(adminPath, relativePath);
+             
              if (fs.existsSync(requestedFile)) {
                  return res.sendFile(requestedFile);
              }
