@@ -134,19 +134,16 @@
     <!-- Alpine.js (Must load after app.js) -->
     <script defer src="src/vendor/alpine.min.js"></script>
     <script>
-        window.onerror = function(msg, url, line, col, error) {
-            alert("Error: " + msg + "\nLine: " + line + "\nCol: " + col);
-        };
-        // Global Fallback for critical handlers to prevent Alpine errors
-        window.onMouseUp = function(e) {};
-        window.onWheel = function(e) {};
-        
         // Kill Switch for stuck Service Workers
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
                 for(let registration of registrations) {
-                    // FORCE UNREGISTER to clear old cache
                     registration.unregister();
+                }
+                // Force reload if not already reloaded
+                if (!sessionStorage.getItem('force_reload_v55')) {
+                    sessionStorage.setItem('force_reload_v55', 'true');
+                    window.location.reload();
                 }
             });
         }
