@@ -50,13 +50,18 @@ if (fs.existsSync(adminPath)) {
     }));
 
     // 3. Handle client-side routing - Force NO CACHE for index.html
-    app.get('/admin/*', (req, res) => {
+    app.get('/admin*', (req, res) => {
+        // Handle explicit file requests that might have slipped through static middleware
+        if (req.path.includes('.')) {
+             const requestedFile = path.join(adminPath, req.path.replace('/admin', ''));
+             if (fs.existsSync(requestedFile)) {
+                 return res.sendFile(requestedFile);
+             }
+        }
+
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        // NUCLEAR OPTION: Clear Service Workers to fix caching issues
-        // We only clear 'storage' (includes SW) and 'executionContexts'
-        // We avoid clearing 'cookies' if possible, but 'storage' might include LocalStorage
         res.setHeader('Clear-Site-Data', '"storage", "executionContexts"');
         res.sendFile(path.join(adminPath, 'index.html'));
     });
