@@ -126,6 +126,16 @@ function initDb() {
             total_views INTEGER DEFAULT 0
         )`);
         
+        // Audit Logs Table (for Backup/Restore operations)
+        db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action TEXT NOT NULL, -- backup, restore, export_data
+            status TEXT NOT NULL, -- success, failed
+            details TEXT,
+            user_id INTEGER, -- if triggered manually
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
         // Initialize site_stats if empty
         db.run(`INSERT OR IGNORE INTO site_stats (id, total_views) VALUES (1, 0)`);
 

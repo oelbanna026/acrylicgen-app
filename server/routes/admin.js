@@ -156,4 +156,54 @@ router.post('/settings', verifyAdmin, (req, res) => {
     stmt.finalize();
 });
 
+const BackupService = require('../services/backupService');
+
+// --- Backup & Restore Routes ---
+
+// Create Backup
+router.post('/backups', verifyAdmin, async (req, res) => {
+    try {
+        const result = await BackupService.createBackup(req.userId);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Restore Backup
+router.post('/backups/restore', verifyAdmin, async (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: 'Filename is required' });
+
+    try {
+        await BackupService.restoreBackup(filename, req.userId);
+        res.json({ success: true, message: 'Database restored successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// List Backups
+router.get('/backups', verifyAdmin, (req, res) => {
+    try {
+        const backups = BackupService.getBackupsList();
+        res.json(backups);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Export Data
+router.get('/backups/export', verifyAdmin, async (req, res) => {
+    const { format } = req.query; // json, csv, xml
+    try {
+        const result = await BackupService.exportUserData(format || 'json', req.userId);
+        res.setHeader('Content-Type', result.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename=${result.filename}`);
+        res.send(result.content);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -10,6 +10,7 @@ import {
   DollarSign, 
   Megaphone, 
   Settings, 
+  Database,
   LogOut 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const menuItems = [
   { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
   { name: "Payments", href: "/payments", icon: DollarSign },
   { name: "Ads", href: "/ads", icon: Megaphone },
+  { name: "Backups", href: "/backups", icon: Database },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

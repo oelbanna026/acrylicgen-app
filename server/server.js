@@ -14,6 +14,20 @@ const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const statsRoutes = require('./routes/stats');
 
+const cron = require('node-cron');
+const BackupService = require('./services/backupService');
+
+// Schedule Daily Backup at Midnight (00:00)
+cron.schedule('0 0 * * *', async () => {
+    console.log('Running scheduled daily backup...');
+    try {
+        const result = await BackupService.createBackup();
+        console.log('Scheduled backup successful:', result.filename);
+    } catch (err) {
+        console.error('Scheduled backup failed:', err);
+    }
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
