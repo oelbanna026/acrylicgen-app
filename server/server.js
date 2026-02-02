@@ -36,9 +36,24 @@ app.use((req, res, next) => {
 // Serve Admin Dashboard
 const adminPath = path.join(__dirname, '../dist/admin');
 if (fs.existsSync(adminPath)) {
-    app.use('/admin', express.static(adminPath));
-    // Handle client-side routing for admin
+    // 1. Serve Static Assets (_next) with cache
+    app.use('/admin/_next', express.static(path.join(adminPath, '_next'), {
+        maxAge: '1y',
+        immutable: true
+    }));
+
+    // 2. Serve other static files (HTML, etc) with NO cache to ensure updates are seen immediately
+    app.use('/admin', express.static(adminPath, {
+        cacheControl: false,
+        etag: false,
+        lastModified: false
+    }));
+
+    // 3. Handle client-side routing - Force NO CACHE for index.html
     app.get('/admin/*', (req, res) => {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.sendFile(path.join(adminPath, 'index.html'));
     });
 }
