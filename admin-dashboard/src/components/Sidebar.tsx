@@ -35,7 +35,10 @@ export default function Sidebar() {
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-white">
       <div className="flex h-16 items-center justify-center border-b border-slate-800">
-        <h1 className="text-xl font-bold tracking-wider text-blue-500">AcrylicGen</h1>
+        <div className="text-center">
+          <h1 className="text-xl font-bold tracking-wider text-blue-500">AcrylicGen</h1>
+          <span className="text-xs text-slate-500">Admin v1.1</span>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto py-4">
