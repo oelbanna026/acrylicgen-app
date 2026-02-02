@@ -281,8 +281,12 @@ function app() {
                 getHistory: async () => [],
                 getAdminStats: async () => null,
                 getAdminUsers: async () => [],
+                getPublicStats: async () => ({ totalViews: 0, activeUsers: 0, sales24h: 0, conversionRate: 0, totalExports: 0 }),
                 mockPurchase: async () => {},
-                deductCredit: async () => ({ success: true }) // Allow export in fallback
+                deductCredit: async () => ({ success: true }), // Allow export in fallback
+                forgotPassword: async () => {},
+                googleLogin: async () => {},
+                request: async () => {}
             };
         }
     
