@@ -3093,36 +3093,7 @@ function app() {
                 });
             },
             
-            // Dummy handlers to prevent crashes
-            onMouseMove(e) {},
-            onMouseUp(e) {},
-            onWheel(e) {},
-            onStartPan(e) {},
-            panView(e) {},
-            onEndPan(e) {},
-            onStartTouch(e) {},
-            onMoveTouch(e) {},
-            onEndTouch(e) {},
-            startShapeDrag(e) {},
-            selectShape(id) {},
-            removeShape(id) {},
-            addShape() {},
-            duplicateSelectedShape() {},
-            rotateSelectedShape() {},
-            nestShapes() {},
-            fillSheet() {},
-            zoomIn() {},
-            zoomOut() {},
-            resetView() {},
-            clearAllShapes() {},
-            loadHistory() {},
-            openAdminDashboard() {},
-            logout() {},
-            buyPlan() {},
-            buyCredits() {},
-            getShapePath() { return ''; },
-            getHolesPath() { return ''; },
-            getShapeBoundingBox() { return {minX:0, minY:0, maxX:0, maxY:0, width:0, height:0}; }
+
         };
     }
 }
