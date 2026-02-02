@@ -440,8 +440,10 @@ function app() {
                     id: null, width: 0, height: 0, x: 0, y: 0, 
                     rotation: 0, shapeType: 'rectangle', 
                     cornerType: 'straight', cornerRadius: 0,
+                    cornerSides: { tl: true, tr: true, br: true, bl: true },
                     holePattern: 'none', holeCount: 0, holeDiameter: 0, holeMargin: 0,
-                    holes: []
+                    holes: [],
+                    hasBase: false, linkedBaseId: null, baseThickness: 0, baseWidth: 0, baseDepth: 0, baseRadius: 0
                 };
             }
 
