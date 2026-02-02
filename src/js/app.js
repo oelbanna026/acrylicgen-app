@@ -3093,6 +3093,21 @@ function app() {
                 window.addEventListener('show-upgrade-modal', () => {
                     this.showPricingModal = true;
                 });
+
+                // Simple SPA Routing for Vercel/Static hosting
+                const path = window.location.pathname;
+                if (path === '/login') {
+                    this.showLoginModal = true;
+                    window.history.replaceState({}, '', '/');
+                } else if (path === '/admin') {
+                    if (this.user && this.user.role === 'admin') {
+                        this.showAdminModal = true;
+                    } else {
+                        alert(this.lang === 'ar' ? 'يجب عليك تسجيل الدخول كمسؤول أولاً' : 'Admin login required');
+                        this.showLoginModal = true;
+                    }
+                    window.history.replaceState({}, '', '/');
+                }
             },
             
 
