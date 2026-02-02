@@ -1800,8 +1800,16 @@ function app() {
             }
 
             // Check Auth
-            if (this.user) {
-                auth.getProfile().then(u => this.user = u);
+            if (window.AuthService && window.AuthService.user) {
+                this.user = window.AuthService.user;
+                // Optional: Refresh profile to get latest credits
+                window.AuthService.request('/user/profile').then(u => {
+                    this.user = u;
+                    window.AuthService.setSession(window.AuthService.token, u);
+                }).catch(() => {
+                    // If token invalid, logout
+                    // window.AuthService.logout(); 
+                });
             }
 
             // Load saved model
