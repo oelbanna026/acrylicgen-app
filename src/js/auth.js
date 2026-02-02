@@ -48,7 +48,10 @@
                 } else {
                     const text = await res.text();
                     console.error('Non-JSON response:', text);
-                    throw new Error(`Server Error (${res.status}): Please check console for details.`);
+                    let errorMsg = `Server Error (${res.status})`;
+                    if (res.status === 404) errorMsg += ": API Endpoint not found. Backend may be offline or outdated.";
+                    if (res.status === 502) errorMsg += ": Bad Gateway. Backend is starting or crashed.";
+                    throw new Error(errorMsg);
                 }
             } catch (e) {
                 // console.error('API Error:', e);
