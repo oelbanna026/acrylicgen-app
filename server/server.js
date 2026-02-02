@@ -86,7 +86,6 @@ if (fs.existsSync(adminPath)) {
         }
     });
 }
-}
 
 // Static Files (Serve the frontend)
 app.use(express.static(path.join(__dirname, '../src')));
