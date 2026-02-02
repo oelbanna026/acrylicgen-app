@@ -6,6 +6,7 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --input-bg: #ffffff;
+    --input-text: #0f172a;
 }
 
 .dark {
@@ -14,7 +15,8 @@
     --text-main: #f1f5f9;
     --text-muted: #94a3b8;
     --border: #334155;
-    --input-bg: #0f172a;
+    --input-bg: #334155; /* Changed from #0f172a to be lighter than body */
+    --input-text: #f1f5f9;
 }
 
 body {
@@ -50,6 +52,21 @@ body {
     border-color: #3b82f6;
     outline: none;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+select.form-input {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.dark select.form-input {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
 }
 
 [x-cloak] { display: none !important; }
