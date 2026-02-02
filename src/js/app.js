@@ -332,6 +332,7 @@ function app() {
         loading: true,
         user: auth.user,
         showSidebar: window.innerWidth >= 768,
+        showMobileMenu: false, // For Mobile Header
         showLoginModal: false,
         showRegisterModal: false,
         showPricingModal: false,
