@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.8)",
+        app_title: "Acrylic Designer Pro (v1.5.9)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.8)",
+        app_title: "Acrylic Designer Pro (v1.5.9)",
         unit: "Unit",
         width: "Width",
         height: "Height",

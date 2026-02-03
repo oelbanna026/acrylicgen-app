@@ -1,13 +1,13 @@
-const CACHE_NAME = 'acrylic-app-v69';
+const CACHE_NAME = 'acrylic-app-v70';
 const ASSETS = [
     './',
     './index.html',
-    './css/style.css?v=69',
-    './js/app.js?v=69',
-    './js/auth.js?v=69',
-    './js/tour.js?v=69',
-    './js/monetization.js?v=69',
-    './js/diagnostics.js?v=69',
+    './css/style.css?v=70',
+    './js/app.js?v=70',
+    './js/auth.js?v=70',
+    './js/tour.js?v=70',
+    './js/monetization.js?v=70',
+    './js/diagnostics.js?v=70',
     './manifest.json',
     './vendor/tailwindcss.js',
     './vendor/alpine.min.js',
@@ -53,9 +53,8 @@ self.addEventListener('fetch', event => {
     // 1. Skip non-http requests
     if (!event.request.url.startsWith('http')) return;
 
-    // 2. EXCLUDE Admin Dashboard from Service Worker entirely
-    // This is crucial because admin uses its own cache strategy and structure
-    if (event.request.url.includes('/admin')) {
+    // 2. EXCLUDE Admin Dashboard and API from Service Worker entirely
+    if (event.request.url.includes('/admin') || event.request.url.includes('/api/')) {
         return; // Let the network handle it directly without SW interference
     }
 
