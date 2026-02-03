@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.10)",
+        app_title: "Acrylic Designer Pro (v1.6.1)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.10)",
+        app_title: "Acrylic Designer Pro (v1.6.1)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -1695,6 +1695,25 @@ function app() {
             }
         },
 
+        async initExternalAnalytics() {
+            try {
+                if (window.gtag) return;
+                const res = await fetch('/api/stats/config');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data || !data.measurementId) return;
+                window.dataLayer = window.dataLayer || [];
+                window.gtag = function(){window.dataLayer.push(arguments);};
+                window.gtag('js', new Date());
+                window.gtag('config', data.measurementId, { send_page_view: true });
+                const s = document.createElement('script');
+                s.async = true;
+                s.src = `https://www.googletagmanager.com/gtag/js?id=${data.measurementId}`;
+                document.head.appendChild(s);
+            } catch (e) {
+            }
+        },
+
         async recordVisit(type = 'heartbeat') {
             try {
                 let sessionId = sessionStorage.getItem('acrylic_session_id');
@@ -1709,11 +1728,17 @@ function app() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sessionId, type })
                 }).catch(() => {});
+                fetch('/api/stats/collect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, type })
+                }).catch(() => {});
             } catch (e) {
             }
         },
 
         async init() {
+            this.initExternalAnalytics();
             // Load Cost Settings
             const savedCost = localStorage.getItem('acrylic_cost_settings');
             if (savedCost) {

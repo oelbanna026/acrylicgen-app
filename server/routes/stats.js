@@ -3,6 +3,9 @@ const { GoogleAuth } = require('google-auth-library');
 const router = express.Router();
 const db = require('../config/database');
 
+const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || '';
+const GA4_API_SECRET = process.env.GA4_API_SECRET || '';
+
 // Helper to get current date string (YYYY-MM-DD)
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
@@ -37,6 +40,33 @@ router.post('/visit', (req, res) => {
         
         res.json({ success: true });
     });
+});
+
+router.get('/config', (req, res) => {
+    res.json({ measurementId: GA4_MEASUREMENT_ID || null });
+});
+
+router.post('/collect', async (req, res) => {
+    try {
+        if (!GA4_MEASUREMENT_ID || !GA4_API_SECRET) {
+            return res.json({ success: false });
+        }
+        const { sessionId, type } = req.body || {};
+        if (!sessionId) return res.status(400).json({ error: 'Session ID required' });
+        const eventName = type === 'page_view' ? 'page_view' : 'user_engagement';
+        const payload = {
+            client_id: sessionId,
+            events: [{ name: eventName, params: { engagement_time_msec: 1000 } }]
+        };
+        await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${GA4_API_SECRET}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false });
+    }
 });
 
 const getDbScalar = (sql, params = [], field = 'count') => new Promise((resolve, reject) => {
