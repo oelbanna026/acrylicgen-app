@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro | Free Laser Cutting SVG & DXF Generator</title>
     
     <!-- Version -->
-    <meta name="version" content="1.4.1">
+    <meta name="version" content="1.4.2">
     <meta name="description" content="Free online tool to generate laser cutting files (SVG/DXF) for acrylic sheets. Auto-nesting, cost calculation, and custom box designs. No signup required for basic use.">
     <meta name="google-site-verification" content="wMLbUJjF8B9U5vfqp49VkhpBxLd8gkc926tZrHYKn_M" />
     <link rel="canonical" href="https://acrylicgen-app.com/" />
@@ -99,7 +99,7 @@
     <script defer src="src/vendor/driver.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="src/css/style.css?v=59">
+    <link rel="stylesheet" href="src/css/style.css?v=60">
     
     <!-- Analytics: Google Analytics 4 (Placeholder) -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
@@ -123,12 +123,12 @@
     <link rel="stylesheet" href="src/vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="src/js/auth.js?v=59"></script>
-    <script defer src="src/js/tour.js?v=59"></script>
-    <script src="src/js/monetization.js?v=59"></script>
-    <script defer src="src/js/diagnostics.js?v=59"></script>
-    <script src="src/js/utils/calculator.js?v=59"></script>
-    <script src="src/js/app.js?v=59"></script>
+    <script src="src/js/auth.js?v=60"></script>
+    <script defer src="src/js/tour.js?v=60"></script>
+    <script src="src/js/monetization.js?v=60"></script>
+    <script defer src="src/js/diagnostics.js?v=60"></script>
+    <script src="src/js/utils/calculator.js?v=60"></script>
+    <script src="src/js/app.js?v=60"></script>
     <!-- <script defer src="src/js/app.bundle.js?v=51"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -141,8 +141,8 @@
                     registration.unregister();
                 }
                 // Force reload if not already reloaded
-                if (!sessionStorage.getItem('force_reload_v59')) {
-                    sessionStorage.setItem('force_reload_v59', 'true');
+                if (!sessionStorage.getItem('force_reload_v60')) {
+                    sessionStorage.setItem('force_reload_v60', 'true');
                     window.location.reload();
                 }
             });
@@ -728,7 +728,7 @@
                         </div>
 
                         <!-- Radius / Depth Slider -->
-                        <div x-show="shapeType === 'banner' || (shapeType === 'rectangle' && cornerType === 'rounded')" x-transition class="mt-2">
+                        <div x-show="shapeType === 'banner' || (shapeType === 'rectangle' && cornerType === 'rounded')" class="mt-2">
                             <div class="flex justify-between mb-1">
                                 <label for="corner-radius" class="text-xs text-gray-700 dark:text-gray-300" 
                                        x-text="shapeType === 'rectangle' ? t('radius') : (lang === 'ar' ? 'العمق' : 'Depth')"></label>
@@ -778,7 +778,7 @@
                             </select>
                         </div>
                         
-                        <div x-show="holePattern === 'custom'" class="mb-3" x-transition>
+                        <div x-show="holePattern === 'custom'" class="mb-3">
                              <div class="flex justify-between mb-1">
                                 <label for="hole-count" class="text-xs text-gray-700 dark:text-gray-300" x-text="t('hole_count')"></label>
                                 <span class="text-xs font-mono" x-text="holeCount"></span>
@@ -786,7 +786,7 @@
                              <input id="hole-count" name="holeCount" type="range" min="1" max="100" step="1" x-model.number="holeCount" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
 
-                        <div x-show="holePattern !== 'none'" x-transition class="grid grid-cols-1 gap-4">
+                        <div x-show="holePattern !== 'none'" class="grid grid-cols-1 gap-4">
                             <div>
                                 <div class="flex justify-between mb-1">
                                     <label for="hole-diameter" class="text-xs text-gray-700 dark:text-gray-300" x-text="t('diameter')"></label>
@@ -825,7 +825,7 @@
                             </label>
                         </div>
 
-                        <div x-show="activeShape.hasBase" x-transition class="space-y-3">
+                        <div x-show="activeShape.hasBase" class="space-y-3">
                             <!-- Thickness Selection -->
                             <div>
                                 <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('base_thickness')"></label>

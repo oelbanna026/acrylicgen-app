@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.4.1)",
+        app_title: "Acrylic Designer Pro (v1.4.2)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -637,21 +637,30 @@ function app() {
         },
 
         removeShape(id) {
-            // Robust Deletion using Splice with Reassignment for Reactivity
-            const index = this.shapes.findIndex(s => s.id == id);
-            if (index > -1) {
-                this.shapes.splice(index, 1);
-                this.shapes = [...this.shapes]; // Force Alpine reactivity
-                
-                // Update Active Shape Logic
-                if (this.shapes.length === 0) {
-                    this.activeShapeId = null;
-                } else if (this.activeShapeId == id) {
-                    this.activeShapeId = this.shapes[0] ? this.shapes[0].id : null;
-                }
-                
-                this.save();
+            // SAFE DELETION PATTERN
+            // 1. Deselect first to hide UI panels immediately
+            const wasActive = (this.activeShapeId == id);
+            
+            if (wasActive) {
+                this.activeShapeId = null;
             }
+
+            // 2. Wait for Alpine to process the UI hiding (next tick)
+            this.$nextTick(() => {
+                // 3. NOW remove the data
+                const index = this.shapes.findIndex(s => s.id == id);
+                if (index > -1) {
+                    this.shapes.splice(index, 1);
+                    this.shapes = [...this.shapes]; // Force update
+                    
+                    // 4. Select another shape if available and we didn't just deselect
+                    if (this.shapes.length > 0 && wasActive) {
+                        this.activeShapeId = this.shapes[0].id;
+                    }
+                    
+                    this.save();
+                }
+            });
         },
 
         clearAllShapes() {
@@ -1670,14 +1679,13 @@ function app() {
                     type = 'page_view'; // First time
                 }
 
-                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    // Only try to record visit if not localhost
-                    // Use a simple fetch but swallow errors silently to avoid console noise on Vercel
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    // Only run on localhost where backend is likely available
                     fetch('/api/stats/visit', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sessionId, type })
-                    }).catch(() => {}); // Silent fail
+                    }).catch(() => {});
                 }
             } catch (e) {
                 // Ignore
