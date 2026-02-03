@@ -11,6 +11,7 @@ gcs-key*
 server/gcs-key*
 *.pem
 *.key
+server/services/*.json
 
 # Database (Local)
 *.sqlite
