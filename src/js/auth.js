@@ -269,7 +269,7 @@
     },
 
     async getPublicStats() {
-        return await this.request('/public/stats');
+        return await this.request('/stats/dashboard');
     }
 };
 

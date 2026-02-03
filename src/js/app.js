@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.7)",
+        app_title: "Acrylic Designer Pro (v1.5.8)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.7)",
+        app_title: "Acrylic Designer Pro (v1.5.8)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -1701,19 +1701,15 @@ function app() {
                 if (!sessionId) {
                     sessionId = 'sess_' + Date.now() + Math.random().toString(36).substr(2, 9);
                     sessionStorage.setItem('acrylic_session_id', sessionId);
-                    type = 'page_view'; // First time
+                    type = 'page_view';
                 }
 
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    // Only run on localhost where backend is likely available
-                    fetch('/api/stats/visit', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sessionId, type })
-                    }).catch(() => {});
-                }
+                fetch('/api/stats/visit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, type })
+                }).catch(() => {});
             } catch (e) {
-                // Ignore
             }
         },
 
