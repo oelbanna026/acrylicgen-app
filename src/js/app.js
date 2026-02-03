@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.2)",
+        app_title: "Acrylic Designer Pro (v1.3)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -624,10 +624,11 @@ function app() {
         },
 
         removeShape(id) {
-            // Robust Deletion using Splice
+            // Robust Deletion using Splice with Reassignment for Reactivity
             const index = this.shapes.findIndex(s => s.id == id);
             if (index > -1) {
                 this.shapes.splice(index, 1);
+                this.shapes = [...this.shapes]; // Force Alpine reactivity
                 
                 // Update Active Shape Logic
                 if (this.shapes.length === 0) {
