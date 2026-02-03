@@ -624,12 +624,19 @@ function app() {
         },
 
         removeShape(id) {
-            this.shapes = this.shapes.filter(s => s.id !== id);
-            
-            if (this.shapes.length === 0) {
-                this.activeShapeId = null;
-            } else if (this.activeShapeId === id) {
-                this.activeShapeId = this.shapes[0].id;
+            // Robust Deletion using Splice
+            const index = this.shapes.findIndex(s => s.id == id);
+            if (index > -1) {
+                this.shapes.splice(index, 1);
+                
+                // Update Active Shape Logic
+                if (this.shapes.length === 0) {
+                    this.activeShapeId = null;
+                } else if (this.activeShapeId == id) {
+                    this.activeShapeId = this.shapes[0] ? this.shapes[0].id : null;
+                }
+                
+                this.save();
             }
         },
 
@@ -637,6 +644,7 @@ function app() {
             if(confirm(this.lang==='ar' ? 'هل أنت متأكد من حذف جميع الأشكال؟' : 'Are you sure you want to delete all shapes?')) {
                 this.shapes = [];
                 this.activeShapeId = null;
+                this.save();
             }
         },
 
