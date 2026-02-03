@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.3)",
+        app_title: "Acrylic Designer Pro (v1.5.4)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.3)",
+        app_title: "Acrylic Designer Pro (v1.5.4)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -905,8 +905,12 @@ function app() {
                 else if (data.shapes) {
                     this.unit = data.unit || this.unit;
                     this.shapes = data.shapes;
-                    this.activeShapeId = this.shapes[0].id;
-                    this.shapes.forEach(s => this.updateHoles(s));
+                    if (this.shapes.length > 0) {
+                        this.activeShapeId = this.shapes[0].id;
+                        this.shapes.forEach(s => this.updateHoles(s));
+                    } else {
+                        this.activeShapeId = null;
+                    }
                 }
 
                 this.showDashboardModal = false;

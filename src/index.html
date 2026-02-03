@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro | Free Laser Cutting SVG & DXF Generator</title>
     
     <!-- Version -->
-    <meta name="version" content="1.5.3">
+    <meta name="version" content="1.5.4">
     <meta name="description" content="Free online tool to generate laser cutting files (SVG/DXF) for acrylic sheets. Auto-nesting, cost calculation, and custom box designs. No signup required for basic use.">
     <meta name="google-site-verification" content="wMLbUJjF8B9U5vfqp49VkhpBxLd8gkc926tZrHYKn_M" />
     <link rel="canonical" href="https://acrylicgen-app.com/" />
@@ -97,7 +97,7 @@
     <script defer src="vendor/driver.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=64">
+    <link rel="stylesheet" href="css/style.css?v=65">
     
     <!-- Analytics: Google Analytics 4 (Placeholder) -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
@@ -121,12 +121,12 @@
     <link rel="stylesheet" href="vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="js/auth.js?v=64"></script>
-    <script defer src="js/tour.js?v=64"></script>
-    <script src="js/monetization.js?v=64"></script>
-    <script defer src="js/diagnostics.js?v=64"></script>
-    <script src="js/utils/calculator.js?v=64"></script>
-    <script src="js/app.js?v=64"></script>
+    <script src="js/auth.js?v=65"></script>
+    <script defer src="js/tour.js?v=65"></script>
+    <script src="js/monetization.js?v=65"></script>
+    <script defer src="js/diagnostics.js?v=65"></script>
+    <script src="js/utils/calculator.js?v=65"></script>
+    <script src="js/app.js?v=65"></script>
     <!-- <script defer src="js/app.bundle.js?v=13"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -137,8 +137,8 @@
                 for(let registration of registrations) {
                     registration.unregister();
                 }
-                if (!sessionStorage.getItem('force_reload_v64')) {
-                    sessionStorage.setItem('force_reload_v64', 'true');
+                if (!sessionStorage.getItem('force_reload_v65')) {
+                    sessionStorage.setItem('force_reload_v65', 'true');
                     window.location.reload();
                 }
             });
@@ -148,7 +148,7 @@
 <body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
 
     <!-- Ad Modal -->
-    <div x-show="showAdModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showAdModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative text-center">
             
             <div class="mb-4">
@@ -185,9 +185,9 @@
     </div>
 
     <!-- Public Stats Modal -->
-    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition @click="showPublicStatsModal = false">
+    <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak @click="showPublicStatsModal = false">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.stop>
-            <button @click="showPublicStatsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showPublicStatsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             
             <h2 class="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-800 dark:text-white">
                 <svg class="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,9 +281,9 @@
 
 
     <!-- Admin Dashboard Modal -->
-    <div x-show="showAdminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showAdminModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative" @click.outside="showAdminModal = false">
-            <button @click="showAdminModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showAdminModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             
             <h2 class="text-2xl font-bold mb-6" x-text="t('admin_dashboard')"></h2>
 
@@ -360,7 +360,7 @@
     </div>
     
     <!-- Loading Screen -->
-    <div x-show="loading" class="loader-overlay" x-transition.opacity>
+    <div x-show="loading" class="loader-overlay">
         <div class="spinner mb-4"></div>
         <h2 class="text-xl font-bold" x-text="t('loading')"></h2>
     </div>
@@ -368,7 +368,7 @@
     <!-- Auth Gate Removed -->
 
     <!-- Update Notification -->
-    <div x-show="updateAvailable" class="fixed bottom-4 left-4 z-50 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4" x-cloak x-transition>
+    <div x-show="updateAvailable" class="fixed bottom-4 left-4 z-50 bg-blue-600 text-white p-4 rounded-lg shadow-xl flex items-center gap-4" x-cloak>
         <div>
             <p class="font-bold" x-text="t('update_available')"></p>
         </div>
@@ -383,7 +383,7 @@
                 style="background-color: var(--bg-panel); border-color: var(--border);">
             
             <div class="flex items-center gap-3">
-                <button @click="showSidebar = !showSidebar" class="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300">
+                <button @click="showSidebar = !showSidebar" class="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300" aria-label="فتح أو إغلاق القائمة">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
@@ -435,13 +435,13 @@
                 </template>
                 <a href="pricing.html" class="px-3 py-1 text-sm font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded transition border border-blue-500">Pricing</a>
 
-                <button @click.stop="showPublicStatsModal = true" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition text-blue-500" :title="t('view_stats')">
+                <button @click.stop="showPublicStatsModal = true" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition text-blue-500" :title="t('view_stats')" aria-label="عرض الإحصائيات">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                 </button>
 
-                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition" :title="t('toggle_theme')">
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition" :title="t('toggle_theme')" aria-label="تبديل السمة">
                     <span x-show="theme === 'dark'">☀️</span>
                     <span x-show="theme === 'light'">🌙</span>
                 </button>
@@ -477,7 +477,7 @@
                  
                  <div class="flex justify-between items-center">
                     <span class="text-sm font-bold text-gray-500">Settings</span>
-                    <button @click="showMobileMenu = false" class="text-gray-400">✕</button>
+                    <button @click="showMobileMenu = false" class="text-gray-400" aria-label="إغلاق">✕</button>
                  </div>
 
                  <div class="grid grid-cols-2 gap-3">
@@ -528,7 +528,7 @@
         <div class="flex-1 flex overflow-hidden relative">
             
             <!-- Mobile Overlay -->
-            <div x-show="showSidebar" @click="showSidebar = false" x-transition.opacity 
+            <div x-show="showSidebar" @click="showSidebar = false" 
                  class="fixed inset-0 bg-black/50 z-20 md:hidden" x-cloak></div>
 
             <!-- Sidebar -->
@@ -645,7 +645,7 @@
                                         <span class="text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 dark:bg-slate-600" x-text="index + 1"></span>
                                         <span class="text-sm font-medium" x-text="(s.name || 'Shape ' + (index + 1)) + ' (' + s.width + 'x' + s.height + ')'"></span>
                                     </div>
-                                    <button @click.stop="removeShape(s.id)" class="text-red-400 hover:text-red-600 px-1" title="Delete">×</button>
+                                    <button @click.stop="removeShape(s.id)" class="text-red-400 hover:text-red-600 px-1" title="Delete" aria-label="حذف">×</button>
                                 </div>
                             </template>
                         </div>
@@ -722,7 +722,7 @@
                     <hr style="border-color: var(--border)">
 
                     <!-- Section: Corners (Rectangle) / Curve Depth (Shield) -->
-                    <div x-show="['rectangle', 'banner'].includes(shapeType)" x-transition>
+                    <div x-show="['rectangle', 'banner'].includes(shapeType)">
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" 
                             x-text="shapeType === 'rectangle' ? t('corners') : (lang === 'ar' ? 'عمق التقويس' : 'Curve Depth')"></h3>
                         
@@ -736,7 +736,7 @@
                         </div>
 
                         <!-- Radius / Depth Slider -->
-                        <div x-show="shapeType === 'banner' || (shapeType === 'rectangle' && cornerType === 'rounded')" x-transition class="mt-2">
+                        <div x-show="shapeType === 'banner' || (shapeType === 'rectangle' && cornerType === 'rounded')" class="mt-2">
                             <div class="flex justify-between mb-1">
                                 <label for="corner-radius" class="text-xs text-gray-700 dark:text-gray-300" 
                                        x-text="shapeType === 'rectangle' ? t('radius') : (lang === 'ar' ? 'العمق' : 'Depth')"></label>
@@ -1231,9 +1231,9 @@
         </div>
     </div>
     <!-- Login Modal -->
-    <div x-show="showLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showLoginModal = false">
-            <button @click="showLoginModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showLoginModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
             <form @submit.prevent="login">
                 <div class="mb-4">
@@ -1266,8 +1266,7 @@
                      data-theme="outline"
                      data-text="sign_in_with"
                      data-size="large"
-                     data-logo_alignment="left"
-                     data-width="100%">
+                     data-logo_alignment="left">
                 </div>
             </div>
 
@@ -1279,9 +1278,9 @@
     </div>
 
     <!-- Forgot Password Modal -->
-    <div x-show="showForgotPasswordModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showForgotPasswordModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showForgotPasswordModal = false">
-            <button @click="showForgotPasswordModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showForgotPasswordModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             <h2 class="text-2xl font-bold mb-6 text-center" x-text="t('forgot_password')"></h2>
             <form @submit.prevent="forgotPassword">
                 <div class="mb-6">
@@ -1297,9 +1296,9 @@
     </div>
 
     <!-- Register Modal -->
-    <div x-show="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showRegisterModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showRegisterModal = false">
-            <button @click="showRegisterModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showRegisterModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
             <form @submit.prevent="register">
                 <div class="mb-4">
@@ -1330,8 +1329,7 @@
                      data-theme="outline"
                      data-text="signup_with"
                      data-size="large"
-                     data-logo_alignment="left"
-                     data-width="100%">
+                     data-logo_alignment="left">
                 </div>
             </div>
 
@@ -1342,9 +1340,9 @@
     </div>
 
     <!-- Dashboard Modal -->
-    <div x-show="showDashboardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showDashboardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto" @click.outside="showDashboardModal = false">
-            <button @click="showDashboardModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showDashboardModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             
             <div class="flex items-center gap-4 mb-8">
                 <div class="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-2xl font-bold">
@@ -1420,9 +1418,9 @@
     </div>
 
     <!-- Pricing Modal -->
-    <div x-show="showPricingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showPricingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto" @click.outside="showPricingModal = false">
-            <button @click="showPricingModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showPricingModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             
             <h2 class="text-3xl font-bold text-center mb-2" x-text="t('upgrade_plan')"></h2>
             <p class="text-center text-gray-500 mb-4" x-text="lang === 'ar' ? 'اختر الخطة المناسبة لاحتياجاتك' : 'Choose the best plan for your needs'"></p>
@@ -1520,9 +1518,9 @@
         </div>
     </div>
     <!-- About / Landing Modal (For SEO & Content) -->
-    <div x-show="showAboutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showAboutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl p-8 relative max-h-[90vh] overflow-y-auto" @click.outside="showAboutModal = false">
-            <button @click="showAboutModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showAboutModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             
             <div class="prose dark:prose-invert max-w-none">
                 <h1 class="text-3xl font-bold mb-4 text-blue-600 dark:text-blue-400">Acrylic Designer Pro</h1>
@@ -1565,9 +1563,9 @@
     </div>
 
     <!-- PayPal Modal -->
-    <div x-show="showPayPalModal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak x-transition>
+    <div x-show="showPayPalModal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showPayPalModal = false">
-            <button @click="showPayPalModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+            <button @click="showPayPalModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
             <h2 class="text-2xl font-bold mb-4 text-center">Complete Payment</h2>
             <div class="mb-4 text-center">
                 <p class="text-gray-500">Total Amount</p>
@@ -1579,7 +1577,7 @@
     </div>
 
     <!-- Cookie Consent -->
-    <div x-data="{ showCookie: !localStorage.getItem('cookieConsent') }" x-show="showCookie" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 z-[100] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg" x-transition x-cloak>
+    <div x-data="{ showCookie: !localStorage.getItem('cookieConsent') }" x-show="showCookie" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 z-[100] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg" x-cloak>
         <div class="text-sm">
             We use cookies to enhance your experience and serve personalized ads. By using our site, you agree to our <a href="privacy.html" class="underline text-blue-300">Privacy Policy</a>.
         </div>
