@@ -83,6 +83,14 @@
                 user: { id: 3, name: body.name, email: body.email, plan: 'free', credits: 3, role: 'user' }
             };
         }
+        
+        if (endpoint === '/auth/google') {
+            const email = (body && body.credential) ? 'google.user@example.com' : 'user@example.com';
+            return {
+                token: 'mock_google_token',
+                user: { id: 4, name: 'Google User', email, plan: 'free', credits: 3, role: 'user' }
+            };
+        }
 
         if (endpoint === '/user/profile') {
             return this.user;

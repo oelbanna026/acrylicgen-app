@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.6)",
+        app_title: "Acrylic Designer Pro (v1.5.7)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.6)",
+        app_title: "Acrylic Designer Pro (v1.5.7)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -794,6 +794,13 @@ function app() {
                 this.showRegisterModal = false;
                 // alert('Logged in with Google successfully!');
                 console.log('Logged in with Google successfully!');
+                
+                if (sessionStorage.getItem('pending_admin') === '1') {
+                    sessionStorage.removeItem('pending_admin');
+                    if (this.user && this.user.role === 'admin') {
+                        this.showAdminModal = true;
+                    }
+                }
 
                 // Check pending plan
                 const pendingPlan = sessionStorage.getItem('pending_plan');
@@ -820,6 +827,13 @@ function app() {
                 this.user = auth.user;
                 this.showLoginModal = false;
                 this.authLogin = { email: '', password: '' };
+                
+                if (sessionStorage.getItem('pending_admin') === '1') {
+                    sessionStorage.removeItem('pending_admin');
+                    if (this.user && this.user.role === 'admin') {
+                        this.showAdminModal = true;
+                    }
+                }
 
                 // Check pending plan
                 const pendingPlan = sessionStorage.getItem('pending_plan');
@@ -3150,23 +3164,22 @@ function app() {
                 });
 
                 // Simple SPA Routing for Vercel/Static hosting
-                const path = window.location.pathname;
+                const path = window.location.pathname.replace(/\/+$/, '');
                 
                 // Use $nextTick to ensure Alpine state is ready
                 this.$nextTick(() => {
                     if (path === '/login') {
                         console.log('SPA Routing: /login detected, opening modal...');
                         this.showLoginModal = true;
-                        window.history.replaceState({}, '', '/');
-                    } else if (path === '/admin') {
+                    } else if (path === '/admin' || path.startsWith('/admin/')) {
                         console.log('SPA Routing: /admin detected, checking role...');
                         if (this.user && this.user.role === 'admin') {
                             this.showAdminModal = true;
                         } else {
                             // alert(this.lang === 'ar' ? 'يجب عليك تسجيل الدخول كمسؤول أولاً' : 'Admin login required');
                             this.showLoginModal = true;
+                            sessionStorage.setItem('pending_admin', '1');
                         }
-                        window.history.replaceState({}, '', '/');
                     }
                 });
             },
