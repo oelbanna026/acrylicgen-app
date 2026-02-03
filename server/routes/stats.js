@@ -90,44 +90,48 @@ const getGa4Stats = async () => {
         return null;
     }
 
-    const auth = new GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/analytics.readonly']
-    });
+    try {
+        const auth = new GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/analytics.readonly']
+        });
 
-    const client = await auth.getClient();
-    const baseUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}`;
+        const client = await auth.getClient();
+        const baseUrl = `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}`;
 
-    const realtime = await client.request({
-        url: `${baseUrl}:runRealtimeReport`,
-        method: 'POST',
-        data: {
-            metrics: [{ name: 'activeUsers' }]
-        }
-    });
+        const realtime = await client.request({
+            url: `${baseUrl}:runRealtimeReport`,
+            method: 'POST',
+            data: {
+                metrics: [{ name: 'activeUsers' }]
+            }
+        });
 
-    const report = await client.request({
-        url: `${baseUrl}:runReport`,
-        method: 'POST',
-        data: {
-            dateRanges: [{ startDate: '1daysAgo', endDate: 'today' }],
-            metrics: [
-                { name: 'screenPageViews' },
-                { name: 'totalUsers' },
-                { name: 'conversions' }
-            ]
-        }
-    });
+        const report = await client.request({
+            url: `${baseUrl}:runReport`,
+            method: 'POST',
+            data: {
+                dateRanges: [{ startDate: '1daysAgo', endDate: 'today' }],
+                metrics: [
+                    { name: 'screenPageViews' },
+                    { name: 'totalUsers' },
+                    { name: 'conversions' }
+                ]
+            }
+        });
 
-    const realtimeRows = realtime.data?.rows || [];
-    const reportRows = report.data?.rows || [];
+        const realtimeRows = realtime.data?.rows || [];
+        const reportRows = report.data?.rows || [];
 
-    const activeUsers = realtimeRows[0]?.metricValues?.[0]?.value ? parseInt(realtimeRows[0].metricValues[0].value, 10) : 0;
-    const totalViews = reportRows[0]?.metricValues?.[0]?.value ? parseInt(reportRows[0].metricValues[0].value, 10) : 0;
-    const users24h = reportRows[0]?.metricValues?.[1]?.value ? parseInt(reportRows[0].metricValues[1].value, 10) : 0;
-    const conversions24h = reportRows[0]?.metricValues?.[2]?.value ? parseInt(reportRows[0].metricValues[2].value, 10) : 0;
+        const activeUsers = realtimeRows[0]?.metricValues?.[0]?.value ? parseInt(realtimeRows[0].metricValues[0].value, 10) : 0;
+        const totalViews = reportRows[0]?.metricValues?.[0]?.value ? parseInt(reportRows[0].metricValues[0].value, 10) : 0;
+        const users24h = reportRows[0]?.metricValues?.[1]?.value ? parseInt(reportRows[0].metricValues[1].value, 10) : 0;
+        const conversions24h = reportRows[0]?.metricValues?.[2]?.value ? parseInt(reportRows[0].metricValues[2].value, 10) : 0;
 
-    return { activeUsers, totalViews, users24h, conversions24h };
+        return { activeUsers, totalViews, users24h, conversions24h };
+    } catch (e) {
+        return null;
+    }
 };
 
 // Get Dashboard Stats
