@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.3)",
+        app_title: "Acrylic Designer Pro (v1.4)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -449,10 +449,23 @@ function app() {
 
             // Fallback: If activeShapeId is missing or not found, select the first one
             if (!this.activeShapeId || !this.shapes.find(s => s.id === this.activeShapeId)) {
-                this.activeShapeId = this.shapes[0].id;
+                if (this.shapes.length > 0) {
+                    this.activeShapeId = this.shapes[0].id;
+                } else {
+                    this.activeShapeId = null;
+                }
             }
             
-            return this.shapes.find(s => s.id === this.activeShapeId) || this.shapes[0];
+            return this.shapes.find(s => s.id === this.activeShapeId) || this.shapes[0] || {
+                // Return dummy object if NO shapes exist to prevent UI crash
+                id: null, width: 0, height: 0, x: 0, y: 0, 
+                rotation: 0, shapeType: 'rectangle', 
+                cornerType: 'straight', cornerRadius: 0,
+                cornerSides: { tl: true, tr: true, br: true, bl: true },
+                holePattern: 'none', holeCount: 0, holeDiameter: 0, holeMargin: 0,
+                holes: [],
+                hasBase: false, linkedBaseId: null, baseThickness: 0, baseWidth: 0, baseDepth: 0, baseRadius: 0
+            };
         },
 
         // Proxy Getters/Setters for Backward Compatibility and UI Binding

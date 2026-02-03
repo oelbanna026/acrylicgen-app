@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro | Free Laser Cutting SVG & DXF Generator</title>
     
     <!-- Version -->
-    <meta name="version" content="1.3.5">
+    <meta name="version" content="1.3.6">
     <meta name="description" content="Free online tool to generate laser cutting files (SVG/DXF) for acrylic sheets. Auto-nesting, cost calculation, and custom box designs. No signup required for basic use.">
     <meta name="google-site-verification" content="wMLbUJjF8B9U5vfqp49VkhpBxLd8gkc926tZrHYKn_M" />
     <link rel="canonical" href="https://acrylicgen-app.com/" />
@@ -99,7 +99,7 @@
     <script defer src="src/vendor/driver.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="src/css/style.css?v=57">
+    <link rel="stylesheet" href="src/css/style.css?v=58">
     
     <!-- Analytics: Google Analytics 4 (Placeholder) -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
@@ -123,12 +123,12 @@
     <link rel="stylesheet" href="src/vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="src/js/auth.js?v=57"></script>
-    <script defer src="src/js/tour.js?v=57"></script>
-    <script src="src/js/monetization.js?v=57"></script>
-    <script defer src="src/js/diagnostics.js?v=57"></script>
-    <script src="src/js/utils/calculator.js?v=57"></script>
-    <script src="src/js/app.js?v=57"></script>
+    <script src="src/js/auth.js?v=58"></script>
+    <script defer src="src/js/tour.js?v=58"></script>
+    <script src="src/js/monetization.js?v=58"></script>
+    <script defer src="src/js/diagnostics.js?v=58"></script>
+    <script src="src/js/utils/calculator.js?v=58"></script>
+    <script src="src/js/app.js?v=58"></script>
     <!-- <script defer src="src/js/app.bundle.js?v=51"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -141,8 +141,8 @@
                     registration.unregister();
                 }
                 // Force reload if not already reloaded
-                if (!sessionStorage.getItem('force_reload_v57')) {
-                    sessionStorage.setItem('force_reload_v57', 'true');
+                if (!sessionStorage.getItem('force_reload_v58')) {
+                    sessionStorage.setItem('force_reload_v58', 'true');
                     window.location.reload();
                 }
             });
@@ -645,7 +645,7 @@
                     </div>
 
                     <!-- Section: Dimensions -->
-                    <div id="dimensions-section">
+                    <div id="dimensions-section" x-show="shapes.length > 0 && activeShapeId">
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('dimensions')"></h3>
                         
                         <div class="mb-4">
@@ -696,7 +696,7 @@
                         </div>
 
                         <!-- Shape Selection -->
-                        <div class="mt-4">
+                        <div class="mt-4" x-show="shapes.length > 0 && activeShapeId">
                             <label for="shape-type" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('shape')"></label>
                             <select id="shape-type" name="shapeType" x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="rectangle" x-text="t('shape_rect')"></option>
@@ -714,7 +714,7 @@
                     <hr style="border-color: var(--border)">
 
                     <!-- Section: Corners (Rectangle) / Curve Depth (Shield) -->
-                    <div x-show="['rectangle', 'banner'].includes(shapeType)" x-transition>
+                    <div x-show="shapes.length > 0 && activeShapeId && ['rectangle', 'banner'].includes(shapeType)" x-transition>
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" 
                             x-text="shapeType === 'rectangle' ? t('corners') : (lang === 'ar' ? 'عمق التقويس' : 'Curve Depth')"></h3>
                         
@@ -765,7 +765,7 @@
                     <hr style="border-color: var(--border)">
 
                     <!-- Section: Holes -->
-                    <div>
+                    <div x-show="shapes.length > 0 && activeShapeId">
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('holes')"></h3>
                         <div class="mb-3">
                             <label for="hole-pattern" class="sr-only">Hole Pattern</label>
@@ -807,7 +807,7 @@
                     <hr style="border-color: var(--border)">
 
                     <!-- Section: Base Generator -->
-                    <div id="base-section">
+                    <div id="base-section" x-show="shapes.length > 0 && activeShapeId">
                         <div class="flex items-center gap-2 mb-3">
                             <h3 class="text-sm font-bold uppercase tracking-wider" style="color: var(--text-muted)" x-text="t('base_generator')"></h3>
                             <!-- Pro Badge -->
