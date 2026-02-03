@@ -22,9 +22,9 @@
             window.runDiagnostics = () => this.run();
             window.toggleConsole = () => this.toggleUI();
             
-            // Keyboard shortcut (Ctrl + Shift + D)
+            // Keyboard shortcut (Ctrl + Alt + D) to avoid browser conflict
             document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'd') {
                     e.preventDefault();
                     this.toggleUI();
                 }
@@ -71,8 +71,8 @@
             div.innerHTML = `
                 <div style="padding: 8px 15px; background: #252526; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333;">
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <strong style="color: #fff;">Console Inspector</strong>
-                        <span style="font-size: 10px; color: #888;">(Ctrl+Alt+D or F9)</span>
+                        <strong style="color: #fff;">AI Bot Inspector</strong>
+                        <span style="font-size: 10px; color: #888;">(Ctrl+Alt+D)</span>
                     </div>
                     <div>
                         <button onclick="window.runDiagnostics()" style="background: #0e639c; color: white; border: none; padding: 4px 10px; border-radius: 3px; cursor: pointer; margin-right: 10px;">Run Diagnostics</button>

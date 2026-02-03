@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.0 - AI Bot Enabled)",
+        app_title: "Acrylic Designer Pro (v1.5.1)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
