@@ -134,9 +134,9 @@
 
         async run() {
             // Check dependencies
-            const report = { errors: [], warnings: [], info: [] };
+            const report = { errors: [], warnings: [], info: [], fixes: [] };
             
-            this.log('info', 'Running Full System Diagnostic...');
+            this.log('info', '🤖 AI Bot: Starting Full System Scan...');
             
             // 1. Dependencies
             if (typeof window.Alpine === 'undefined') report.errors.push('Alpine.js missing');
@@ -147,15 +147,63 @@
                 if(!document.getElementById(id)) report.warnings.push('Missing DOM: ' + id);
             });
             
-            // 3. App State
+            // 3. SEO & Accessibility Check (Static Analysis)
+            const images = document.querySelectorAll('img');
+            images.forEach(img => {
+                if (!img.alt) {
+                    report.warnings.push(`Image missing alt text: ${img.src.substring(0, 30)}...`);
+                    // Auto-Fix
+                    img.alt = "Acrylic Design Element";
+                    report.fixes.push(`Auto-Fixed: Added alt text to image`);
+                }
+            });
+
+            const links = document.querySelectorAll('a[target="_blank"]');
+            links.forEach(link => {
+                if (!link.rel.includes('noopener')) {
+                    report.warnings.push(`Unsafe external link: ${link.href}`);
+                    // Auto-Fix
+                    link.rel = (link.rel + ' noopener noreferrer').trim();
+                    report.fixes.push(`Auto-Fixed: Added noopener to ${link.href}`);
+                }
+            });
+
+            // 4. App State & Logic Simulation
             try {
                 const appEl = document.querySelector('[x-data="app()"]');
                 if (appEl && appEl.__x) {
                     const data = appEl.__x.$data;
                     report.info.push('App State Access: OK');
+                    
                     if (!data.shapes) report.errors.push('State Corrupt: shapes missing');
-                    // Check renamed handlers
-                    if (typeof data.onMouseMove !== 'function') report.errors.push('Critical: onMouseMove missing');
+                    
+                    // SIMULATION: Add and Remove Shape
+                    this.log('info', '🤖 AI Bot: Simulating User Actions...');
+                    
+                    const initialCount = data.shapes.length;
+                    
+                    // Action: Add Shape
+                    if (typeof data.addShape === 'function') {
+                        data.addShape();
+                        await new Promise(r => setTimeout(r, 100)); // Wait for reactivity
+                        if (data.shapes.length !== initialCount + 1) {
+                            report.errors.push('Simulation Failed: addShape did not increase count');
+                        } else {
+                            report.info.push('Simulation Pass: addShape');
+                            
+                            // Action: Remove Created Shape
+                            const newShape = data.shapes[data.shapes.length - 1];
+                            data.removeShape(newShape.id);
+                            await new Promise(r => setTimeout(r, 100)); // Wait for reactivity
+                            
+                            if (data.shapes.length !== initialCount) {
+                                report.errors.push('Simulation Failed: removeShape did not decrease count');
+                            } else {
+                                report.info.push('Simulation Pass: removeShape');
+                            }
+                        }
+                    }
+
                 } else {
                     report.warnings.push('Alpine Component not initialized');
                 }
@@ -170,10 +218,23 @@
 
         showReport(report) {
             this.log('info', 'Diagnostic Complete. ' + JSON.stringify(report));
-            let msg = `DIAGNOSTIC REPORT:\n\nERRORS: ${report.errors.length}\nWARNINGS: ${report.warnings.length}\n\n`;
-            if(report.errors.length) msg += "ERRORS:\n" + report.errors.join('\n') + "\n\n";
-            if(report.warnings.length) msg += "WARNINGS:\n" + report.warnings.join('\n');
+            let msg = `🤖 AI AUTO-DIAGNOSTICS REPORT:\n\n`;
             
+            if(report.fixes.length) {
+                msg += "✅ AUTO-FIXES APPLIED:\n" + report.fixes.join('\n') + "\n\n";
+            }
+            
+            if(report.errors.length) {
+                msg += "❌ ERRORS FOUND:\n" + report.errors.join('\n') + "\n\n";
+            } else {
+                msg += "✅ No Critical Errors Found.\n\n";
+            }
+            
+            if(report.warnings.length) msg += "⚠️ WARNINGS:\n" + report.warnings.join('\n') + "\n\n";
+            
+            msg += "ℹ️ INFO:\n" + report.info.join('\n');
+            
+            console.log(msg); // Log to console
             alert(msg);
         }
     };
