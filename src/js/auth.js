@@ -107,6 +107,23 @@
             ];
         }
 
+        if (endpoint === '/export/deduct') {
+            if (!this.user) {
+                return { success: false, message: 'auth required' };
+            }
+            const current = typeof this.user.credits === 'number' ? this.user.credits : 0;
+            if (current === -1) {
+                return { success: true, credits: -1 };
+            }
+            if (current <= 0) {
+                return { success: false, message: 'Not enough credits' };
+            }
+            const next = current - 1;
+            this.user.credits = next;
+            localStorage.setItem('user', JSON.stringify(this.user));
+            return { success: true, credits: next };
+        }
+
         if (endpoint === '/admin/stats') {
             return {
                 totalUsers: 150,

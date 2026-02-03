@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.5)",
+        app_title: "Acrylic Designer Pro (v1.5.6)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.5)",
+        app_title: "Acrylic Designer Pro (v1.5.6)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -864,7 +864,7 @@ function app() {
             if (!this.user) return;
             // Feature Check: Save/Load
             if (!window.Monetization.hasFeature('save_load')) {
-                this.showPricingModal = true;
+                alert(this.lang === 'ar' ? 'ميزة سجل التصدير متاحة في الخطة المدفوعة فقط' : 'Export history is available in paid plans only');
                 return;
             }
             try {
