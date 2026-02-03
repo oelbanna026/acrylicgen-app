@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.4)",
+        app_title: "Acrylic Designer Pro (v1.4.1)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -1670,13 +1670,17 @@ function app() {
                     type = 'page_view'; // First time
                 }
 
-                await fetch('/api/stats/visit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId, type })
-                });
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    // Only try to record visit if not localhost
+                    // Use a simple fetch but swallow errors silently to avoid console noise on Vercel
+                    fetch('/api/stats/visit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId, type })
+                    }).catch(() => {}); // Silent fail
+                }
             } catch (e) {
-                console.error("Failed to record visit:", e);
+                // Ignore
             }
         },
 
