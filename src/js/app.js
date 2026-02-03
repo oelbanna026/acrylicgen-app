@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.2)",
+        app_title: "Acrylic Designer Pro (v1.5.3)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.2)",
+        app_title: "Acrylic Designer Pro (v1.5.3)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -575,8 +575,13 @@ function app() {
         },
 
         validateAndCleanShapes() {
-            if (!Array.isArray(this.shapes) || this.shapes.length === 0) {
+            if (!Array.isArray(this.shapes)) {
                 this.shapes = [defaultShape()];
+            }
+            if (this.shapes.length === 0) {
+                this.activeShapeId = null;
+                this.save();
+                return;
             }
 
             // Filter out null/undefined
@@ -915,15 +920,17 @@ function app() {
         async openAdminDashboard() {
             if (!this.user || this.user.role !== 'admin') return;
             this.loading = true;
+            this.showAdminModal = true;
             try {
                 const [stats, users] = await Promise.all([
                     auth.getAdminStats(),
                     auth.getAdminUsers()
                 ]);
-                this.adminStats = stats;
-                this.adminUsers = users;
-                this.showAdminModal = true;
+                this.adminStats = stats || {};
+                this.adminUsers = Array.isArray(users) ? users : [];
             } catch (e) {
+                this.adminStats = this.adminStats || {};
+                this.adminUsers = this.adminUsers || [];
                 alert(e.message || 'Failed to load admin data');
             } finally {
                 this.loading = false;

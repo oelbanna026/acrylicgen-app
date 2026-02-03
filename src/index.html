@@ -6,7 +6,7 @@
     <title>Acrylic Designer Pro | Free Laser Cutting SVG & DXF Generator</title>
     
     <!-- Version -->
-    <meta name="version" content="1.3.4">
+    <meta name="version" content="1.5.3">
     <meta name="description" content="Free online tool to generate laser cutting files (SVG/DXF) for acrylic sheets. Auto-nesting, cost calculation, and custom box designs. No signup required for basic use.">
     <meta name="google-site-verification" content="wMLbUJjF8B9U5vfqp49VkhpBxLd8gkc926tZrHYKn_M" />
     <link rel="canonical" href="https://acrylicgen-app.com/" />
@@ -91,15 +91,13 @@
     </script>
     
     <!-- Alpine.js (Defer is good) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="vendor/alpine.min.js"></script>
     
     <!-- Libraries (Defer to unblock render) -->
     <script defer src="vendor/jspdf.umd.min.js"></script>
     <script defer src="vendor/driver.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=35">
+    <link rel="stylesheet" href="css/style.css?v=64">
     
     <!-- Analytics: Google Analytics 4 (Placeholder) -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
@@ -123,30 +121,25 @@
     <link rel="stylesheet" href="vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="js/auth.js?v=55"></script>
-    <script defer src="js/tour.js?v=55"></script>
-    <script src="js/monetization.js?v=55"></script>
-    <script defer src="js/diagnostics.js?v=55"></script>
-    <script src="js/utils/calculator.js?v=55"></script>
-    <script src="js/app.js?v=55"></script>
+    <script src="js/auth.js?v=64"></script>
+    <script defer src="js/tour.js?v=64"></script>
+    <script src="js/monetization.js?v=64"></script>
+    <script defer src="js/diagnostics.js?v=64"></script>
+    <script src="js/utils/calculator.js?v=64"></script>
+    <script src="js/app.js?v=64"></script>
     <!-- <script defer src="js/app.bundle.js?v=13"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
     <script defer src="vendor/alpine.min.js"></script>
     <script>
-        window.onerror = function(msg, url, line, col, error) {
-            alert("Error: " + msg + "\nLine: " + line + "\nCol: " + col);
-        };
-        // Global Fallback for critical handlers to prevent Alpine errors
-        window.onMouseUp = function(e) {};
-        window.onWheel = function(e) {};
-        
-        // Kill Switch for stuck Service Workers
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {
                 for(let registration of registrations) {
-                    // FORCE UNREGISTER to clear old cache
                     registration.unregister();
+                }
+                if (!sessionStorage.getItem('force_reload_v64')) {
+                    sessionStorage.setItem('force_reload_v64', 'true');
+                    window.location.reload();
                 }
             });
         }
@@ -206,7 +199,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <!-- Total Views -->
                 <div class="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg flex items-center justify-between">
-                    <div>
+                    <div x-show="shapes.length > 0 && activeShapeId">
                         <div class="text-sm text-gray-500 dark:text-gray-400 font-bold" x-text="t('total_views')"></div>
                         <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1" x-text="publicStats.totalViews"></div>
                     </div>
@@ -417,13 +410,14 @@
                     </div>
                 </template>
                 <template x-if="user">
-                    <div class="flex items-center gap-2 mx-2 cursor-pointer" @click="showDashboardModal = true; loadHistory()">
+                    <div class="flex items-center gap-2 mx-2">
+                        <button @click="showDashboardModal = true; loadHistory()" class="px-3 py-1 text-sm font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded transition" x-text="lang === 'ar' ? 'لوحة المستخدم' : 'Dashboard'"></button>
                         <div class="text-right hidden sm:block">
                             <div class="text-xs font-bold text-blue-500">
                                 <span x-text="user.credits === -1 ? '∞' : user.credits"></span> Credits
                             </div>
                         </div>
-                        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm cursor-pointer" @click="showDashboardModal = true; loadHistory()">
                             <span x-text="user.name ? user.name.charAt(0).toUpperCase() : 'U'"></span>
                         </div>
                     </div>
@@ -436,6 +430,9 @@
                     </template>
                 </select>
 
+                <template x-if="user && user.role === 'admin'">
+                    <a href="/admin/" class="px-3 py-1 text-sm font-bold text-purple-600 hover:bg-purple-50 dark:hover:bg-slate-800 rounded transition border border-purple-500" x-text="lang === 'ar' ? 'لوحة الأدمن' : 'Admin'"></a>
+                </template>
                 <a href="pricing.html" class="px-3 py-1 text-sm font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-slate-800 rounded transition border border-blue-500">Pricing</a>
 
                 <button @click.stop="showPublicStatsModal = true" class="p-2 rounded-full hover:bg-opacity-10 hover:bg-gray-500 transition text-blue-500" :title="t('view_stats')">
@@ -475,7 +472,7 @@
             </div>
             
             <!-- Mobile Menu Dropdown -->
-            <div x-show="showMobileMenu" @click.outside="showMobileMenu = false" x-transition x-cloak
+            <div x-show="showMobileMenu" @click.outside="showMobileMenu = false" x-cloak
                  class="absolute top-16 right-0 left-0 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shadow-xl p-4 flex flex-col gap-4 md:hidden z-50">
                  
                  <div class="flex justify-between items-center">
@@ -505,6 +502,14 @@
                         Pricing
                     </a>
                  </div>
+
+                 <template x-if="user">
+                     <button @click="showDashboardModal = true; loadHistory(); showMobileMenu = false" class="w-full p-2 rounded border font-bold text-sm text-blue-600 border-blue-200 bg-blue-50" x-text="lang === 'ar' ? 'لوحة المستخدم' : 'Dashboard'"></button>
+                 </template>
+
+                 <template x-if="user && user.role === 'admin'">
+                     <a href="/admin/" class="w-full p-2 rounded border font-bold text-sm text-purple-600 border-purple-200 bg-purple-50 text-center" x-text="lang === 'ar' ? 'لوحة الأدمن' : 'Admin'"></a>
+                 </template>
                  
                  <button @click="showPublicStatsModal = true; showMobileMenu = false" class="w-full p-2 rounded border font-bold text-sm text-gray-600 dark:text-gray-300 dark:border-slate-600">
                     View Stats
@@ -565,7 +570,7 @@
                 </div>
 
                 <!-- Nesting Panel -->
-                <div x-show="showNestingPanel" x-collapse x-cloak class="bg-orange-50 dark:bg-slate-800/50 p-4 border-b border-orange-100 dark:border-slate-700">
+                <div x-show="showNestingPanel" x-cloak class="bg-orange-50 dark:bg-slate-800/50 p-4 border-b border-orange-100 dark:border-slate-700">
                     <h3 class="text-xs font-bold uppercase mb-2 text-orange-600" x-text="t('nesting_settings')"></h3>
                     <div class="flex gap-2 mb-2">
                         <div>
@@ -648,7 +653,7 @@
                     </div>
 
                     <!-- Section: Dimensions -->
-                    <div id="dimensions-section">
+                    <div id="dimensions-section" x-show="shapes.length > 0 && activeShapeId">
                         <h3 class="text-sm font-bold uppercase mb-3 tracking-wider" style="color: var(--text-muted)" x-text="t('dimensions')"></h3>
                         
                         <div class="mb-4">
@@ -699,7 +704,7 @@
                         </div>
 
                         <!-- Shape Selection -->
-                        <div class="mt-4">
+                        <div class="mt-4" x-show="shapes.length > 0 && activeShapeId">
                             <label for="shape-type" class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('shape')"></label>
                             <select id="shape-type" name="shapeType" x-model="shapeType" class="form-input w-full p-2 rounded text-sm">
                                 <option value="rectangle" x-text="t('shape_rect')"></option>
@@ -743,7 +748,7 @@
                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             
                             <!-- Rectangle Corner Selection -->
-                            <div class="grid grid-cols-2 gap-2 mt-3" x-show="shapeType === 'rectangle' && activeShape.cornerSides">
+                            <div class="grid grid-cols-2 gap-2 mt-3" x-show="shapeType === 'rectangle' && activeShape && activeShape.cornerSides">
                                 <label class="flex items-center gap-2 text-xs cursor-pointer">
                                     <input type="checkbox" x-model="activeShape.cornerSides.tl" class="rounded text-blue-500 accent-blue-500">
                                     <span x-text="lang === 'ar' ? 'أعلى يسار' : 'Top Left'"></span>
@@ -781,7 +786,7 @@
                             </select>
                         </div>
                         
-                        <div x-show="holePattern === 'custom'" class="mb-3" x-transition>
+                        <div x-show="holePattern === 'custom'" class="mb-3">
                              <div class="flex justify-between mb-1">
                                 <label for="hole-count" class="text-xs text-gray-700 dark:text-gray-300" x-text="t('hole_count')"></label>
                                 <span class="text-xs font-mono" x-text="holeCount"></span>
@@ -789,7 +794,7 @@
                              <input id="hole-count" name="holeCount" type="range" min="1" max="100" step="1" x-model.number="holeCount" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
                         </div>
 
-                        <div x-show="holePattern !== 'none'" x-transition class="grid grid-cols-1 gap-4">
+                        <div x-show="holePattern !== 'none'" class="grid grid-cols-1 gap-4">
                             <div>
                                 <div class="flex justify-between mb-1">
                                     <label for="hole-diameter" class="text-xs text-gray-700 dark:text-gray-300" x-text="t('diameter')"></label>
@@ -810,7 +815,7 @@
                     <hr style="border-color: var(--border)">
 
                     <!-- Section: Base Generator -->
-                    <div id="base-section">
+                    <div id="base-section" x-show="shapes.length > 0 && activeShapeId">
                         <div class="flex items-center gap-2 mb-3">
                             <h3 class="text-sm font-bold uppercase tracking-wider" style="color: var(--text-muted)" x-text="t('base_generator')"></h3>
                             <!-- Pro Badge -->
@@ -828,7 +833,7 @@
                             </label>
                         </div>
 
-                        <div x-show="activeShape.hasBase" x-transition class="space-y-3">
+                        <div x-show="activeShape.hasBase" class="space-y-3">
                             <!-- Thickness Selection -->
                             <div>
                                 <label class="block text-xs mb-1 text-gray-700 dark:text-gray-300" x-text="t('base_thickness')"></label>
@@ -902,7 +907,7 @@
                             <span class="text-xs transition-transform duration-200" :class="{'rotate-180': showCostSettings}">▼</span>
                         </button>
                         
-                        <div x-show="showCostSettings" x-collapse x-cloak class="space-y-3 pt-2">
+                        <div x-show="showCostSettings" x-cloak class="space-y-3 pt-2">
                             <div>
                                 <div class="flex justify-between items-center mb-1">
                                     <label for="cost-sheet-width" class="block text-xs text-gray-700 dark:text-gray-300" x-text="t('sheet_dims')"></label>
