@@ -2,7 +2,7 @@
 (function() {
 const i18n = {
     ar: {
-        app_title: "Acrylic Designer Pro (v1.5.4)",
+        app_title: "Acrylic Designer Pro (v1.5.5)",
         unit: "وحدة القياس",
         width: "العرض",
         height: "الارتفاع",
@@ -145,7 +145,7 @@ const i18n = {
         view_stats: "عرض الإحصائيات"
     },
     en: {
-        app_title: "Acrylic Designer Pro (v1.5.4)",
+        app_title: "Acrylic Designer Pro (v1.5.5)",
         unit: "Unit",
         width: "Width",
         height: "Height",
@@ -2456,8 +2456,9 @@ function app() {
                 try {
                     const res = await auth.deductCredit('dxf', 'export.dxf');
                     if (!res.success) {
-                        if (res.message.includes('credits')) this.showPricingModal = true;
-                        alert(res.message);
+                        const msg = (res && res.message) ? res.message : (this.lang === 'ar' ? 'فشل التصدير' : 'Export failed');
+                        if (msg.includes('credits')) this.showPricingModal = true;
+                        alert(msg);
                         return;
                     }
                     this.user = auth.user;
@@ -2539,8 +2540,9 @@ function app() {
                 try {
                     const res = await auth.deductCredit('svg', 'export.svg');
                     if (!res.success) {
-                        if (res.message.includes('credits')) this.showPricingModal = true;
-                        alert(res.message);
+                        const msg = (res && res.message) ? res.message : (this.lang === 'ar' ? 'فشل التصدير' : 'Export failed');
+                        if (msg.includes('credits')) this.showPricingModal = true;
+                        alert(msg);
                         return;
                     }
                     this.user = auth.user;
