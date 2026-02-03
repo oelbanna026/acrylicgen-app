@@ -98,6 +98,10 @@ jobs:
             echo "Building and starting containers..."
             export PAYPAL_CLIENT_ID="${{ secrets.PAYPAL_CLIENT_ID }}"
             export PAYPAL_SECRET="${{ secrets.PAYPAL_SECRET }}"
+            export GA4_PROPERTY_ID="${{ secrets.GA4_PROPERTY_ID }}"
+            export GA4_MEASUREMENT_ID="${{ secrets.GA4_MEASUREMENT_ID }}"
+            export GA4_API_SECRET="${{ secrets.GA4_API_SECRET }}"
+            export GA4_SERVICE_ACCOUNT_JSON="${{ secrets.GA4_SERVICE_ACCOUNT_JSON }}"
             docker compose up -d --build --force-recreate
             
             echo "Pruning unused images..."
