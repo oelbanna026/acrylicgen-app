@@ -40,3 +40,14 @@
 
 ---
 **ملاحظة:** ملفات `sitemap.xml` و `robots.txt` جاهزة وموجودة بالفعل في موقعك، فقط نحتاج لخطوة إثبات الملكية (الخطوة 3).
+
+## 6. سجل الخدمات والبنية (للرجوع وقت المشاكل)
+- الموقع: `https://www.acrylicgen-app.com/`
+- الدومين: Namecheap
+- الاستضافة (VPS): DigitalOcean
+- Google Console: مُفعل
+- Google Search: مُفعل
+- Google Analytics: مُفعل
+- Google AdSense: مُفعل
+- Vercel: مُستخدم
+- Supabase: مُستخدم
