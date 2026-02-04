@@ -14,7 +14,7 @@ export function useAuth() {
       router.push('/login');
     }
     setToken(t);
-  }, []);
+  }, [router]);
 
   return { token };
 }

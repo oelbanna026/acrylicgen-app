@@ -41,12 +41,6 @@ export default function Home() {
       {/* Pass real data to stats component */}
       <DashboardStats data={stats} />
       
-      {/* Revenue Chart - To be connected to real data later */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <RevenueChart />
-      </div>
-      )}
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <RevenueChart />
         
