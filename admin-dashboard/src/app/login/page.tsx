@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,26 +12,35 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      setError("");
+      const auth = getFirebaseAuth();
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+
+      const profileRes = await fetch("/api/user/profile", {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      const data = await res.json();
-      if (res.ok && data.token) {
-        if (data.user.role !== "admin") {
-          setError("Access denied. Admin only.");
-          return;
-        }
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        window.location.href = "/admin/"; // Redirect to admin home
-      } else {
+      if (!profileRes.ok) {
+        const data = await profileRes.json().catch(() => ({}));
         setError(data.error || "Login failed");
+        return;
       }
+
+      const user = await profileRes.json();
+      if (user.role !== "admin") {
+        setError("Access denied. Admin only.");
+        return;
+      }
+
+      localStorage.setItem("token", idToken);
+      localStorage.setItem("user", JSON.stringify(user));
+      window.location.href = "/admin/";
     } catch (err) {
-      setError("Network error");
+      setError("Login failed");
     }
   };
 

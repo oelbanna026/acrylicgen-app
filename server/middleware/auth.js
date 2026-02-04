@@ -1,0 +1,87 @@
+const jwt = require('jsonwebtoken');
+const db = require('../config/database');
+const { verifyFirebaseToken } = require('../services/firebaseAdmin');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_prod';
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+function getToken(req) {
+    const headerAuth = req.headers['authorization'];
+    const bearer = headerAuth && headerAuth.startsWith('Bearer ') ? headerAuth.slice(7) : null;
+    return req.headers['x-access-token'] || bearer;
+}
+
+function getUserByEmail(email) {
+    return new Promise((resolve, reject) => {
+        db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
+            if (err) return reject(err);
+            resolve(row || null);
+        });
+    });
+}
+
+function createUserFromFirebase(email, name) {
+    return new Promise((resolve, reject) => {
+        const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
+        db.run(
+            `INSERT INTO users (name, email, password, role, plan, credits) VALUES (?, ?, ?, ?, ?, ?)`,
+            [name || 'Firebase User', email, 'firebase', role, 'free', 3],
+            function (err) {
+                if (err) return reject(err);
+                db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err2, row) => {
+                    if (err2) return reject(err2);
+                    resolve(row);
+                });
+            }
+        );
+    });
+}
+
+function updateLastLogin(userId) {
+    db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [userId]);
+}
+
+async function verifyAuth(req, res, next) {
+    const token = getToken(req);
+    if (!token) return res.status(403).json({ error: 'No token provided' });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.userId = decoded.id;
+        updateLastLogin(req.userId);
+        return next();
+    } catch {}
+
+    const firebasePayload = await verifyFirebaseToken(token);
+    if (!firebasePayload) return res.status(401).json({ error: 'Unauthorized' });
+
+    const email = (firebasePayload.email || '').toLowerCase();
+    if (!email) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        let user = await getUserByEmail(email);
+        if (!user) {
+            user = await createUserFromFirebase(email, firebasePayload.name);
+        }
+        req.userId = user.id;
+        updateLastLogin(req.userId);
+        return next();
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+}
+
+function verifyAdmin(req, res, next) {
+    verifyAuth(req, res, () => {
+        db.get('SELECT role FROM users WHERE id = ?', [req.userId], (err, user) => {
+            if (err || !user) return res.status(401).json({ error: 'Unauthorized' });
+            if (user.role !== 'admin') return res.status(403).json({ error: 'Requires Admin Role' });
+            return next();
+        });
+    });
+}
+
+module.exports = { verifyAuth, verifyAdmin };

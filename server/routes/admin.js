@@ -1,31 +1,8 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
+const { verifyAdmin } = require('../middleware/auth');
 const router = express.Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_in_prod';
-
-// Admin Middleware
-const verifyAdmin = (req, res, next) => {
-    const token = req.headers['x-access-token'] || req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(403).json({ error: 'No token provided' });
-
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(401).json({ error: 'Unauthorized' });
-        
-        db.get('SELECT role FROM users WHERE id = ?', [decoded.id], (err, user) => {
-            if (err || !user) return res.status(401).json({ error: 'Unauthorized' });
-            if (user.role !== 'admin') return res.status(403).json({ error: 'Requires Admin Role' });
-            req.userId = decoded.id;
-
-            // Update last_login
-            db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [req.userId]);
-
-            next();
-        });
-    });
-};
 
 router.get('/stats', verifyAdmin, (req, res) => {
     const stats = {};
