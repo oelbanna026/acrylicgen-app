@@ -36,6 +36,18 @@ def copy_assets():
     # Copy manifest and sw
     shutil.copy(os.path.join(SRC_DIR, 'manifest.json'), os.path.join(DIST_DIR, 'manifest.json'))
     shutil.copy(os.path.join(SRC_DIR, 'sw.js'), os.path.join(DIST_DIR, 'sw.js'))
+    extra_files = [
+        'ads.txt',
+        'robots.txt',
+        'sitemap.xml',
+        'pricing.html',
+        'privacy.html',
+        'terms.html'
+    ]
+    for file_name in extra_files:
+        src_file = os.path.join(SRC_DIR, file_name)
+        if os.path.exists(src_file):
+            shutil.copy(src_file, os.path.join(DIST_DIR, file_name))
 
 def minify_css(content):
     # Remove comments
