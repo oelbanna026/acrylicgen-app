@@ -8,11 +8,18 @@ echo "🔄 Checking for updates..."
 # 1. Pull latest code
 git pull origin main
 
-# 2. Rebuild and restart containers
+echo "🧩 Building admin dashboard..."
+cd admin-dashboard
+npm install
+npm run build
+rm -rf ../dist/admin
+mkdir -p ../dist/admin
+cp -r out/* ../dist/admin/
+cd ..
+
 echo "🚀 Rebuilding and restarting containers..."
 docker compose up -d --build
 
-# 3. Cleanup unused images
 docker image prune -f
 
 echo "✅ Deployment complete! System is running."
