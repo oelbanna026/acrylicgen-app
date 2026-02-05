@@ -157,9 +157,20 @@ const loadGscCredentials = () => {
     return null;
 };
 
+const normalizeGscSiteUrl = (value) => {
+    if (!value) return null;
+    const trimmed = value.trim().replace(/^`+|`+$/g, '');
+    if (!trimmed) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('sc-domain:')) {
+        return trimmed;
+    }
+    return `sc-domain:${trimmed}`;
+};
+
 const getSearchConsoleStats = async () => {
     const credentials = loadGscCredentials();
-    if (!credentials || !GSC_SITE_URL) return null;
+    const siteUrl = normalizeGscSiteUrl(GSC_SITE_URL);
+    if (!credentials || !siteUrl) return null;
 
     try {
         const auth = new GoogleAuth({
@@ -174,7 +185,7 @@ const getSearchConsoleStats = async () => {
         const start = startDate.toISOString().split('T')[0];
         const end = endDate.toISOString().split('T')[0];
 
-        const url = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(GSC_SITE_URL)}/searchAnalytics/query`;
+        const url = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
         const response = await client.request({
             url,
             method: 'POST',
@@ -198,6 +209,7 @@ const getSearchConsoleStats = async () => {
             position: Number((row.position || 0).toFixed(2))
         };
     } catch (e) {
+        console.error('Search Console fetch failed', e?.message || e);
         return null;
     }
 };
