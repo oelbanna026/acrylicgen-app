@@ -1,5 +1,5 @@
 # Use Node.js LTS (Long Term Support)
-FROM node:18-alpine
+FROM node:18-bullseye-slim
 
 # Create app directory
 WORKDIR /usr/src/app
