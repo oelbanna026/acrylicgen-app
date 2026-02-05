@@ -1,21 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase";
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setError("");
-      const auth = getFirebaseAuth();
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await credential.user.getIdToken();
+      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (!apiKey) {
+        setError("Firebase not configured");
+        return;
+      }
+      setLoading(true);
+      const signInRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, returnSecureToken: true }),
+        }
+      );
+      const signInData = await signInRes.json().catch(() => ({}));
+      if (!signInRes.ok) {
+        const message = signInData?.error?.message;
+        if (message === "EMAIL_NOT_FOUND") {
+          setError("User not found");
+        } else if (message === "INVALID_PASSWORD") {
+          setError("Invalid password");
+        } else {
+          setError(message || "Login failed");
+        }
+        return;
+      }
+      const idToken = signInData?.idToken;
+      if (!idToken) {
+        setError("Login failed");
+        return;
+      }
 
       const profileRes = await fetch("/api/user/profile", {
         headers: {
@@ -41,6 +67,8 @@ export default function LoginPage() {
       window.location.href = "/admin/";
     } catch (err) {
       setError("Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,9 +106,10 @@ export default function LoginPage() {
           </div>
           <button 
             type="submit" 
-            className="w-full rounded bg-blue-600 py-2 font-bold text-white hover:bg-blue-700"
+            className="w-full rounded bg-blue-600 py-2 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={loading}
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>
