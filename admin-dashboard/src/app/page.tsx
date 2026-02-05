@@ -92,6 +92,26 @@ export default function Home() {
               <div className="mt-2 text-2xl font-bold text-white">{siteStats.conversionRate || 0}%</div>
             </div>
           </div>
+          {siteStats.searchConsole && (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <div className="text-sm text-slate-400">Search Clicks</div>
+                <div className="mt-2 text-2xl font-bold text-white">{siteStats.searchConsole.clicks || 0}</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <div className="text-sm text-slate-400">Search Impressions</div>
+                <div className="mt-2 text-2xl font-bold text-white">{siteStats.searchConsole.impressions || 0}</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <div className="text-sm text-slate-400">Search CTR</div>
+                <div className="mt-2 text-2xl font-bold text-white">{siteStats.searchConsole.ctr || 0}%</div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                <div className="text-sm text-slate-400">Avg Position</div>
+                <div className="mt-2 text-2xl font-bold text-white">{siteStats.searchConsole.position || 0}</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,10 +1,13 @@
 const express = require('express');
 const { GoogleAuth } = require('google-auth-library');
+const fs = require('fs');
 const router = express.Router();
 const db = require('../config/database');
 
 const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || '';
 const GA4_API_SECRET = process.env.GA4_API_SECRET || '';
+const GSC_SITE_URL = process.env.GSC_SITE_URL || 'https://www.acrylicgen-app.com/';
+const GSC_LOOKBACK_DAYS = parseInt(process.env.GSC_LOOKBACK_DAYS || '28', 10);
 
 // Helper to get current date string (YYYY-MM-DD)
 const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -134,6 +137,71 @@ const getGa4Stats = async () => {
     }
 };
 
+const loadGscCredentials = () => {
+    const rawJson = process.env.GSC_SERVICE_ACCOUNT_JSON;
+    if (rawJson && rawJson.trim().startsWith('{')) {
+        return JSON.parse(rawJson);
+    }
+
+    const base64Json = process.env.GSC_SERVICE_ACCOUNT_BASE64;
+    if (base64Json) {
+        const decoded = Buffer.from(base64Json, 'base64').toString('utf8');
+        return JSON.parse(decoded);
+    }
+
+    const jsonPath = process.env.GSC_SERVICE_ACCOUNT_PATH;
+    if (jsonPath && fs.existsSync(jsonPath)) {
+        return JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    }
+
+    return null;
+};
+
+const getSearchConsoleStats = async () => {
+    const credentials = loadGscCredentials();
+    if (!credentials || !GSC_SITE_URL) return null;
+
+    try {
+        const auth = new GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/webmasters.readonly']
+        });
+
+        const client = await auth.getClient();
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - Math.max(GSC_LOOKBACK_DAYS, 1));
+        const start = startDate.toISOString().split('T')[0];
+        const end = endDate.toISOString().split('T')[0];
+
+        const url = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(GSC_SITE_URL)}/searchAnalytics/query`;
+        const response = await client.request({
+            url,
+            method: 'POST',
+            data: {
+                startDate: start,
+                endDate: end,
+                dimensions: [],
+                rowLimit: 1
+            }
+        });
+
+        const row = response.data?.rows?.[0];
+        if (!row) {
+            return { clicks: 0, impressions: 0, ctr: 0, position: 0 };
+        }
+
+        return {
+            clicks: Math.round(row.clicks || 0),
+            impressions: Math.round(row.impressions || 0),
+            ctr: Number(((row.ctr || 0) * 100).toFixed(2)),
+            position: Number((row.position || 0).toFixed(2))
+        };
+    } catch (e) {
+        return null;
+    }
+};
+
 // Get Dashboard Stats
 router.get('/dashboard', async (req, res) => {
     const stats = {
@@ -153,12 +221,13 @@ router.get('/dashboard', async (req, res) => {
         stats.sales24h = sales24h;
         stats.totalExports = totalExports;
 
-        const ga4 = await getGa4Stats();
+        const [ga4, gsc] = await Promise.all([getGa4Stats(), getSearchConsoleStats()]);
         if (ga4) {
             stats.totalViews = ga4.totalViews;
             stats.activeUsers = ga4.activeUsers;
             const denom = ga4.users24h || 0;
             stats.conversionRate = denom > 0 ? ((stats.sales24h / denom) * 100).toFixed(2) : 0;
+            if (gsc) stats.searchConsole = gsc;
             return res.json(stats);
         }
 
@@ -170,6 +239,7 @@ router.get('/dashboard', async (req, res) => {
         stats.totalViews = totalViews;
         stats.activeUsers = activeUsers;
         stats.conversionRate = visitorsToday > 0 ? ((stats.sales24h / visitorsToday) * 100).toFixed(2) : 0;
+        if (gsc) stats.searchConsole = gsc;
         return res.json(stats);
     } catch (e) {
         return res.status(500).json({ error: e.message });
