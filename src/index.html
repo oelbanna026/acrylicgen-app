@@ -1338,6 +1338,27 @@
         </div>
     </div>
 
+    <div x-show="showOtpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showOtpModal = false">
+            <button @click="showOtpModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="إغلاق">✕</button>
+            <h2 class="text-2xl font-bold mb-6 text-center">Verify Email</h2>
+            <form @submit.prevent="verifyOtp">
+                <div class="mb-4">
+                    <label for="otp-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input id="otp-email" name="email" type="email" autocomplete="username" x-model="authOtp.email" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <div class="mb-6">
+                    <label for="otp-code" class="block text-sm font-bold mb-2">Code</label>
+                    <input id="otp-code" name="code" type="text" inputmode="numeric" x-model="authOtp.code" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Verify</button>
+            </form>
+            <div class="mt-4 text-center">
+                <button @click="resendOtp" class="text-blue-500 font-bold">Resend Code</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Dashboard Modal -->
     <div x-show="showDashboardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto" @click.outside="showDashboardModal = false">

@@ -12,7 +12,7 @@
     };
 
     const API_URL = getApiUrl();
-    const MOCK_MODE = true; // Set to false when backend is running
+    const MOCK_MODE = false;
 
     let storedUser = null;
     try {
@@ -20,6 +20,19 @@
     } catch (e) {
         console.error('Failed to parse user from localStorage', e);
         localStorage.removeItem('user');
+    }
+
+    function getDeviceId() {
+        let deviceId = localStorage.getItem('device_id');
+        if (!deviceId) {
+            if (window.crypto && window.crypto.randomUUID) {
+                deviceId = window.crypto.randomUUID();
+            } else {
+                deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+            }
+            localStorage.setItem('device_id', deviceId);
+        }
+        return deviceId;
     }
 
     const AuthService = {
@@ -157,7 +170,8 @@
 
     async googleLogin(credential) {
             try {
-                const data = await this.request('/auth/google', 'POST', { credential });
+                const deviceId = getDeviceId();
+                const data = await this.request('/auth/google', 'POST', { credential, deviceId });
                 // Use setSession if available, or manually set
                 if (typeof this.setSession === 'function') {
                     this.setSession(data.token, data.user);
@@ -182,7 +196,8 @@
     },
 
     async login(email, password) {
-        const data = await this.request('/auth/login', 'POST', { email, password });
+        const deviceId = getDeviceId();
+        const data = await this.request('/auth/login', 'POST', { email, password, deviceId });
         this.token = data.token;
         this.user = data.user;
         localStorage.setItem('token', this.token);
@@ -190,13 +205,24 @@
         return data;
     },
 
-    async register(name, email, password) {
-        const data = await this.request('/auth/register', 'POST', { name, email, password });
+    async registerInit(name, email, password) {
+        const deviceId = getDeviceId();
+        const data = await this.request('/auth/register-init', 'POST', { name, email, password, deviceId });
+        return data;
+    },
+
+    async verifyOtp(email, code) {
+        const deviceId = getDeviceId();
+        const data = await this.request('/auth/verify-otp', 'POST', { email, code, deviceId });
         this.token = data.token;
         this.user = data.user;
         localStorage.setItem('token', this.token);
         localStorage.setItem('user', JSON.stringify(this.user));
         return data;
+    },
+
+    async resendOtp(email) {
+        return await this.request('/auth/resend-otp', 'POST', { email });
     },
 
     logout() {

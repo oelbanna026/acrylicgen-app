@@ -34,6 +34,12 @@ function getAdmin() {
     return admin;
 }
 
+function getFirestore() {
+    const app = getAdmin();
+    if (!app) return null;
+    return admin.firestore();
+}
+
 async function verifyFirebaseToken(idToken) {
     const app = getAdmin();
     if (!app) return null;
@@ -44,4 +50,4 @@ async function verifyFirebaseToken(idToken) {
     }
 }
 
-module.exports = { verifyFirebaseToken };
+module.exports = { getAdmin, getFirestore, verifyFirebaseToken };

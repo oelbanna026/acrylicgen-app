@@ -88,6 +88,38 @@ function initDb() {
                 if (!hasLocation) {
                     db.run("ALTER TABLE users ADD COLUMN location TEXT");
                 }
+                const hasEmailVerified = rows.some(r => r.name === 'email_verified');
+                if (!hasEmailVerified) {
+                    db.run("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0");
+                }
+                const hasOtpHash = rows.some(r => r.name === 'otp_hash');
+                if (!hasOtpHash) {
+                    db.run("ALTER TABLE users ADD COLUMN otp_hash TEXT");
+                }
+                const hasOtpExpires = rows.some(r => r.name === 'otp_expires_at');
+                if (!hasOtpExpires) {
+                    db.run("ALTER TABLE users ADD COLUMN otp_expires_at DATETIME");
+                }
+                const hasOtpAttempts = rows.some(r => r.name === 'otp_attempts');
+                if (!hasOtpAttempts) {
+                    db.run("ALTER TABLE users ADD COLUMN otp_attempts INTEGER DEFAULT 0");
+                }
+                const hasFirebaseUid = rows.some(r => r.name === 'firebase_uid');
+                if (!hasFirebaseUid) {
+                    db.run("ALTER TABLE users ADD COLUMN firebase_uid TEXT");
+                }
+                const hasDeviceHash = rows.some(r => r.name === 'device_hash');
+                if (!hasDeviceHash) {
+                    db.run("ALTER TABLE users ADD COLUMN device_hash TEXT");
+                }
+                const hasFreeTrialUsed = rows.some(r => r.name === 'free_trial_used');
+                if (!hasFreeTrialUsed) {
+                    db.run("ALTER TABLE users ADD COLUMN free_trial_used INTEGER DEFAULT 0");
+                }
+                const hasBlocked = rows.some(r => r.name === 'blocked');
+                if (!hasBlocked) {
+                    db.run("ALTER TABLE users ADD COLUMN blocked INTEGER DEFAULT 0");
+                }
             }
         });
 
@@ -101,6 +133,31 @@ function initDb() {
             cost INTEGER DEFAULT 1,
             FOREIGN KEY(user_id) REFERENCES users(id)
         )`);
+
+        db.all("PRAGMA table_info(exports)", (err, rows) => {
+            if (!err && rows) {
+                const hasSize = rows.some(r => r.name === 'size_bytes');
+                if (!hasSize) {
+                    db.run("ALTER TABLE exports ADD COLUMN size_bytes INTEGER");
+                }
+                const hasPages = rows.some(r => r.name === 'page_count');
+                if (!hasPages) {
+                    db.run("ALTER TABLE exports ADD COLUMN page_count INTEGER");
+                }
+                const hasLines = rows.some(r => r.name === 'line_count');
+                if (!hasLines) {
+                    db.run("ALTER TABLE exports ADD COLUMN line_count INTEGER");
+                }
+                const hasDevice = rows.some(r => r.name === 'device_hash');
+                if (!hasDevice) {
+                    db.run("ALTER TABLE exports ADD COLUMN device_hash TEXT");
+                }
+                const hasSource = rows.some(r => r.name === 'source');
+                if (!hasSource) {
+                    db.run("ALTER TABLE exports ADD COLUMN source TEXT");
+                }
+            }
+        });
 
         // Settings Table (Global App Config)
         db.run(`CREATE TABLE IF NOT EXISTS settings (
@@ -134,6 +191,29 @@ function initDb() {
             details TEXT,
             user_id INTEGER, -- if triggered manually
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS device_trials (
+            device_hash TEXT PRIMARY KEY,
+            first_user_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS user_devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            device_hash TEXT,
+            first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, device_hash)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT,
+            details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
         // Initialize site_stats if empty

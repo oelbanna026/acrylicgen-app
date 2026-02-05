@@ -343,6 +343,7 @@ function app() {
         showMobileMenu: false, // For Mobile Header
         showLoginModal: false,
         showRegisterModal: false,
+        showOtpModal: false,
         showPricingModal: false,
         showDashboardModal: false,
         showForgotPasswordModal: false,
@@ -367,6 +368,7 @@ function app() {
         adTimer: 5,
         authLogin: { email: '', password: '' },
         authRegister: { name: '', email: '', password: '' },
+        authOtp: { email: '', code: '' },
         forgotPasswordEmail: '',
         history: [],
         adminStats: null,
@@ -848,16 +850,43 @@ function app() {
                     }
                 }
             } catch (e) {
-                alert(e.message);
+                if (e.message && e.message.toLowerCase().includes('not verified')) {
+                    this.showLoginModal = false;
+                    this.authOtp = { email: this.authLogin.email.trim(), code: '' };
+                    this.showOtpModal = true;
+                } else {
+                    alert(e.message);
+                }
             }
         },
 
         async register() {
             try {
-                await auth.register(this.authRegister.name, this.authRegister.email.trim(), this.authRegister.password);
-                this.user = auth.user;
+                await auth.registerInit(this.authRegister.name, this.authRegister.email.trim(), this.authRegister.password);
                 this.showRegisterModal = false;
+                this.authOtp = { email: this.authRegister.email.trim(), code: '' };
+                this.showOtpModal = true;
                 this.authRegister = { name: '', email: '', password: '' };
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        async verifyOtp() {
+            try {
+                await auth.verifyOtp(this.authOtp.email.trim(), this.authOtp.code.trim());
+                this.user = auth.user;
+                this.showOtpModal = false;
+                this.authOtp = { email: '', code: '' };
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        async resendOtp() {
+            try {
+                await auth.resendOtp(this.authOtp.email.trim());
+                alert('OTP sent');
             } catch (e) {
                 alert(e.message);
             }

@@ -23,12 +23,12 @@ function getUserByEmail(email) {
     });
 }
 
-function createUserFromFirebase(email, name) {
+function createUserFromFirebase(email, name, firebaseUid, emailVerified) {
     return new Promise((resolve, reject) => {
         const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'user';
         db.run(
-            `INSERT INTO users (name, email, password, role, plan, credits) VALUES (?, ?, ?, ?, ?, ?)`,
-            [name || 'Firebase User', email, 'firebase', role, 'free', 3],
+            `INSERT INTO users (name, email, password, role, plan, credits, email_verified, firebase_uid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name || 'Firebase User', email, 'firebase', role, 'free', 3, emailVerified ? 1 : 0, firebaseUid || null],
             function (err) {
                 if (err) return reject(err);
                 db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err2, row) => {
@@ -51,12 +51,19 @@ async function verifyAuth(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.userId = decoded.id;
-        updateLastLogin(req.userId);
-        return next();
+        db.get('SELECT blocked, email_verified FROM users WHERE id = ?', [req.userId], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (row && row.blocked) return res.status(403).json({ error: 'Account blocked' });
+            if (row && Number(row.email_verified) !== 1) return res.status(403).json({ error: 'Email not verified' });
+            updateLastLogin(req.userId);
+            return next();
+        });
+        return;
     } catch {}
 
     const firebasePayload = await verifyFirebaseToken(token);
     if (!firebasePayload) return res.status(401).json({ error: 'Unauthorized' });
+    if (!firebasePayload.email_verified) return res.status(403).json({ error: 'Email not verified' });
 
     const email = (firebasePayload.email || '').toLowerCase();
     if (!email) return res.status(401).json({ error: 'Unauthorized' });
@@ -64,7 +71,11 @@ async function verifyAuth(req, res, next) {
     try {
         let user = await getUserByEmail(email);
         if (!user) {
-            user = await createUserFromFirebase(email, firebasePayload.name);
+            user = await createUserFromFirebase(email, firebasePayload.name, firebasePayload.user_id, firebasePayload.email_verified);
+        }
+        if (user.blocked) return res.status(403).json({ error: 'Account blocked' });
+        if (!user.email_verified && firebasePayload.email_verified) {
+            db.run('UPDATE users SET email_verified = 1 WHERE id = ?', [user.id]);
         }
         req.userId = user.id;
         updateLastLogin(req.userId);
