@@ -50,31 +50,37 @@ function issueTokens(user) {
 async function syncUserToFirestore(user, extra = {}) {
     const firestore = getFirestore();
     if (!firestore) return;
-    await firestore.collection('users').doc(String(user.id)).set({
-        email: user.email,
-        name: user.name,
-        plan: user.plan,
-        credits: user.credits,
-        role: user.role,
-        emailVerified: !!user.email_verified,
-        firebaseUid: user.firebase_uid || null,
-        freeTrialUsed: !!user.free_trial_used,
-        blocked: !!user.blocked,
-        updatedAt: new Date().toISOString(),
-        ...extra
-    }, { merge: true });
+    try {
+        await firestore.collection('users').doc(String(user.id)).set({
+            email: user.email,
+            name: user.name,
+            plan: user.plan,
+            credits: user.credits,
+            role: user.role,
+            emailVerified: !!user.email_verified,
+            firebaseUid: user.firebase_uid || null,
+            freeTrialUsed: !!user.free_trial_used,
+            blocked: !!user.blocked,
+            updatedAt: new Date().toISOString(),
+            ...extra
+        }, { merge: true });
+    } catch {
+    }
 }
 
 async function logActivity(userId, action, details) {
     db.run(`INSERT INTO activity_logs (user_id, action, details) VALUES (?, ?, ?)`, [userId, action, details]);
     const firestore = getFirestore();
     if (!firestore) return;
-    await firestore.collection('activity_logs').add({
-        userId,
-        action,
-        details,
-        createdAt: new Date().toISOString()
-    });
+    try {
+        await firestore.collection('activity_logs').add({
+            userId,
+            action,
+            details,
+            createdAt: new Date().toISOString()
+        });
+    } catch {
+    }
 }
 
 async function ensureFirebaseUser(email, name, password) {
