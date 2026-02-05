@@ -8,6 +8,7 @@ server/.env
 admin-dashboard/.env.local
 server/firebase-admin.json
 server/firebase-admin.json.json
+server/secrets/
 
 # Secrets & Keys
 gcs-key*

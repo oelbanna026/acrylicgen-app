@@ -7,9 +7,12 @@ services:
     volumes:
       - ./server/data:/usr/src/app/data
       - ./dist/admin:/usr/src/dist/admin
+      - ./server/secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
     environment:
       - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET:-super_secret_production_key}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-oelbanna026@gmail.com}
+      - FIREBASE_SERVICE_ACCOUNT_PATH=/run/secrets/firebase-admin.json
       - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
       - PAYPAL_SECRET=${PAYPAL_SECRET}
       - GA4_PROPERTY_ID=${GA4_PROPERTY_ID}
