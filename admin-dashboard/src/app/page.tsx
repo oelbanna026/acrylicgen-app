@@ -7,6 +7,7 @@ import { fetchAPI } from "@/lib/api";
 
 export default function Home() {
   const [stats, setStats] = useState<any>(null);
+  const [siteStats, setSiteStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,8 +19,15 @@ export default function Home() {
 
     async function loadData() {
         try {
-            const data = await fetchAPI("/admin/stats", token);
+            const [data, siteRes] = await Promise.all([
+              fetchAPI("/admin/stats", token),
+              fetch("/api/stats/dashboard"),
+            ]);
             setStats(data);
+            if (siteRes.ok) {
+              const siteData = await siteRes.json();
+              setSiteStats(siteData);
+            }
         } catch(e) {
             console.error(e);
         } finally {
@@ -62,6 +70,30 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {siteStats && (
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white">Site Analytics</h3>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <div className="text-sm text-slate-400">Total Views</div>
+              <div className="mt-2 text-2xl font-bold text-white">{siteStats.totalViews || 0}</div>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <div className="text-sm text-slate-400">Active Users</div>
+              <div className="mt-2 text-2xl font-bold text-white">{siteStats.activeUsers || 0}</div>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <div className="text-sm text-slate-400">Sales (24h)</div>
+              <div className="mt-2 text-2xl font-bold text-white">{siteStats.sales24h || 0}</div>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <div className="text-sm text-slate-400">Conversion Rate</div>
+              <div className="mt-2 text-2xl font-bold text-white">{siteStats.conversionRate || 0}%</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
