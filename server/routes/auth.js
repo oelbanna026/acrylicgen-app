@@ -240,26 +240,7 @@ router.post('/register-init', async (req, res) => {
                 [otpHash, otpExpiresAt, hashedPassword, deviceHash, freeTrialUsed, credits, existing.id], async (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
                     const sent = await sendOtpEmail(email, otpCode);
-                    if (!sent) {
-                        db.run(`UPDATE users SET email_verified = 1, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0 WHERE id = ?`, [existing.id], async () => {
-                            await logActivity(existing.id, 'email_auto_verified', JSON.stringify({ ip, userAgent, deviceHash }));
-                            const tokens = await issueTokens(existing);
-                            return res.status(200).json({
-                                token: tokens.token,
-                                firebaseCustomToken: tokens.firebaseCustomToken,
-                                user: {
-                                    id: existing.id,
-                                    name: existing.name,
-                                    email: existing.email,
-                                    credits: existing.credits,
-                                    plan: existing.plan,
-                                    role: existing.role,
-                                    email_verified: 1
-                                }
-                            });
-                        });
-                        return;
-                    }
+                    if (!sent) return res.status(500).json({ error: 'Email service not configured' });
                     await logActivity(existing.id, 'otp_sent', JSON.stringify({ ip, userAgent, deviceHash }));
                     return res.status(200).json({ message: 'OTP sent' });
                 });
@@ -278,28 +259,7 @@ router.post('/register-init', async (req, res) => {
                 const newUserId = this.lastID;
                 await upsertUserDevice(newUserId, deviceHash);
                 const sent = await sendOtpEmail(email, otpCode);
-                if (!sent) {
-                    db.run(`UPDATE users SET email_verified = 1, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0 WHERE id = ?`, [newUserId], async () => {
-                        const newUser = { id: newUserId, name, email, credits, plan: 'free', role: 'user', email_verified: 1, firebase_uid: firebaseUid, free_trial_used: freeTrialUsed };
-                        await logActivity(newUserId, 'email_auto_verified', JSON.stringify({ ip, userAgent, deviceHash, freeTrialGranted }));
-                        await syncUserToFirestore(newUser);
-                        const tokens = await issueTokens(newUser);
-                        return res.status(201).json({
-                            token: tokens.token,
-                            firebaseCustomToken: tokens.firebaseCustomToken,
-                            user: {
-                                id: newUserId,
-                                name,
-                                email,
-                                credits,
-                                plan: 'free',
-                                role: 'user',
-                                email_verified: 1
-                            }
-                        });
-                    });
-                    return;
-                }
+                if (!sent) return res.status(500).json({ error: 'Email service not configured' });
                 await logActivity(newUserId, 'otp_sent', JSON.stringify({ ip, userAgent, deviceHash, freeTrialGranted }));
                 await syncUserToFirestore({ id: newUserId, name, email, credits, plan: 'free', role: 'user', email_verified: 0, firebase_uid: firebaseUid, free_trial_used: freeTrialUsed });
                 return res.status(201).json({ message: 'OTP sent' });
