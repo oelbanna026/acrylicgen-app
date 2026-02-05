@@ -864,6 +864,11 @@ function app() {
             try {
                 await auth.registerInit(this.authRegister.name, this.authRegister.email.trim(), this.authRegister.password);
                 this.showRegisterModal = false;
+                if (auth.user) {
+                    this.user = auth.user;
+                    this.authRegister = { name: '', email: '', password: '' };
+                    return;
+                }
                 this.authOtp = { email: this.authRegister.email.trim(), code: '' };
                 this.showOtpModal = true;
                 this.authRegister = { name: '', email: '', password: '' };

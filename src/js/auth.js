@@ -208,6 +208,12 @@
     async registerInit(name, email, password) {
         const deviceId = getDeviceId();
         const data = await this.request('/auth/register-init', 'POST', { name, email, password, deviceId });
+        if (data && data.token && data.user) {
+            this.token = data.token;
+            this.user = data.user;
+            localStorage.setItem('token', this.token);
+            localStorage.setItem('user', JSON.stringify(this.user));
+        }
         return data;
     },
 
