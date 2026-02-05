@@ -15,6 +15,7 @@ npm run build
 rm -rf ../dist/admin
 mkdir -p ../dist/admin
 cp -r out/* ../dist/admin/
+chmod -R a+rX ../dist/admin
 cd ..
 
 echo "🚀 Rebuilding and restarting containers..."
