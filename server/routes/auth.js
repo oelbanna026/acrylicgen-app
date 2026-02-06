@@ -14,6 +14,7 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const OTP_TTL_MINUTES = parseInt(process.env.OTP_TTL_MINUTES || '10', 10);
 const OTP_HASH_PEPPER = process.env.OTP_HASH_PEPPER || 'otp_pepper_change_me';
 const DEVICE_HASH_PEPPER = process.env.DEVICE_HASH_PEPPER || 'device_pepper_change_me';
+const REQUIRE_EMAIL_VERIFICATION = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
 
 function normalizeEmail(email) {
     return (email || '').trim().toLowerCase();
@@ -362,13 +363,14 @@ router.post('/login', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!user) return res.status(404).json({ error: 'User not found' });
         if (user.blocked) return res.status(403).json({ error: 'Account blocked' });
-        if (Number(user.email_verified) !== 1) return res.status(403).json({ error: 'Email not verified' });
+        if (REQUIRE_EMAIL_VERIFICATION && Number(user.email_verified) !== 1) return res.status(403).json({ error: 'Email not verified' });
 
         const passwordIsValid = bcrypt.compareSync(password, user.password);
         if (!passwordIsValid) return res.status(401).json({ token: null, error: 'Invalid password' });
 
         const now = new Date().toISOString();
-        db.run(`UPDATE users SET last_login = ?, ip = ?, location = ?, device_hash = COALESCE(device_hash, ?) WHERE id = ?`, [now, ip, 'Unknown', deviceHash, user.id]);
+        const nextVerified = REQUIRE_EMAIL_VERIFICATION ? user.email_verified : 1;
+        db.run(`UPDATE users SET last_login = ?, ip = ?, location = ?, device_hash = COALESCE(device_hash, ?), email_verified = ? WHERE id = ?`, [now, ip, 'Unknown', deviceHash, nextVerified, user.id]);
         await upsertUserDevice(user.id, deviceHash);
         await logActivity(user.id, 'login', JSON.stringify({ ip, userAgent, deviceHash }));
         const tokens = await issueTokens(user);
@@ -382,7 +384,7 @@ router.post('/login', (req, res) => {
                 credits: user.credits,
                 plan: user.plan,
                 role: user.role,
-                email_verified: user.email_verified
+                email_verified: nextVerified
             }
         });
     });

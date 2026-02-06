@@ -7,6 +7,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
+const REQUIRE_EMAIL_VERIFICATION = process.env.REQUIRE_EMAIL_VERIFICATION === 'true';
 
 function getToken(req) {
     const headerAuth = req.headers['authorization'];
@@ -54,7 +55,10 @@ async function verifyAuth(req, res, next) {
         db.get('SELECT blocked, email_verified FROM users WHERE id = ?', [req.userId], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
             if (row && row.blocked) return res.status(403).json({ error: 'Account blocked' });
-            if (row && Number(row.email_verified) !== 1) return res.status(403).json({ error: 'Email not verified' });
+            if (REQUIRE_EMAIL_VERIFICATION && row && Number(row.email_verified) !== 1) return res.status(403).json({ error: 'Email not verified' });
+            if (!REQUIRE_EMAIL_VERIFICATION && row && Number(row.email_verified) !== 1) {
+                db.run('UPDATE users SET email_verified = 1 WHERE id = ?', [req.userId]);
+            }
             updateLastLogin(req.userId);
             return next();
         });
@@ -63,7 +67,7 @@ async function verifyAuth(req, res, next) {
 
     const firebasePayload = await verifyFirebaseToken(token);
     if (!firebasePayload) return res.status(401).json({ error: 'Unauthorized' });
-    if (!firebasePayload.email_verified) return res.status(403).json({ error: 'Email not verified' });
+    if (REQUIRE_EMAIL_VERIFICATION && !firebasePayload.email_verified) return res.status(403).json({ error: 'Email not verified' });
 
     const email = (firebasePayload.email || '').toLowerCase();
     if (!email) return res.status(401).json({ error: 'Unauthorized' });
@@ -75,6 +79,9 @@ async function verifyAuth(req, res, next) {
         }
         if (user.blocked) return res.status(403).json({ error: 'Account blocked' });
         if (!user.email_verified && firebasePayload.email_verified) {
+            db.run('UPDATE users SET email_verified = 1 WHERE id = ?', [user.id]);
+        }
+        if (!REQUIRE_EMAIL_VERIFICATION && !user.email_verified) {
             db.run('UPDATE users SET email_verified = 1 WHERE id = ?', [user.id]);
         }
         req.userId = user.id;
