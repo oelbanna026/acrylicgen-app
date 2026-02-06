@@ -2164,10 +2164,44 @@ function app() {
         getShapeBoundingBox(shape) {
             const x = parseFloat(shape.x) || 0;
             const y = parseFloat(shape.y) || 0;
-            const w = parseFloat(shape.width) || 0;
-            const h = parseFloat(shape.height) || 0;
             const rot = parseFloat(shape.rotation) || 0;
 
+            if (shape.shapeType === 'custom' && shape.pathData) {
+                const local = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform || '' }]);
+                const w = parseFloat(local.width) || 0;
+                const h = parseFloat(local.height) || 0;
+                const minX0 = parseFloat(local.minX) || 0;
+                const minY0 = parseFloat(local.minY) || 0;
+                if (rot === 0) {
+                    return { minX: x + minX0, minY: y + minY0, maxX: x + minX0 + w, maxY: y + minY0 + h, width: w, height: h };
+                }
+                const cx = minX0 + w / 2;
+                const cy = minY0 + h / 2;
+                const radians = rot * (Math.PI / 180);
+                const cos = Math.cos(radians);
+                const sin = Math.sin(radians);
+                const corners = [
+                    { x: minX0, y: minY0 },
+                    { x: minX0 + w, y: minY0 },
+                    { x: minX0 + w, y: minY0 + h },
+                    { x: minX0, y: minY0 + h }
+                ];
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                corners.forEach(p => {
+                    const rx = cx + (p.x - cx) * cos - (p.y - cy) * sin;
+                    const ry = cy + (p.x - cx) * sin + (p.y - cy) * cos;
+                    const gx = x + rx;
+                    const gy = y + ry;
+                    minX = Math.min(minX, gx);
+                    minY = Math.min(minY, gy);
+                    maxX = Math.max(maxX, gx);
+                    maxY = Math.max(maxY, gy);
+                });
+                return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+            }
+
+            const w = parseFloat(shape.width) || 0;
+            const h = parseFloat(shape.height) || 0;
             if (rot === 0) {
                 return { minX: x, minY: y, maxX: x + w, maxY: y + h, width: w, height: h };
             }
