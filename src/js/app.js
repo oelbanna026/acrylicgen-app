@@ -886,6 +886,16 @@ function app() {
                     }
                 }
             }
+            let maxAbs = 0;
+            if (insUnits === null) {
+                for (let idx = 0; idx < lines.length - 1; idx++) {
+                    const code = (lines[idx] || '').trim();
+                    if (code === '10' || code === '11' || code === '20' || code === '21' || code === '40') {
+                        const value = parseFloat((lines[idx + 1] || '').trim());
+                        if (isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
+                    }
+                }
+            }
             const mmPerUnit = (() => {
                 if (this.unit === 'mm') return 1;
                 if (this.unit === 'cm') return 10;
@@ -903,6 +913,10 @@ function app() {
                 8: 0.0254,
                 9: 0.001
             };
+            if (insUnits === null) {
+                if (this.unit === 'cm' && maxAbs > 500) return 0.1;
+                if (this.unit === 'mm' && maxAbs > 5000) return 0.1;
+            }
             const mm = mmMap[insUnits] || 1;
             return mm / mmPerUnit;
         },
@@ -932,6 +946,60 @@ function app() {
             const pointsToPath = (points, closed) => {
                 if (points.length === 0) return '';
                 const d = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                return closed ? `${d} Z` : d;
+            };
+
+            const bulgeArcPoints = (p1, p2, bulge) => {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const c = Math.hypot(dx, dy);
+                if (!c) return [p2];
+                const theta = 4 * Math.atan(bulge);
+                const r = (c / 2) / Math.sin(theta / 2);
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const h = Math.sqrt(Math.max(0, r * r - (c / 2) * (c / 2)));
+                const dir = bulge >= 0 ? 1 : -1;
+                const perpX = (-dy / c) * dir;
+                const perpY = (dx / c) * dir;
+                const cx = midX + perpX * h;
+                const cy = midY + perpY * h;
+                let a1 = Math.atan2(p1.y - cy, p1.x - cx);
+                let a2 = Math.atan2(p2.y - cy, p2.x - cx);
+                let delta = a2 - a1;
+                if (dir > 0 && delta < 0) delta += Math.PI * 2;
+                if (dir < 0 && delta > 0) delta -= Math.PI * 2;
+                const segments = Math.max(6, Math.ceil(Math.abs(delta) / (Math.PI / 12)));
+                const pts = [];
+                for (let s = 1; s <= segments; s++) {
+                    const a = a1 + (delta * s) / segments;
+                    pts.push({ x: cx + Math.cos(a) * Math.abs(r), y: cy + Math.sin(a) * Math.abs(r) });
+                }
+                return pts;
+            };
+
+            const polylineWithBulgeToPath = (points, closed) => {
+                if (points.length === 0) return '';
+                const out = [{ x: points[0].x, y: points[0].y }];
+                for (let idx = 0; idx < points.length - 1; idx++) {
+                    const p1 = points[idx];
+                    const p2 = points[idx + 1];
+                    if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
+                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                    } else {
+                        out.push({ x: p2.x, y: p2.y });
+                    }
+                }
+                if (closed && points.length > 2) {
+                    const p1 = points[points.length - 1];
+                    const p2 = points[0];
+                    if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
+                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                    } else {
+                        out.push({ x: p2.x, y: p2.y });
+                    }
+                }
+                const d = out.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
                 return closed ? `${d} Z` : d;
             };
 
@@ -989,6 +1057,8 @@ function app() {
                     const points = [];
                     let closed = false;
                     let currentX = null;
+                    let currentBulge = 0;
+                    let lastIndex = -1;
                     while (true) {
                         const p = nextPair();
                         if (!p) break;
@@ -998,12 +1068,19 @@ function app() {
                         if (p.code === '20' && currentX !== null) {
                             const x = currentX;
                             const y = -parseFloat(p.value) * unitScale;
-                            points.push({ x, y });
+                            points.push({ x, y, bulge: currentBulge });
+                            lastIndex = points.length - 1;
                             updateBounds(x, y);
                             currentX = null;
+                            currentBulge = 0;
+                        }
+                        if (p.code === '42') {
+                            const b = parseFloat(p.value);
+                            if (lastIndex >= 0) points[lastIndex].bulge = b;
+                            else currentBulge = b;
                         }
                     }
-                    const d = pointsToPath(points, closed);
+                    const d = polylineWithBulgeToPath(points, closed);
                     if (d) paths.push({ d });
                     continue;
                 }
@@ -1144,16 +1221,17 @@ function app() {
                         if (!p) break;
                         if (p.code === '70') closed = (parseInt(p.value, 10) & 1) === 1;
                         if (p.code === '0' && p.value.toUpperCase() === 'VERTEX') {
-                            let vx = null, vy = null;
+                            let vx = null, vy = null, vb = 0;
                             while (true) {
                                 const pv = nextPair();
                                 if (!pv) break;
                                 if (pv.code === '0') { i -= 2; break; }
                                 if (pv.code === '10') vx = parseFloat(pv.value) * unitScale;
                                 if (pv.code === '20') vy = -parseFloat(pv.value) * unitScale;
+                                if (pv.code === '42') vb = parseFloat(pv.value);
                             }
                             if (vx !== null && vy !== null) {
-                                points.push({ x: vx, y: vy });
+                                points.push({ x: vx, y: vy, bulge: vb });
                                 updateBounds(vx, vy);
                             }
                             continue;
@@ -1162,7 +1240,7 @@ function app() {
                             break;
                         }
                     }
-                    const d = pointsToPath(points, closed);
+                    const d = polylineWithBulgeToPath(points, closed);
                     if (d) paths.push({ d });
                     continue;
                 }
