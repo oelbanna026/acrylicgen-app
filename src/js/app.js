@@ -871,8 +871,25 @@ function app() {
             const sheetW = parseFloat(this.nestingSheetWidth) || 0;
             const sheetH = parseFloat(this.nestingSheetHeight) || 0;
             if (sheetW > 0 && sheetH > 0) {
-                shape.x = Math.max(0, (sheetW - shape.width) / 2);
-                shape.y = Math.max(0, (sheetH - shape.height) / 2);
+                let baseBox = this.getShapeBoundingBox({ ...shape, x: 0, y: 0 });
+                if (isFinite(baseBox.width) && isFinite(baseBox.height) && baseBox.width > 0 && baseBox.height > 0) {
+                    if (baseBox.width > sheetW || baseBox.height > sheetH) {
+                        const scale = Math.min(sheetW / baseBox.width, sheetH / baseBox.height);
+                        if (isFinite(scale) && scale > 0) {
+                            shape.pathTransform = `${shape.pathTransform || ''} scale(${scale.toFixed(6)} ${scale.toFixed(6)})`.trim();
+                            shape._normalized = false;
+                            this.normalizeCustomShapeBounds(shape);
+                        }
+                        baseBox = this.getShapeBoundingBox({ ...shape, x: 0, y: 0 });
+                    }
+                    const targetMinX = Math.max(0, (sheetW - baseBox.width) / 2);
+                    const targetMinY = Math.max(0, (sheetH - baseBox.height) / 2);
+                    shape.x = targetMinX - baseBox.minX;
+                    shape.y = targetMinY - baseBox.minY;
+                } else {
+                    shape.x = 0;
+                    shape.y = 0;
+                }
             } else {
                 shape.x = 0;
                 shape.y = 0;
