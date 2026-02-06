@@ -1131,6 +1131,7 @@
                                     <!-- Shape Body -->
                                     <path :d="getShapePath(shape)" 
                                           :transform="shape.pathTransform || ''"
+                                          :fill-rule="shape.pathFillRule || 'nonzero'"
                                           :fill="activeShapeId === shape.id ? '#ffffff' : '#f0f0f0'" 
                                           fill-opacity="0.9" 
                                           :stroke="activeShapeId === shape.id ? '#3b82f6' : '#000000'" 

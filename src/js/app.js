@@ -684,26 +684,91 @@ function app() {
             const baseY = parseFloat(shape.y) || 0;
             const baseRot = parseFloat(shape.rotation) || 0;
             const baseName = shape.name || 'Shape';
+            const parentTransform = shape.pathTransform || '';
+
+            const parts = shape.subpaths.map((d) => {
+                const bounds = this.measurePathBounds([{ d, transform: parentTransform }]);
+                return { d, bounds };
+            }).filter(p => p.bounds.width && p.bounds.height);
+
+            const contains = (outer, inner) => {
+                return outer.minX <= inner.minX + 0.01 &&
+                    outer.minY <= inner.minY + 0.01 &&
+                    outer.maxX >= inner.maxX - 0.01 &&
+                    outer.maxY >= inner.maxY - 0.01;
+            };
+
+            const outers = [];
+            const holesMap = new Map();
+
+            parts.forEach((p, idx) => {
+                let parentIdx = -1;
+                let parentArea = Infinity;
+                parts.forEach((candidate, cIdx) => {
+                    if (cIdx === idx) return;
+                    const b = candidate.bounds;
+                    const area = b.width * b.height;
+                    if (contains(b, p.bounds) && area < parentArea) {
+                        parentIdx = cIdx;
+                        parentArea = area;
+                    }
+                });
+                if (parentIdx === -1) {
+                    outers.push(idx);
+                } else {
+                    if (!holesMap.has(parentIdx)) holesMap.set(parentIdx, []);
+                    holesMap.get(parentIdx).push(p.d);
+                }
+            });
+
             const newShapes = [];
-            shape.subpaths.forEach((d, idx) => {
-                const bounds = this.measurePathBounds([{ d }]);
-                if (!bounds.width || !bounds.height) return;
+            const used = new Set();
+            outers.forEach((idx, order) => {
+                const part = parts[idx];
+                const bounds = part.bounds;
+                const holePaths = holesMap.get(idx) || [];
+                const d = [part.d, ...holePaths].join(' ');
                 const s = defaultShape();
                 s.shapeType = 'custom';
-                s.name = `${baseName} ${idx + 1}`;
+                s.name = `${baseName} ${order + 1}`;
                 s.width = bounds.width;
                 s.height = bounds.height;
-                s.x = baseX + idx * 2;
-                s.y = baseY + idx * 2;
+                s.x = baseX + bounds.minX;
+                s.y = baseY + bounds.minY;
                 s.rotation = baseRot;
                 s.cornerType = 'straight';
                 s.cornerRadius = 0;
                 s.holePattern = 'none';
                 s.holes = [];
                 s.pathData = d;
-                s.pathTransform = `translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
+                s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
+                s.pathFillRule = holePaths.length ? 'evenodd' : 'nonzero';
                 newShapes.push(s);
+                used.add(idx);
             });
+
+            if (newShapes.length === 0) {
+                parts.forEach((part, idx) => {
+                    const bounds = part.bounds;
+                    const s = defaultShape();
+                    s.shapeType = 'custom';
+                    s.name = `${baseName} ${idx + 1}`;
+                    s.width = bounds.width;
+                    s.height = bounds.height;
+                    s.x = baseX + bounds.minX;
+                    s.y = baseY + bounds.minY;
+                    s.rotation = baseRot;
+                    s.cornerType = 'straight';
+                    s.cornerRadius = 0;
+                    s.holePattern = 'none';
+                    s.holes = [];
+                    s.pathData = part.d;
+                    s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
+                    s.pathFillRule = 'nonzero';
+                    newShapes.push(s);
+                });
+            }
+
             const index = this.shapes.findIndex(s => s.id === shape.id);
             if (index !== -1) this.shapes.splice(index, 1);
             if (newShapes.length) {
