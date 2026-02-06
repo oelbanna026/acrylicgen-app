@@ -666,11 +666,13 @@ function app() {
 
         normalizeCustomShapeBounds(shape) {
             if (!shape || shape.shapeType !== 'custom' || !shape.pathData) return;
+            if (shape._normalized) return;
             const bounds = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform || '' }]);
             if (!isFinite(bounds.width) || !isFinite(bounds.height) || bounds.width <= 0 || bounds.height <= 0) return;
             if (Math.abs(bounds.minX) < 0.001 && Math.abs(bounds.minY) < 0.001) {
                 shape.width = bounds.width;
                 shape.height = bounds.height;
+                shape._normalized = true;
                 return;
             }
             shape.x = (parseFloat(shape.x) || 0) + bounds.minX;
@@ -679,6 +681,7 @@ function app() {
             shape.pathTransform = `${shape.pathTransform || ''}${extra}`.trim();
             shape.width = bounds.width;
             shape.height = bounds.height;
+            shape._normalized = true;
         },
 
         setNestingNotice(message) {
@@ -760,6 +763,7 @@ function app() {
                 s.pathData = d;
                 s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
                 s.pathFillRule = holePaths.length ? 'evenodd' : 'nonzero';
+                s._normalized = false;
                 this.normalizeCustomShapeBounds(s);
                 newShapes.push(s);
                 used.add(idx);
@@ -783,6 +787,7 @@ function app() {
                     s.pathData = part.d;
                     s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
                     s.pathFillRule = 'nonzero';
+                    s._normalized = false;
                     this.normalizeCustomShapeBounds(s);
                     newShapes.push(s);
                 });
@@ -847,9 +852,18 @@ function app() {
             this.normalizeCustomShapeBounds(shape);
 
             const dims = this.designDimensions;
+            const sheetW = parseFloat(this.nestingSheetWidth) || 0;
+            const sheetH = parseFloat(this.nestingSheetHeight) || 0;
             if (dims && dims.width > 0) {
-                shape.x = dims.maxX + 10;
-                shape.y = dims.minY || 0;
+                let x = dims.maxX + 10;
+                let y = dims.minY || 0;
+                if (sheetW > 0) x = Math.min(x, sheetW - shape.width);
+                if (sheetH > 0) y = Math.min(Math.max(y, 0), sheetH - shape.height);
+                shape.x = Math.max(0, x);
+                shape.y = Math.max(0, y);
+            } else if (sheetW > 0 && sheetH > 0) {
+                shape.x = Math.max(0, (sheetW - shape.width) / 2);
+                shape.y = Math.max(0, (sheetH - shape.height) / 2);
             }
 
             return shape;
