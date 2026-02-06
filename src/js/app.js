@@ -78,6 +78,9 @@ const i18n = {
         loading: "جاري التحميل...",
         layers: "الطبقات / الأشكال",
         add_shape: "إضافة شكل",
+        import_design: "استيراد تصميم",
+        import_dxf_svg: "رفع DXF أو SVG",
+        import_failed: "تعذر استيراد الملف",
         delete_shape: "حذف",
         delete_all: "حذف الكل",
         x_pos: "الموقع X",
@@ -222,6 +225,9 @@ const i18n = {
         loading: "Loading...",
         layers: "Layers / Shapes",
         add_shape: "Add Shape",
+        import_design: "Import Design",
+        import_dxf_svg: "Upload DXF or SVG",
+        import_failed: "Failed to import file",
         delete_shape: "Delete",
         delete_all: "Delete All",
         x_pos: "Position X",
@@ -641,6 +647,276 @@ function app() {
             this.shapes.push(newShape);
             this.activeShapeId = newShape.id;
             this.updateHoles(newShape);
+        },
+
+        openImportDialog() {
+            if (this.$refs.importInput) {
+                this.$refs.importInput.value = '';
+                this.$refs.importInput.click();
+            }
+        },
+
+        async onImportFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            try {
+                const content = await file.text();
+                let parsed = null;
+                if (ext === 'svg') parsed = this.parseSvgContent(content);
+                if (ext === 'dxf') parsed = this.parseDxfContent(content);
+                if (!parsed) throw new Error('Unsupported');
+                const shape = this.buildImportedShape(parsed, file.name);
+                this.shapes.push(shape);
+                this.activeShapeId = shape.id;
+                this.save();
+            } catch (e) {
+                alert(this.t('import_failed'));
+            }
+        },
+
+        buildImportedShape(parsed, filename) {
+            const shape = defaultShape();
+            shape.shapeType = 'custom';
+            shape.name = filename;
+            shape.width = parsed.width;
+            shape.height = parsed.height;
+            shape.x = 0;
+            shape.y = 0;
+            shape.rotation = 0;
+            shape.cornerType = 'straight';
+            shape.cornerRadius = 0;
+            shape.holePattern = 'none';
+            shape.holes = [];
+            shape.pathData = parsed.pathData;
+            shape.pathTransform = `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
+
+            const dims = this.designDimensions;
+            if (dims && dims.width > 0) {
+                shape.x = dims.maxX + 10;
+                shape.y = dims.minY || 0;
+            }
+
+            return shape;
+        },
+
+        parseSvgContent(text) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'image/svg+xml');
+            const svg = doc.querySelector('svg');
+            if (!svg) throw new Error('No SVG');
+
+            const nodes = Array.from(svg.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line'));
+            const paths = [];
+            nodes.forEach(node => {
+                const d = this.svgElementToPath(node);
+                if (d) paths.push({ d });
+            });
+            if (paths.length === 0) throw new Error('No paths');
+
+            const bounds = this.measurePathBounds(paths);
+            const pathData = paths.map(p => p.d).join(' ');
+            return { pathData, ...bounds };
+        },
+
+        svgElementToPath(node) {
+            const tag = node.tagName.toLowerCase();
+            if (tag === 'path') return node.getAttribute('d') || '';
+
+            if (tag === 'rect') {
+                const x = parseFloat(node.getAttribute('x') || '0');
+                const y = parseFloat(node.getAttribute('y') || '0');
+                const w = parseFloat(node.getAttribute('width') || '0');
+                const h = parseFloat(node.getAttribute('height') || '0');
+                const rx = parseFloat(node.getAttribute('rx') || '0');
+                const ry = parseFloat(node.getAttribute('ry') || '0');
+                if (rx > 0 || ry > 0) {
+                    const rrx = rx || ry;
+                    const rry = ry || rx;
+                    return `M ${x + rrx} ${y} H ${x + w - rrx} A ${rrx} ${rry} 0 0 1 ${x + w} ${y + rry} V ${y + h - rry} A ${rrx} ${rry} 0 0 1 ${x + w - rrx} ${y + h} H ${x + rrx} A ${rrx} ${rry} 0 0 1 ${x} ${y + h - rry} V ${y + rry} A ${rrx} ${rry} 0 0 1 ${x + rrx} ${y} Z`;
+                }
+                return `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`;
+            }
+
+            if (tag === 'circle') {
+                const cx = parseFloat(node.getAttribute('cx') || '0');
+                const cy = parseFloat(node.getAttribute('cy') || '0');
+                const r = parseFloat(node.getAttribute('r') || '0');
+                return `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+            }
+
+            if (tag === 'ellipse') {
+                const cx = parseFloat(node.getAttribute('cx') || '0');
+                const cy = parseFloat(node.getAttribute('cy') || '0');
+                const rx = parseFloat(node.getAttribute('rx') || '0');
+                const ry = parseFloat(node.getAttribute('ry') || '0');
+                return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+            }
+
+            if (tag === 'polygon' || tag === 'polyline') {
+                const points = this.parseSvgPoints(node.getAttribute('points') || '');
+                if (points.length === 0) return '';
+                const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                return tag === 'polygon' ? `${d} Z` : d;
+            }
+
+            if (tag === 'line') {
+                const x1 = parseFloat(node.getAttribute('x1') || '0');
+                const y1 = parseFloat(node.getAttribute('y1') || '0');
+                const x2 = parseFloat(node.getAttribute('x2') || '0');
+                const y2 = parseFloat(node.getAttribute('y2') || '0');
+                return `M ${x1} ${y1} L ${x2} ${y2}`;
+            }
+
+            return '';
+        },
+
+        parseSvgPoints(raw) {
+            const nums = raw.trim().split(/[\s,]+/).map(n => parseFloat(n)).filter(n => !isNaN(n));
+            const pts = [];
+            for (let i = 0; i < nums.length; i += 2) {
+                if (typeof nums[i + 1] === 'undefined') break;
+                pts.push({ x: nums[i], y: nums[i + 1] });
+            }
+            return pts;
+        },
+
+        measurePathBounds(paths) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svg.style.position = 'absolute';
+            svg.style.visibility = 'hidden';
+            svg.style.width = '0';
+            svg.style.height = '0';
+            document.body.appendChild(svg);
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            paths.forEach(p => {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', p.d);
+                svg.appendChild(path);
+                const box = path.getBBox();
+                minX = Math.min(minX, box.x);
+                minY = Math.min(minY, box.y);
+                maxX = Math.max(maxX, box.x + box.width);
+                maxY = Math.max(maxY, box.y + box.height);
+                svg.removeChild(path);
+            });
+
+            document.body.removeChild(svg);
+            if (!isFinite(minX)) return { minX: 0, minY: 0, width: 0, height: 0 };
+            return { minX, minY, width: maxX - minX, height: maxY - minY };
+        },
+
+        parseDxfContent(text) {
+            const lines = text.split(/\r?\n/);
+            let i = 0;
+            const paths = [];
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            const nextPair = () => {
+                if (i >= lines.length - 1) return null;
+                const code = (lines[i] || '').trim();
+                const value = (lines[i + 1] || '').trim();
+                i += 2;
+                return { code, value };
+            };
+
+            const updateBounds = (x, y) => {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            };
+
+            const pointsToPath = (points, closed) => {
+                if (points.length === 0) return '';
+                const d = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                return closed ? `${d} Z` : d;
+            };
+
+            while (i < lines.length - 1) {
+                const pair = nextPair();
+                if (!pair) break;
+                if (pair.code !== '0') continue;
+                const type = pair.value.toUpperCase();
+
+                if (type === 'LWPOLYLINE') {
+                    const points = [];
+                    let closed = false;
+                    let currentX = null;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '70') closed = (parseInt(p.value, 10) & 1) === 1;
+                        if (p.code === '10') currentX = parseFloat(p.value);
+                        if (p.code === '20' && currentX !== null) {
+                            const x = currentX;
+                            const y = -parseFloat(p.value);
+                            points.push({ x, y });
+                            updateBounds(x, y);
+                            currentX = null;
+                        }
+                    }
+                    const d = pointsToPath(points, closed);
+                    if (d) paths.push({ d });
+                    continue;
+                }
+
+                if (type === 'LINE') {
+                    let x1 = null, y1 = null, x2 = null, y2 = null;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '10') x1 = parseFloat(p.value);
+                        if (p.code === '20') y1 = -parseFloat(p.value);
+                        if (p.code === '11') x2 = parseFloat(p.value);
+                        if (p.code === '21') y2 = -parseFloat(p.value);
+                    }
+                    if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
+                        updateBounds(x1, y1);
+                        updateBounds(x2, y2);
+                        paths.push({ d: `M ${x1} ${y1} L ${x2} ${y2}` });
+                    }
+                    continue;
+                }
+
+                if (type === 'POLYLINE') {
+                    const points = [];
+                    let closed = false;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '70') closed = (parseInt(p.value, 10) & 1) === 1;
+                        if (p.code === '0' && p.value.toUpperCase() === 'VERTEX') {
+                            let vx = null, vy = null;
+                            while (true) {
+                                const pv = nextPair();
+                                if (!pv) break;
+                                if (pv.code === '0') { i -= 2; break; }
+                                if (pv.code === '10') vx = parseFloat(pv.value);
+                                if (pv.code === '20') vy = -parseFloat(pv.value);
+                            }
+                            if (vx !== null && vy !== null) {
+                                points.push({ x: vx, y: vy });
+                                updateBounds(vx, vy);
+                            }
+                            continue;
+                        }
+                        if (p.code === '0' && p.value.toUpperCase() === 'SEQEND') {
+                            break;
+                        }
+                    }
+                    const d = pointsToPath(points, closed);
+                    if (d) paths.push({ d });
+                    continue;
+                }
+            }
+
+            if (!paths.length || !isFinite(minX)) throw new Error('No entities');
+            return { pathData: paths.map(p => p.d).join(' '), minX, minY, width: maxX - minX, height: maxY - minY };
         },
 
         removeShape(id) {
@@ -1211,6 +1487,10 @@ function app() {
             const w = parseFloat(shape.width) || 0;
             const h = parseFloat(shape.height) || 0;
             const type = shape.shapeType;
+
+            if (type === 'custom' && shape.pathData) {
+                return shape.pathData;
+            }
             
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
@@ -1324,6 +1604,10 @@ function app() {
             const w = parseFloat(shape.width) || 0;
             const h = parseFloat(shape.height) || 0;
             const type = shape.shapeType;
+
+            if (type === 'custom') {
+                return w * h;
+            }
 
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
@@ -2195,6 +2479,14 @@ function app() {
             const type = shape.shapeType;
             const pts = [];
             
+            if (type === 'custom') {
+                pts.push({ x: 0, y: 0, bulge: 0 });
+                pts.push({ x: w, y: 0, bulge: 0 });
+                pts.push({ x: w, y: h, bulge: 0 });
+                pts.push({ x: 0, y: h, bulge: 0 });
+                return pts;
+            }
+
             if (type === 'rectangle') {
                 const r = shape.cornerType === 'rounded' ? (parseFloat(shape.cornerRadius) || 0) : 0;
                 // Bulge for 90 degree arc. 
