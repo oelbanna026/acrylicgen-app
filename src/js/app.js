@@ -843,6 +843,7 @@ function app() {
                 this.shapes.push(shape);
                 this.activeShapeId = shape.id;
                 this.save();
+            this.centerView();
             } catch (e) {
                 const message = e && e.message ? `: ${e.message}` : '';
                 alert(this.t('import_failed') + message);
@@ -867,19 +868,14 @@ function app() {
             if (parsed.paths && parsed.paths.length > 1) shape.subpaths = parsed.paths;
             this.normalizeCustomShapeBounds(shape);
 
-            const dims = this.designDimensions;
             const sheetW = parseFloat(this.nestingSheetWidth) || 0;
             const sheetH = parseFloat(this.nestingSheetHeight) || 0;
-            if (dims && dims.width > 0) {
-                let x = dims.maxX + 10;
-                let y = dims.minY || 0;
-                if (sheetW > 0) x = Math.min(x, sheetW - shape.width);
-                if (sheetH > 0) y = Math.min(Math.max(y, 0), sheetH - shape.height);
-                shape.x = Math.max(0, x);
-                shape.y = Math.max(0, y);
-            } else if (sheetW > 0 && sheetH > 0) {
+            if (sheetW > 0 && sheetH > 0) {
                 shape.x = Math.max(0, (sheetW - shape.width) / 2);
                 shape.y = Math.max(0, (sheetH - shape.height) / 2);
+            } else {
+                shape.x = 0;
+                shape.y = 0;
             }
 
             return shape;
