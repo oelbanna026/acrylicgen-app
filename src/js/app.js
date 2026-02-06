@@ -850,13 +850,7 @@ function app() {
                     }
                 }
             } catch (e) {
-                if (e.message && e.message.toLowerCase().includes('not verified')) {
-                    this.showLoginModal = false;
-                    this.authOtp = { email: this.authLogin.email.trim(), code: '' };
-                    this.showOtpModal = true;
-                } else {
-                    alert(e.message);
-                }
+                alert(e.message);
             }
         },
 
@@ -864,13 +858,6 @@ function app() {
             try {
                 await auth.registerInit(this.authRegister.name, this.authRegister.email.trim(), this.authRegister.password);
                 this.showRegisterModal = false;
-                if (auth.user) {
-                    this.user = auth.user;
-                    this.authRegister = { name: '', email: '', password: '' };
-                    return;
-                }
-                this.authOtp = { email: this.authRegister.email.trim(), code: '' };
-                this.showOtpModal = true;
                 this.authRegister = { name: '', email: '', password: '' };
             } catch (e) {
                 alert(e.message);

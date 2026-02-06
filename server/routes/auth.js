@@ -220,9 +220,6 @@ router.post('/register-init', async (req, res) => {
     const ip = getRequestIp(req);
     const userAgent = req.headers['user-agent'] || '';
     const deviceHash = hashDevice(deviceId, userAgent, ip);
-    const otpCode = generateOtp();
-    const otpHash = hashWithPepper(otpCode, OTP_HASH_PEPPER);
-    const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60000).toISOString();
     const hashedPassword = bcrypt.hashSync(password, 8);
 
     db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, existing) => {
@@ -236,20 +233,32 @@ router.post('/register-init', async (req, res) => {
         const freeTrialUsed = freeTrialGranted ? 0 : 1;
 
         if (existing) {
-            db.run(`UPDATE users SET otp_hash = ?, otp_expires_at = ?, otp_attempts = 0, password = ?, device_hash = COALESCE(device_hash, ?), free_trial_used = ?, credits = ? WHERE id = ?`,
-                [otpHash, otpExpiresAt, hashedPassword, deviceHash, freeTrialUsed, credits, existing.id], async (err2) => {
+            db.run(`UPDATE users SET email_verified = 1, otp_hash = NULL, otp_expires_at = NULL, otp_attempts = 0, password = ?, device_hash = COALESCE(device_hash, ?), free_trial_used = ?, credits = ? WHERE id = ?`,
+                [hashedPassword, deviceHash, freeTrialUsed, credits, existing.id], async (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
-                    const sent = await sendOtpEmail(email, otpCode);
-                    if (!sent) return res.status(500).json({ error: 'Email service not configured' });
-                    await logActivity(existing.id, 'otp_sent', JSON.stringify({ ip, userAgent, deviceHash }));
-                    return res.status(200).json({ message: 'OTP sent' });
+                    await upsertUserDevice(existing.id, deviceHash);
+                    await logActivity(existing.id, 'register_direct', JSON.stringify({ ip, userAgent, deviceHash }));
+                    const tokens = await issueTokens(existing);
+                    return res.status(200).json({
+                        token: tokens.token,
+                        firebaseCustomToken: tokens.firebaseCustomToken,
+                        user: {
+                            id: existing.id,
+                            name: existing.name,
+                            email: existing.email,
+                            credits: existing.credits,
+                            plan: existing.plan,
+                            role: existing.role,
+                            email_verified: 1
+                        }
+                    });
                 });
             return;
         }
 
         const firebaseUid = await ensureFirebaseUser(email, name, password).catch(() => null);
-        db.run(`INSERT INTO users (name, email, password, credits, plan, role, email_verified, otp_hash, otp_expires_at, otp_attempts, device_hash, free_trial_used, firebase_uid) VALUES (?, ?, ?, ?, 'free', 'user', 0, ?, ?, 0, ?, ?, ?)`,
-            [name, email, hashedPassword, credits, otpHash, otpExpiresAt, deviceHash, freeTrialUsed, firebaseUid], async function(err3) {
+        db.run(`INSERT INTO users (name, email, password, credits, plan, role, email_verified, otp_hash, otp_expires_at, otp_attempts, device_hash, free_trial_used, firebase_uid) VALUES (?, ?, ?, ?, 'free', 'user', 1, NULL, NULL, 0, ?, ?, ?)`,
+            [name, email, hashedPassword, credits, deviceHash, freeTrialUsed, firebaseUid], async function(err3) {
                 if (err3) {
                     if (err3.message.includes('UNIQUE constraint failed')) {
                         return res.status(400).json({ error: 'Email already exists' });
@@ -258,11 +267,22 @@ router.post('/register-init', async (req, res) => {
                 }
                 const newUserId = this.lastID;
                 await upsertUserDevice(newUserId, deviceHash);
-                const sent = await sendOtpEmail(email, otpCode);
-                if (!sent) return res.status(500).json({ error: 'Email service not configured' });
-                await logActivity(newUserId, 'otp_sent', JSON.stringify({ ip, userAgent, deviceHash, freeTrialGranted }));
-                await syncUserToFirestore({ id: newUserId, name, email, credits, plan: 'free', role: 'user', email_verified: 0, firebase_uid: firebaseUid, free_trial_used: freeTrialUsed });
-                return res.status(201).json({ message: 'OTP sent' });
+                await logActivity(newUserId, 'register_direct', JSON.stringify({ ip, userAgent, deviceHash, freeTrialGranted }));
+                await syncUserToFirestore({ id: newUserId, name, email, credits, plan: 'free', role: 'user', email_verified: 1, firebase_uid: firebaseUid, free_trial_used: freeTrialUsed });
+                const tokens = await issueTokens({ id: newUserId, email, firebase_uid: firebaseUid });
+                return res.status(201).json({
+                    token: tokens.token,
+                    firebaseCustomToken: tokens.firebaseCustomToken,
+                    user: {
+                        id: newUserId,
+                        name,
+                        email,
+                        credits,
+                        plan: 'free',
+                        role: 'user',
+                        email_verified: 1
+                    }
+                });
             });
     });
 });
