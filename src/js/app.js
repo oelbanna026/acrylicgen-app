@@ -773,7 +773,9 @@ function app() {
             if (index !== -1) this.shapes.splice(index, 1);
             if (newShapes.length) {
                 this.shapes.push(...newShapes);
+                this.shapes = [...this.shapes];
                 this.activeShapeId = newShapes[0].id;
+                this.centerView();
             } else {
                 this.activeShapeId = null;
             }
@@ -1000,8 +1002,8 @@ function app() {
             });
 
             document.body.removeChild(svg);
-            if (!isFinite(minX)) return { minX: 0, minY: 0, width: 0, height: 0 };
-            return { minX, minY, width: maxX - minX, height: maxY - minY };
+            if (!isFinite(minX)) return { minX: 0, minY: 0, width: 0, height: 0, maxX: 0, maxY: 0 };
+            return { minX, minY, width: maxX - minX, height: maxY - minY, maxX, maxY };
         },
 
         getDxfUnitScale(lines) {
