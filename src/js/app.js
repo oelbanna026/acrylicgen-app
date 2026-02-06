@@ -690,7 +690,7 @@ function app() {
             shape.holePattern = 'none';
             shape.holes = [];
             shape.pathData = parsed.pathData;
-            shape.pathTransform = `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
+            shape.pathTransform = parsed.transform || `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
 
             const dims = this.designDimensions;
             if (dims && dims.width > 0) {
@@ -699,6 +699,33 @@ function app() {
             }
 
             return shape;
+        },
+
+        svgLengthToUnit(value) {
+            if (!value) return null;
+            const raw = String(value).trim();
+            const match = raw.match(/^([0-9.+-]+)([a-z%]*)$/i);
+            if (!match) return null;
+            const num = parseFloat(match[1]);
+            if (!isFinite(num)) return null;
+            const unit = (match[2] || '').toLowerCase();
+            const mmMap = {
+                mm: 1,
+                cm: 10,
+                in: 25.4,
+                pt: 25.4 / 72,
+                pc: 25.4 / 6,
+                px: 25.4 / 96
+            };
+            if (!unit || unit === 'px') {
+                const mm = num * mmMap.px;
+                return this.mmToUnit(mm);
+            }
+            if (mmMap[unit]) {
+                const mm = num * mmMap[unit];
+                return this.mmToUnit(mm);
+            }
+            return num;
         },
 
         parseSvgContent(text) {
@@ -717,7 +744,42 @@ function app() {
 
             const bounds = this.measurePathBounds(paths);
             const pathData = paths.map(p => p.d).join(' ');
-            return { pathData, ...bounds };
+
+            let scaleX = 1;
+            let scaleY = 1;
+            const viewBox = svg.getAttribute('viewBox');
+            if (viewBox) {
+                const vb = viewBox.trim().split(/[\s,]+/).map(v => parseFloat(v));
+                const vbw = vb.length >= 4 ? vb[2] : null;
+                const vbh = vb.length >= 4 ? vb[3] : null;
+                const widthUnit = this.svgLengthToUnit(svg.getAttribute('width'));
+                const heightUnit = this.svgLengthToUnit(svg.getAttribute('height'));
+                if (vbw && vbh) {
+                    if (widthUnit && heightUnit) {
+                        scaleX = widthUnit / vbw;
+                        scaleY = heightUnit / vbh;
+                    } else if (widthUnit && !heightUnit) {
+                        scaleX = widthUnit / vbw;
+                        scaleY = scaleX;
+                    } else if (!widthUnit && heightUnit) {
+                        scaleY = heightUnit / vbh;
+                        scaleX = scaleY;
+                    }
+                }
+            } else {
+                const widthUnit = this.svgLengthToUnit(svg.getAttribute('width'));
+                const heightUnit = this.svgLengthToUnit(svg.getAttribute('height'));
+                if (widthUnit && bounds.width) scaleX = widthUnit / bounds.width;
+                if (heightUnit && bounds.height) scaleY = heightUnit / bounds.height;
+                if (widthUnit && !heightUnit) scaleY = scaleX;
+                if (!widthUnit && heightUnit) scaleX = scaleY;
+            }
+
+            const width = bounds.width * scaleX;
+            const height = bounds.height * scaleY;
+            const transform = `translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)}) scale(${scaleX.toFixed(6)} ${scaleY.toFixed(6)})`;
+
+            return { pathData, minX: bounds.minX, minY: bounds.minY, width, height, transform };
         },
 
         svgElementToPath(node) {
@@ -795,6 +857,7 @@ function app() {
             paths.forEach(p => {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', p.d);
+                if (p.transform) path.setAttribute('transform', p.transform);
                 svg.appendChild(path);
                 const box = path.getBBox();
                 minX = Math.min(minX, box.x);
@@ -809,11 +872,47 @@ function app() {
             return { minX, minY, width: maxX - minX, height: maxY - minY };
         },
 
+        getDxfUnitScale(lines) {
+            let insUnits = null;
+            for (let idx = 0; idx < lines.length - 1; idx++) {
+                const code = (lines[idx] || '').trim();
+                const value = (lines[idx + 1] || '').trim();
+                if (code === '9' && value === '$INSUNITS') {
+                    const nextCode = (lines[idx + 2] || '').trim();
+                    const nextVal = (lines[idx + 3] || '').trim();
+                    if (nextCode === '70') {
+                        insUnits = parseInt(nextVal, 10);
+                        break;
+                    }
+                }
+            }
+            const mmPerUnit = (() => {
+                if (this.unit === 'mm') return 1;
+                if (this.unit === 'cm') return 10;
+                if (this.unit === 'inch') return 25.4;
+                return 1;
+            })();
+            const mmMap = {
+                0: 1,
+                1: 25.4,
+                2: 304.8,
+                4: 1,
+                5: 10,
+                6: 1000,
+                7: 1000000,
+                8: 0.0254,
+                9: 0.001
+            };
+            const mm = mmMap[insUnits] || 1;
+            return mm / mmPerUnit;
+        },
+
         parseDxfContent(text) {
             const lines = text.split(/\r?\n/);
             let i = 0;
             const paths = [];
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const unitScale = this.getDxfUnitScale(lines);
 
             const nextPair = () => {
                 if (i >= lines.length - 1) return null;
@@ -895,10 +994,10 @@ function app() {
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
                         if (p.code === '70') closed = (parseInt(p.value, 10) & 1) === 1;
-                        if (p.code === '10') currentX = parseFloat(p.value);
+                        if (p.code === '10') currentX = parseFloat(p.value) * unitScale;
                         if (p.code === '20' && currentX !== null) {
                             const x = currentX;
-                            const y = -parseFloat(p.value);
+                            const y = -parseFloat(p.value) * unitScale;
                             points.push({ x, y });
                             updateBounds(x, y);
                             currentX = null;
@@ -915,10 +1014,10 @@ function app() {
                         const p = nextPair();
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
-                        if (p.code === '10') x1 = parseFloat(p.value);
-                        if (p.code === '20') y1 = -parseFloat(p.value);
-                        if (p.code === '11') x2 = parseFloat(p.value);
-                        if (p.code === '21') y2 = -parseFloat(p.value);
+                        if (p.code === '10') x1 = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') y1 = -parseFloat(p.value) * unitScale;
+                        if (p.code === '11') x2 = parseFloat(p.value) * unitScale;
+                        if (p.code === '21') y2 = -parseFloat(p.value) * unitScale;
                     }
                     if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
                         updateBounds(x1, y1);
@@ -934,9 +1033,9 @@ function app() {
                         const p = nextPair();
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
-                        if (p.code === '10') cx = parseFloat(p.value);
-                        if (p.code === '20') cy = -parseFloat(p.value);
-                        if (p.code === '40') r = parseFloat(p.value);
+                        if (p.code === '10') cx = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') cy = -parseFloat(p.value) * unitScale;
+                        if (p.code === '40') r = parseFloat(p.value) * unitScale;
                     }
                     if (cx !== null && cy !== null && r !== null) {
                         updateBounds(cx - r, cy - r);
@@ -952,9 +1051,9 @@ function app() {
                         const p = nextPair();
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
-                        if (p.code === '10') cx = parseFloat(p.value);
-                        if (p.code === '20') cy = -parseFloat(p.value);
-                        if (p.code === '40') r = parseFloat(p.value);
+                        if (p.code === '10') cx = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') cy = -parseFloat(p.value) * unitScale;
+                        if (p.code === '40') r = parseFloat(p.value) * unitScale;
                         if (p.code === '50') start = parseFloat(p.value);
                         if (p.code === '51') end = parseFloat(p.value);
                     }
@@ -982,10 +1081,10 @@ function app() {
                         const p = nextPair();
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
-                        if (p.code === '10') cx = parseFloat(p.value);
-                        if (p.code === '20') cy = -parseFloat(p.value);
-                        if (p.code === '11') ax = parseFloat(p.value);
-                        if (p.code === '21') ay = -parseFloat(p.value);
+                        if (p.code === '10') cx = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') cy = -parseFloat(p.value) * unitScale;
+                        if (p.code === '11') ax = parseFloat(p.value) * unitScale;
+                        if (p.code === '21') ay = -parseFloat(p.value) * unitScale;
                         if (p.code === '40') ratio = parseFloat(p.value);
                         if (p.code === '41') start = parseFloat(p.value);
                         if (p.code === '42') end = parseFloat(p.value);
@@ -1009,19 +1108,19 @@ function app() {
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
                         if (p.code === '10') {
-                            const x = parseFloat(p.value);
+                            const x = parseFloat(p.value) * unitScale;
                             const p2 = nextPair();
                             if (p2 && p2.code === '20') {
-                                controlPoints.push({ x, y: -parseFloat(p2.value) });
+                                controlPoints.push({ x, y: -parseFloat(p2.value) * unitScale });
                             } else {
                                 if (p2) i -= 2;
                             }
                         }
                         if (p.code === '11') {
-                            const x = parseFloat(p.value);
+                            const x = parseFloat(p.value) * unitScale;
                             const p2 = nextPair();
                             if (p2 && p2.code === '21') {
-                                fitPoints.push({ x, y: -parseFloat(p2.value) });
+                                fitPoints.push({ x, y: -parseFloat(p2.value) * unitScale });
                             } else {
                                 if (p2) i -= 2;
                             }
@@ -1050,8 +1149,8 @@ function app() {
                                 const pv = nextPair();
                                 if (!pv) break;
                                 if (pv.code === '0') { i -= 2; break; }
-                                if (pv.code === '10') vx = parseFloat(pv.value);
-                                if (pv.code === '20') vy = -parseFloat(pv.value);
+                                if (pv.code === '10') vx = parseFloat(pv.value) * unitScale;
+                                if (pv.code === '20') vy = -parseFloat(pv.value) * unitScale;
                             }
                             if (vx !== null && vy !== null) {
                                 points.push({ x: vx, y: vy });
