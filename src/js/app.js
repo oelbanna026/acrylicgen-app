@@ -85,6 +85,7 @@ const i18n = {
         delete_selected: "حذف الشكل",
         nesting_success: "تم ترتيب الأشكال بنجاح!",
         nesting_partial: "تم ترتيب الأشكال، لكن بعض الأشكال لم تكفهم اللوح!",
+        nesting_too_large: "بعض الأشكال أكبر من اللوح ولا يمكن ترتيبها",
         delete_shape: "حذف",
         delete_all: "حذف الكل",
         x_pos: "الموقع X",
@@ -236,6 +237,7 @@ const i18n = {
         delete_selected: "Delete Shape",
         nesting_success: "Shapes nested successfully!",
         nesting_partial: "Nested, but some shapes did not fit on the sheet!",
+        nesting_too_large: "Some shapes are larger than the sheet and cannot be nested",
         delete_shape: "Delete",
         delete_all: "Delete All",
         x_pos: "Position X",
@@ -711,11 +713,23 @@ function app() {
                 return { d, bounds };
             }).filter(p => p.bounds.width && p.bounds.height);
 
-            const contains = (outer, inner) => {
-                return outer.minX <= inner.minX + 0.01 &&
-                    outer.minY <= inner.minY + 0.01 &&
-                    outer.maxX >= inner.maxX - 0.01 &&
-                    outer.maxY >= inner.maxY - 0.01;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svg.style.position = 'absolute';
+            svg.style.visibility = 'hidden';
+            svg.style.width = '0';
+            svg.style.height = '0';
+            document.body.appendChild(svg);
+
+            const isInside = (outerD, innerBounds) => {
+                const outer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                outer.setAttribute('d', outerD);
+                if (parentTransform) outer.setAttribute('transform', parentTransform);
+                svg.appendChild(outer);
+                const point = new DOMPoint(innerBounds.minX + innerBounds.width / 2, innerBounds.minY + innerBounds.height / 2);
+                const inside = outer.isPointInFill ? outer.isPointInFill(point) : false;
+                svg.removeChild(outer);
+                return inside;
             };
 
             const outers = [];
@@ -728,7 +742,7 @@ function app() {
                     if (cIdx === idx) return;
                     const b = candidate.bounds;
                     const area = b.width * b.height;
-                    if (contains(b, p.bounds) && area < parentArea) {
+                    if (isInside(candidate.d, p.bounds) && area < parentArea) {
                         parentIdx = cIdx;
                         parentArea = area;
                     }
@@ -740,6 +754,8 @@ function app() {
                     holesMap.get(parentIdx).push(p.d);
                 }
             });
+
+            document.body.removeChild(svg);
 
             const newShapes = [];
             const used = new Set();
@@ -3779,6 +3795,17 @@ function app() {
                 const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
                 const margin = parseFloat(this.nestingMargin) || 0;
                 
+                const hasOversized = this.shapes.some(s => {
+                    const dummy = JSON.parse(JSON.stringify(s));
+                    dummy.x = 0; dummy.y = 0;
+                    const box = this.getShapeBoundingBox(dummy);
+                    return isFinite(box.width) && isFinite(box.height) && (box.width > sheetW || box.height > sheetH);
+                });
+                if (hasOversized) {
+                    this.setNestingNotice(this.t('nesting_too_large'));
+                    return;
+                }
+
                 // Effective Sheet Area (approx 80% efficiency for simple packing)
                 const sheetArea = sheetW * sheetH * 0.8; 
                 
@@ -3885,6 +3912,8 @@ function app() {
                             h: box.height,
                             offsetX: box.minX,
                             offsetY: box.minY,
+                            originalX: s.x,
+                            originalY: s.y,
                             original: s,
                             // Keep type info for cloning candidates later
                             typeKey: s.shapeType + '-' + s.width + '-' + s.height + '-' + s.rotation
@@ -3932,6 +3961,12 @@ function app() {
 
                     // Initial Placement Loop
                     items.forEach(item => {
+                        if (item.w > sheetW || item.h > sheetH) {
+                            overflowCount++;
+                            item.original.x = item.originalX;
+                            item.original.y = item.originalY;
+                            return;
+                        }
                         const res = findPosition(item, potentialX, potentialY, placed);
     
                         if (res.found) {
@@ -3950,9 +3985,8 @@ function app() {
                         } else {
                             // Overflow!
                             overflowCount++;
-                            // Place outside to the right of the sheet
-                            item.original.x = sheetW + 20 - item.offsetX;
-                            item.original.y = (overflowCount - 1) * 10 - item.offsetY;
+                            item.original.x = item.originalX;
+                            item.original.y = item.originalY;
                         }
                     });
 
