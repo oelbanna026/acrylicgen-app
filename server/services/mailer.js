@@ -10,7 +10,10 @@ function getMailer() {
         host,
         port,
         secure: port === 465,
-        auth: { user, pass }
+        auth: { user, pass },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000
     });
 }
 
@@ -19,14 +22,18 @@ async function sendOtpEmail(to, code) {
     if (!transport) return false;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER;
     if (!from) return false;
-    await transport.sendMail({
-        from,
-        to,
-        subject: 'Your verification code',
-        text: `Your verification code is: ${code}`,
-        html: `<p>Your verification code is: <strong>${code}</strong></p>`
-    });
-    return true;
+    try {
+        await transport.sendMail({
+            from,
+            to,
+            subject: 'Your verification code',
+            text: `Your verification code is: ${code}`,
+            html: `<p>Your verification code is: <strong>${code}</strong></p>`
+        });
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 module.exports = { sendOtpEmail };
