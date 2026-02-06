@@ -664,6 +664,23 @@ function app() {
             return n.toFixed(2);
         },
 
+        normalizeCustomShapeBounds(shape) {
+            if (!shape || shape.shapeType !== 'custom' || !shape.pathData) return;
+            const bounds = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform || '' }]);
+            if (!isFinite(bounds.width) || !isFinite(bounds.height) || bounds.width <= 0 || bounds.height <= 0) return;
+            if (Math.abs(bounds.minX) < 0.001 && Math.abs(bounds.minY) < 0.001) {
+                shape.width = bounds.width;
+                shape.height = bounds.height;
+                return;
+            }
+            shape.x = (parseFloat(shape.x) || 0) + bounds.minX;
+            shape.y = (parseFloat(shape.y) || 0) + bounds.minY;
+            const extra = ` translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
+            shape.pathTransform = `${shape.pathTransform || ''}${extra}`.trim();
+            shape.width = bounds.width;
+            shape.height = bounds.height;
+        },
+
         setNestingNotice(message) {
             this.nestingNotice = message || '';
             if (!message) return;
@@ -743,6 +760,7 @@ function app() {
                 s.pathData = d;
                 s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
                 s.pathFillRule = holePaths.length ? 'evenodd' : 'nonzero';
+                this.normalizeCustomShapeBounds(s);
                 newShapes.push(s);
                 used.add(idx);
             });
@@ -765,6 +783,7 @@ function app() {
                     s.pathData = part.d;
                     s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
                     s.pathFillRule = 'nonzero';
+                    this.normalizeCustomShapeBounds(s);
                     newShapes.push(s);
                 });
             }
@@ -825,6 +844,7 @@ function app() {
             shape.pathData = parsed.pathData;
             shape.pathTransform = parsed.transform || `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
             if (parsed.paths && parsed.paths.length > 1) shape.subpaths = parsed.paths;
+            this.normalizeCustomShapeBounds(shape);
 
             const dims = this.designDimensions;
             if (dims && dims.width > 0) {
@@ -2168,10 +2188,16 @@ function app() {
 
             if (shape.shapeType === 'custom' && shape.pathData) {
                 const local = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform || '' }]);
-                const w = parseFloat(local.width) || 0;
-                const h = parseFloat(local.height) || 0;
-                const minX0 = parseFloat(local.minX) || 0;
-                const minY0 = parseFloat(local.minY) || 0;
+                let w = parseFloat(local.width);
+                let h = parseFloat(local.height);
+                let minX0 = parseFloat(local.minX);
+                let minY0 = parseFloat(local.minY);
+                if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
+                    w = parseFloat(shape.width) || 0;
+                    h = parseFloat(shape.height) || 0;
+                    minX0 = 0;
+                    minY0 = 0;
+                }
                 if (rot === 0) {
                     return { minX: x + minX0, minY: y + minY0, maxX: x + minX0 + w, maxY: y + minY0 + h, width: w, height: h };
                 }
@@ -3709,6 +3735,9 @@ function app() {
             if (this.shapes.length === 0) return;
             
             window.Monetization.executeProtectedAction(() => {
+                this.shapes.forEach(s => {
+                    if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
+                });
                 // If there's only one shape, duplicate it to fill.
                 // If there are multiple shapes, we might want to duplicate ALL of them?
                 // Or just fill space with the currently selected one?
@@ -3725,7 +3754,9 @@ function app() {
                     const dummy = JSON.parse(JSON.stringify(s));
                     dummy.x = 0; dummy.y = 0;
                     const box = this.getShapeBoundingBox(dummy);
-                    totalSetArea += (box.width * box.height);
+                    if (isFinite(box.width) && isFinite(box.height) && box.width > 0 && box.height > 0) {
+                        totalSetArea += (box.width * box.height);
+                    }
                 });
                 
                 if (totalSetArea <= 0) return;
@@ -3820,6 +3851,9 @@ function app() {
     
                 // Simulate async for UI update
                 setTimeout(() => {
+                    this.shapes.forEach(s => {
+                        if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
+                    });
                     const margin = parseFloat(this.nestingMargin) || 0;
                     const sheetW = parseFloat(this.nestingSheetWidth) || 1000;
                     const sheetH = parseFloat(this.nestingSheetHeight) || 1000;
@@ -3841,7 +3875,7 @@ function app() {
                             // Keep type info for cloning candidates later
                             typeKey: s.shapeType + '-' + s.width + '-' + s.height + '-' + s.rotation
                         };
-                    });
+                    }).filter(item => isFinite(item.w) && isFinite(item.h) && item.w > 0 && item.h > 0);
     
                     // 2. Sort by height (descending), then width
                     items.sort((a, b) => (b.h - a.h) || (b.w - a.w));
