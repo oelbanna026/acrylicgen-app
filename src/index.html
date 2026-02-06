@@ -545,7 +545,7 @@
                    style="background-color: var(--bg-panel); border-color: var(--border);">
                 
                 <!-- Tools Toolbar -->
-                <div id="toolbar-section" class="p-2 grid grid-cols-4 gap-1 border-b" style="border-color: var(--border)">
+                <div id="toolbar-section" class="p-2 grid grid-cols-6 gap-1 border-b" style="border-color: var(--border)">
                     <button @click="rotateSelectedShape()" :title="t('rotate')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-500">
                         <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -554,6 +554,16 @@
                     <button @click="duplicateSelectedShape()" :title="t('duplicate')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-green-500">
                         <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                    <button @click="ungroupSelectedShape()" x-show="activeShape && activeShape.subpaths && activeShape.subpaths.length > 1" :title="t('ungroup')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-indigo-500">
+                        <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 7h6v6H5zM13 11h6v6h-6zM13 5h6v4h-6zM5 15h6v4H5z" />
+                        </svg>
+                    </button>
+                    <button @click="deleteSelectedShape()" x-show="activeShapeId" :title="t('delete_selected')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-red-500">
+                        <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7m3 0V5a2 2 0 012-2h4a2 2 0 012 2v2M4 7h16" />
                         </svg>
                     </button>
                     <button @click="snapEnabled = !snapEnabled" :title="t('snap_to_grid')" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700" :class="snapEnabled ? 'text-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'text-gray-400'">
@@ -591,6 +601,7 @@
             </div>
 
             <button @click="nestShapes()" class="w-full py-1 bg-orange-500 text-white text-xs font-bold rounded hover:bg-orange-600 transition" x-text="t('nest_now')"></button>
+            <div x-show="nestingNotice" x-cloak class="mt-2 text-[10px] text-orange-700 dark:text-orange-300" x-text="nestingNotice"></div>
                     
                     <hr class="my-2 border-orange-200 dark:border-slate-600">
                     
@@ -644,7 +655,7 @@
                                      @click="selectShape(s.id)">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 dark:bg-slate-600" x-text="index + 1"></span>
-                                        <span class="text-sm font-medium" x-text="(s.name || 'Shape ' + (index + 1)) + ' (' + s.width + 'x' + s.height + ')'"></span>
+                                    <span class="text-xs font-medium max-w-[170px] truncate" :title="s.name || ('Shape ' + (index + 1))" x-text="(s.name || 'Shape ' + (index + 1)) + ' (' + formatNumber(s.width) + 'x' + formatNumber(s.height) + ')'"></span>
                                     </div>
                                     <button @click.stop="removeShape(s.id)" class="text-red-400 hover:text-red-600 px-1" title="Delete" aria-label="حذف">×</button>
                                 </div>
@@ -1150,7 +1161,7 @@
                                                font-weight="bold" 
                                                fill="var(--text-main)" 
                                                :style="`font-size: ${3*labelScale}px`"
-                                               x-text="shape.width + ' ' + unit"></text>
+                                               x-text="formatNumber(shape.width) + ' ' + unit"></text>
                                          
                                          <!-- Left Label (Height) -->
                                          <rect :x="-8*labelScale" 
@@ -1167,7 +1178,7 @@
                                                fill="var(--text-main)" 
                                                :transform="`rotate(-90, ${-5*labelScale}, ${(parseFloat(shape.height)||0)/2})`"
                                                :style="`font-size: ${3*labelScale}px`"
-                                               x-text="shape.height + ' ' + unit"></text>
+                                               x-text="formatNumber(shape.height) + ' ' + unit"></text>
                                     </g>
                                 </g>
                             </g>

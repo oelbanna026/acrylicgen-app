@@ -81,6 +81,10 @@ const i18n = {
         import_design: "استيراد تصميم",
         import_dxf_svg: "رفع DXF أو SVG",
         import_failed: "تعذر استيراد الملف",
+        ungroup: "فك التجميع",
+        delete_selected: "حذف الشكل",
+        nesting_success: "تم ترتيب الأشكال بنجاح!",
+        nesting_partial: "تم ترتيب الأشكال، لكن بعض الأشكال لم تكفهم اللوح!",
         delete_shape: "حذف",
         delete_all: "حذف الكل",
         x_pos: "الموقع X",
@@ -228,6 +232,10 @@ const i18n = {
         import_design: "Import Design",
         import_dxf_svg: "Upload DXF or SVG",
         import_failed: "Failed to import file",
+        ungroup: "Ungroup",
+        delete_selected: "Delete Shape",
+        nesting_success: "Shapes nested successfully!",
+        nesting_partial: "Nested, but some shapes did not fit on the sheet!",
         delete_shape: "Delete",
         delete_all: "Delete All",
         x_pos: "Position X",
@@ -364,6 +372,7 @@ function app() {
         showPayPalModal: false,
         showNestingPanel: false,
         showCostSettings: false,
+        nestingNotice: '',
         
 
         isAnnual: false, // For Pricing Modal
@@ -649,6 +658,63 @@ function app() {
             this.updateHoles(newShape);
         },
 
+        formatNumber(value) {
+            const n = parseFloat(value);
+            if (!isFinite(n)) return value;
+            return n.toFixed(2);
+        },
+
+        setNestingNotice(message) {
+            this.nestingNotice = message || '';
+            if (!message) return;
+            setTimeout(() => {
+                if (this.nestingNotice === message) this.nestingNotice = '';
+            }, 4000);
+        },
+
+        deleteSelectedShape() {
+            if (!this.activeShapeId) return;
+            this.removeShape(this.activeShapeId);
+        },
+
+        ungroupSelectedShape() {
+            const shape = this.activeShape;
+            if (!shape || !shape.subpaths || shape.subpaths.length < 2) return;
+            const baseX = parseFloat(shape.x) || 0;
+            const baseY = parseFloat(shape.y) || 0;
+            const baseRot = parseFloat(shape.rotation) || 0;
+            const baseName = shape.name || 'Shape';
+            const newShapes = [];
+            shape.subpaths.forEach((d, idx) => {
+                const bounds = this.measurePathBounds([{ d }]);
+                if (!bounds.width || !bounds.height) return;
+                const s = defaultShape();
+                s.shapeType = 'custom';
+                s.name = `${baseName} ${idx + 1}`;
+                s.width = bounds.width;
+                s.height = bounds.height;
+                s.x = baseX + idx * 2;
+                s.y = baseY + idx * 2;
+                s.rotation = baseRot;
+                s.cornerType = 'straight';
+                s.cornerRadius = 0;
+                s.holePattern = 'none';
+                s.holes = [];
+                s.pathData = d;
+                s.pathTransform = `translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
+                newShapes.push(s);
+            });
+            const index = this.shapes.findIndex(s => s.id === shape.id);
+            if (index !== -1) this.shapes.splice(index, 1);
+            if (newShapes.length) {
+                this.shapes.push(...newShapes);
+                this.activeShapeId = newShapes[0].id;
+            } else {
+                this.activeShapeId = null;
+            }
+            this.save();
+        },
+
         openImportDialog() {
             if (this.$refs.importInput) {
                 this.$refs.importInput.value = '';
@@ -691,6 +757,7 @@ function app() {
             shape.holes = [];
             shape.pathData = parsed.pathData;
             shape.pathTransform = parsed.transform || `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
+            if (parsed.paths && parsed.paths.length > 1) shape.subpaths = parsed.paths;
 
             const dims = this.designDimensions;
             if (dims && dims.width > 0) {
@@ -779,7 +846,7 @@ function app() {
             const height = bounds.height * scaleY;
             const transform = `translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)}) scale(${scaleX.toFixed(6)} ${scaleY.toFixed(6)})`;
 
-            return { pathData, minX: bounds.minX, minY: bounds.minY, width, height, transform };
+            return { pathData, minX: bounds.minX, minY: bounds.minY, width, height, transform, paths: paths.map(p => p.d) };
         },
 
         svgElementToPath(node) {
@@ -1281,7 +1348,7 @@ function app() {
             }
 
             if (!paths.length || !isFinite(minX)) throw new Error('No entities');
-            return { pathData: paths.map(p => p.d).join(' '), minX, minY, width: maxX - minX, height: maxY - minY };
+            return { pathData: paths.map(p => p.d).join(' '), minX, minY, width: maxX - minX, height: maxY - minY, paths: paths.map(p => p.d) };
         },
 
         removeShape(id) {
@@ -3800,11 +3867,11 @@ function app() {
                     this.loading = false;
                     
                     if (overflowCount > 0) {
-                        alert(this.lang === 'ar' 
-                            ? `تم ترتيب الأشكال، لكن ${overflowCount} شكل لم يكفهم اللوح!` 
+                        this.setNestingNotice(this.lang === 'ar'
+                            ? `تم ترتيب الأشكال، لكن ${overflowCount} شكل لم يكفهم اللوح!`
                             : `Nested, but ${overflowCount} shapes did not fit on the sheet!`);
                     } else {
-                        alert(this.lang === 'ar' ? 'تم ترتيب الأشكال بنجاح!' : 'Shapes nested successfully!');
+                        this.setNestingNotice(this.t('nesting_success'));
                     }
                 }, 100);
             };
