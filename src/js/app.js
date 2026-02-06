@@ -1013,7 +1013,7 @@ function app() {
                 const b = a * ratio;
                 let delta = end - start;
                 if (delta <= 0) delta += Math.PI * 2;
-                const segments = Math.max(16, Math.ceil(delta / (Math.PI / 24)));
+                const segments = Math.max(32, Math.ceil(delta / (Math.PI / 36)));
                 const pts = [];
                 for (let s = 0; s <= segments; s++) {
                     const t = start + (delta * s) / segments;
@@ -1028,7 +1028,7 @@ function app() {
 
             const sampleSplinePoints = (points) => {
                 if (points.length <= 2) return points;
-                const segs = 8;
+                const segs = 20;
                 const sampled = [];
                 for (let i2 = 0; i2 < points.length - 1; i2++) {
                     const p0 = points[i2 - 1] || points[i2];
@@ -1075,7 +1075,7 @@ function app() {
                             currentBulge = 0;
                         }
                         if (p.code === '42') {
-                            const b = parseFloat(p.value);
+                            const b = -parseFloat(p.value);
                             if (lastIndex >= 0) points[lastIndex].bulge = b;
                             else currentBulge = b;
                         }
@@ -1228,7 +1228,7 @@ function app() {
                                 if (pv.code === '0') { i -= 2; break; }
                                 if (pv.code === '10') vx = parseFloat(pv.value) * unitScale;
                                 if (pv.code === '20') vy = -parseFloat(pv.value) * unitScale;
-                                if (pv.code === '42') vb = parseFloat(pv.value);
+                                if (pv.code === '42') vb = -parseFloat(pv.value);
                             }
                             if (vx !== null && vy !== null) {
                                 points.push({ x: vx, y: vy, bulge: vb });
