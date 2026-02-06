@@ -671,7 +671,8 @@ function app() {
                 this.activeShapeId = shape.id;
                 this.save();
             } catch (e) {
-                alert(this.t('import_failed'));
+                const message = e && e.message ? `: ${e.message}` : '';
+                alert(this.t('import_failed') + message);
             }
         },
 
@@ -879,6 +880,54 @@ function app() {
                         updateBounds(x1, y1);
                         updateBounds(x2, y2);
                         paths.push({ d: `M ${x1} ${y1} L ${x2} ${y2}` });
+                    }
+                    continue;
+                }
+
+                if (type === 'CIRCLE') {
+                    let cx = null, cy = null, r = null;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '10') cx = parseFloat(p.value);
+                        if (p.code === '20') cy = -parseFloat(p.value);
+                        if (p.code === '40') r = parseFloat(p.value);
+                    }
+                    if (cx !== null && cy !== null && r !== null) {
+                        updateBounds(cx - r, cy - r);
+                        updateBounds(cx + r, cy + r);
+                        paths.push({ d: `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z` });
+                    }
+                    continue;
+                }
+
+                if (type === 'ARC') {
+                    let cx = null, cy = null, r = null, start = null, end = null;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '10') cx = parseFloat(p.value);
+                        if (p.code === '20') cy = -parseFloat(p.value);
+                        if (p.code === '40') r = parseFloat(p.value);
+                        if (p.code === '50') start = parseFloat(p.value);
+                        if (p.code === '51') end = parseFloat(p.value);
+                    }
+                    if (cx !== null && cy !== null && r !== null && start !== null && end !== null) {
+                        let delta = end - start;
+                        if (delta < 0) delta += 360;
+                        const startRad = (start * Math.PI) / 180;
+                        const endRad = (end * Math.PI) / 180;
+                        const x1 = cx + r * Math.cos(startRad);
+                        const y1 = cy + r * Math.sin(startRad);
+                        const x2 = cx + r * Math.cos(endRad);
+                        const y2 = cy + r * Math.sin(endRad);
+                        updateBounds(cx - r, cy - r);
+                        updateBounds(cx + r, cy + r);
+                        const largeArc = delta > 180 ? 1 : 0;
+                        const sweep = 1;
+                        paths.push({ d: `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}` });
                     }
                     continue;
                 }
