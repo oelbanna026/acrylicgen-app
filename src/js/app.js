@@ -824,15 +824,15 @@ function app() {
                 });
             }
 
-            const index = this.shapes.findIndex(s => s.id === shape.id);
-            if (index !== -1) this.shapes.splice(index, 1);
             if (newShapes.length) {
+                const index = this.shapes.findIndex(s => s.id === shape.id);
+                if (index !== -1) this.shapes.splice(index, 1);
                 this.shapes.push(...newShapes);
                 this.shapes = [...this.shapes];
                 this.activeShapeId = newShapes[0].id;
                 this.centerView();
             } else {
-                this.activeShapeId = null;
+                this.activeShapeId = shape.id;
             }
             this.save();
         },
@@ -857,8 +857,10 @@ function app() {
                 const shape = this.buildImportedShape(parsed, file.name);
                 this.shapes.push(shape);
                 this.activeShapeId = shape.id;
+                this.selectShape(shape.id);
+                this.shapes = [...this.shapes];
                 this.save();
-            this.centerView();
+                this.centerView();
             } catch (e) {
                 const message = e && e.message ? `: ${e.message}` : '';
                 alert(this.t('import_failed') + message);
@@ -901,6 +903,13 @@ function app() {
                     const targetMinY = Math.max(0, (sheetH - baseBox.height) / 2);
                     shape.x = targetMinX - baseBox.minX;
                     shape.y = targetMinY - baseBox.minY;
+                    const placedBox = this.getShapeBoundingBox({ ...shape });
+                    if (isFinite(placedBox.minX) && isFinite(placedBox.minY)) {
+                        if (placedBox.minX < 0) shape.x -= placedBox.minX;
+                        if (placedBox.minY < 0) shape.y -= placedBox.minY;
+                        if (placedBox.maxX > sheetW) shape.x -= (placedBox.maxX - sheetW);
+                        if (placedBox.maxY > sheetH) shape.y -= (placedBox.maxY - sheetH);
+                    }
                 } else {
                     shape.x = 0;
                     shape.y = 0;
@@ -908,6 +917,14 @@ function app() {
             } else {
                 shape.x = 0;
                 shape.y = 0;
+            }
+
+            const finalBox = this.getShapeBoundingBox({ ...shape, x: shape.x || 0, y: shape.y || 0 });
+            if (!isFinite(shape.width) || !isFinite(shape.height) || shape.width <= 0 || shape.height <= 0) {
+                if (isFinite(finalBox.width) && isFinite(finalBox.height)) {
+                    shape.width = finalBox.width;
+                    shape.height = finalBox.height;
+                }
             }
 
             return shape;
