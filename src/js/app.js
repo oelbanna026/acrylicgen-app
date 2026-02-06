@@ -1028,23 +1028,48 @@ function app() {
 
             const sampleSplinePoints = (points) => {
                 if (points.length <= 2) return points;
-                const segs = 20;
-                const sampled = [];
-                for (let i2 = 0; i2 < points.length - 1; i2++) {
-                    const p0 = points[i2 - 1] || points[i2];
-                    const p1 = points[i2];
-                    const p2 = points[i2 + 1];
-                    const p3 = points[i2 + 2] || p2;
-                    for (let s = 0; s <= segs; s++) {
-                        const t = s / segs;
-                        const t2 = t * t;
-                        const t3 = t2 * t;
-                        const x = 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
-                        const y = 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
-                        sampled.push({ x, y });
+                return points;
+            };
+
+            const sampleBSplinePoints = (controlPoints, degree, knots, samples) => {
+                const n = controlPoints.length - 1;
+                if (n < degree || !knots || knots.length < n + degree + 2) return controlPoints;
+                const domainStart = knots[degree];
+                const domainEnd = knots[n + 1];
+                const result = [];
+                const findSpan = (t) => {
+                    if (t >= knots[n + 1]) return n;
+                    for (let k = degree; k <= n; k++) {
+                        if (t >= knots[k] && t < knots[k + 1]) return k;
                     }
+                    return n;
+                };
+                const deBoor = (k, t) => {
+                    const d = [];
+                    for (let j = 0; j <= degree; j++) {
+                        const idx = k - degree + j;
+                        d[j] = { x: controlPoints[idx].x, y: controlPoints[idx].y };
+                    }
+                    for (let r = 1; r <= degree; r++) {
+                        for (let j = degree; j >= r; j--) {
+                            const i = k - degree + j;
+                            const denom = knots[i + degree - r + 1] - knots[i];
+                            const alpha = denom === 0 ? 0 : (t - knots[i]) / denom;
+                            d[j] = {
+                                x: (1 - alpha) * d[j - 1].x + alpha * d[j].x,
+                                y: (1 - alpha) * d[j - 1].y + alpha * d[j].y
+                            };
+                        }
+                    }
+                    return d[degree];
+                };
+                const count = Math.max(samples || 200, controlPoints.length * 6);
+                for (let s = 0; s <= count; s++) {
+                    const t = domainStart + (domainEnd - domainStart) * (s / count);
+                    const k = findSpan(t);
+                    result.push(deBoor(k, t));
                 }
-                return sampled;
+                return result;
             };
 
             while (i < lines.length - 1) {
@@ -1180,10 +1205,14 @@ function app() {
                 if (type === 'SPLINE') {
                     const fitPoints = [];
                     const controlPoints = [];
+                    const knots = [];
+                    let degree = null;
                     while (true) {
                         const p = nextPair();
                         if (!p) break;
                         if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '71') degree = parseInt(p.value, 10);
+                        if (p.code === '40') knots.push(parseFloat(p.value));
                         if (p.code === '10') {
                             const x = parseFloat(p.value) * unitScale;
                             const p2 = nextPair();
@@ -1203,9 +1232,14 @@ function app() {
                             }
                         }
                     }
-                    const basePoints = fitPoints.length >= 2 ? fitPoints : controlPoints;
-                    if (basePoints.length >= 2) {
-                        const pts = sampleSplinePoints(basePoints);
+                    if (fitPoints.length >= 2) {
+                        const pts = sampleSplinePoints(fitPoints);
+                        pts.forEach(p => updateBounds(p.x, p.y));
+                        const d = pointsToPath(pts, false);
+                        if (d) paths.push({ d });
+                    } else if (controlPoints.length >= 2) {
+                        const deg = Number.isFinite(degree) ? Math.max(1, degree) : 3;
+                        const pts = sampleBSplinePoints(controlPoints, deg, knots, 240);
                         pts.forEach(p => updateBounds(p.x, p.y));
                         const d = pointsToPath(pts, false);
                         if (d) paths.push({ d });
