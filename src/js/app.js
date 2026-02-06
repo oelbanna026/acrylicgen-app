@@ -712,6 +712,7 @@ function app() {
                 const bounds = this.measurePathBounds([{ d, transform: parentTransform }]);
                 return { d, bounds };
             }).filter(p => p.bounds.width && p.bounds.height);
+            if (parts.length === 0) return;
 
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -2694,32 +2695,6 @@ function app() {
                         if (billingParam) sessionStorage.setItem('pending_billing', billingParam);
                     }
                 }, 1000); // Delay to ensure auth restored
-            }
-
-            const autoImport = urlParams.get('autoImport') === '1';
-            const autoUngroup = urlParams.get('autoUngroup') === '1';
-            if (autoImport) {
-                setTimeout(() => {
-                    try {
-                        const sample = `<svg xmlns="http://www.w3.org/2000/svg" width="5000" height="2500" viewBox="0 0 5000 2500"><rect x="200" y="200" width="1800" height="800" fill="none" stroke="black"/><rect x="2500" y="900" width="1800" height="1000" fill="none" stroke="black"/><circle cx="1500" cy="1600" r="250" fill="none" stroke="black"/></svg>`;
-                        const parsed = this.parseSvgContent(sample);
-                        const shape = this.buildImportedShape(parsed, 'sample-auto.svg');
-                        this.shapes.push(shape);
-                        this.activeShapeId = shape.id;
-                        this.save();
-                        if (autoUngroup) {
-                            setTimeout(() => {
-                                this.$nextTick(() => {
-                                    this.ungroupSelectedShape();
-                                    this.centerView();
-                                });
-                            }, 800);
-                        } else {
-                            this.centerView();
-                        }
-                    } catch (e) {
-                    }
-                }, 200);
             }
 
             // Check for Programmatic SEO Routes (Client Side Hydration)
