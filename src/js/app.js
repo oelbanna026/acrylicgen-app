@@ -836,6 +836,50 @@ function app() {
                 return closed ? `${d} Z` : d;
             };
 
+            const sampleEllipsePoints = (cx, cy, ax, ay, ratio, start, end) => {
+                const a = Math.hypot(ax, ay);
+                if (a <= 0) return [];
+                const ux = ax / a;
+                const uy = ay / a;
+                const vx = -uy;
+                const vy = ux;
+                const b = a * ratio;
+                let delta = end - start;
+                if (delta <= 0) delta += Math.PI * 2;
+                const segments = Math.max(16, Math.ceil(delta / (Math.PI / 24)));
+                const pts = [];
+                for (let s = 0; s <= segments; s++) {
+                    const t = start + (delta * s) / segments;
+                    const cos = Math.cos(t);
+                    const sin = Math.sin(t);
+                    const x = cx + ux * a * cos + vx * b * sin;
+                    const y = cy + uy * a * cos + vy * b * sin;
+                    pts.push({ x, y });
+                }
+                return pts;
+            };
+
+            const sampleSplinePoints = (points) => {
+                if (points.length <= 2) return points;
+                const segs = 8;
+                const sampled = [];
+                for (let i2 = 0; i2 < points.length - 1; i2++) {
+                    const p0 = points[i2 - 1] || points[i2];
+                    const p1 = points[i2];
+                    const p2 = points[i2 + 1];
+                    const p3 = points[i2 + 2] || p2;
+                    for (let s = 0; s <= segs; s++) {
+                        const t = s / segs;
+                        const t2 = t * t;
+                        const t3 = t2 * t;
+                        const x = 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+                        const y = 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+                        sampled.push({ x, y });
+                    }
+                }
+                return sampled;
+            };
+
             while (i < lines.length - 1) {
                 const pair = nextPair();
                 if (!pair) break;
@@ -928,6 +972,67 @@ function app() {
                         const largeArc = delta > 180 ? 1 : 0;
                         const sweep = 1;
                         paths.push({ d: `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} ${sweep} ${x2} ${y2}` });
+                    }
+                    continue;
+                }
+
+                if (type === 'ELLIPSE') {
+                    let cx = null, cy = null, ax = null, ay = null, ratio = null, start = null, end = null;
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '10') cx = parseFloat(p.value);
+                        if (p.code === '20') cy = -parseFloat(p.value);
+                        if (p.code === '11') ax = parseFloat(p.value);
+                        if (p.code === '21') ay = -parseFloat(p.value);
+                        if (p.code === '40') ratio = parseFloat(p.value);
+                        if (p.code === '41') start = parseFloat(p.value);
+                        if (p.code === '42') end = parseFloat(p.value);
+                    }
+                    if (cx !== null && cy !== null && ax !== null && ay !== null && ratio !== null && start !== null && end !== null) {
+                        const pts = sampleEllipsePoints(cx, cy, ax, ay, ratio, start, end);
+                        pts.forEach(p => updateBounds(p.x, p.y));
+                        const delta = (end - start <= 0 ? (end - start + Math.PI * 2) : (end - start));
+                        const closed = Math.abs(delta - Math.PI * 2) < 0.001;
+                        const d = pointsToPath(pts, closed);
+                        if (d) paths.push({ d });
+                    }
+                    continue;
+                }
+
+                if (type === 'SPLINE') {
+                    const fitPoints = [];
+                    const controlPoints = [];
+                    while (true) {
+                        const p = nextPair();
+                        if (!p) break;
+                        if (p.code === '0') { i -= 2; break; }
+                        if (p.code === '10') {
+                            const x = parseFloat(p.value);
+                            const p2 = nextPair();
+                            if (p2 && p2.code === '20') {
+                                controlPoints.push({ x, y: -parseFloat(p2.value) });
+                            } else {
+                                if (p2) i -= 2;
+                            }
+                        }
+                        if (p.code === '11') {
+                            const x = parseFloat(p.value);
+                            const p2 = nextPair();
+                            if (p2 && p2.code === '21') {
+                                fitPoints.push({ x, y: -parseFloat(p2.value) });
+                            } else {
+                                if (p2) i -= 2;
+                            }
+                        }
+                    }
+                    const basePoints = fitPoints.length >= 2 ? fitPoints : controlPoints;
+                    if (basePoints.length >= 2) {
+                        const pts = sampleSplinePoints(basePoints);
+                        pts.forEach(p => updateBounds(p.x, p.y));
+                        const d = pointsToPath(pts, false);
+                        if (d) paths.push({ d });
                     }
                     continue;
                 }
