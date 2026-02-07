@@ -4923,6 +4923,9 @@ function app() {
                             sessionStorage.setItem('pending_admin', '1');
                         }
                     }
+                    
+                    // Stop loading spinner
+                    this.loading = false;
                 });
             },
 
