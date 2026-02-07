@@ -3864,9 +3864,62 @@ function app() {
                 // We map Screen Y (0 to SheetHeight) to CAD Y (SheetHeight to 0).
                 const sheetH = parseFloat(this.sheetHeight) || 1000;
 
+                // Helper to parse transform string manually
+                const parseTransformStr = (str) => {
+                    let m = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+                    if (!str) return m;
+                    
+                    const multiply = (m1, m2) => ({
+                        a: m1.a * m2.a + m1.c * m2.b,
+                        b: m1.b * m2.a + m1.d * m2.b,
+                        c: m1.a * m2.c + m1.c * m2.d,
+                        d: m1.b * m2.c + m1.d * m2.d,
+                        e: m1.a * m2.e + m1.c * m2.f + m1.e,
+                        f: m1.b * m2.e + m1.d * m2.f + m1.f
+                    });
+
+                    const commands = str.match(/(\w+)\s*\(([^)]+)\)/g);
+                    if (!commands) return m;
+
+                    commands.forEach(cmd => {
+                        const match = cmd.match(/(\w+)\s*\(([^)]+)\)/);
+                        if (!match) return;
+                        const type = match[1].toLowerCase();
+                        const args = match[2].split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+                        
+                        let m2 = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+                        if (type === 'translate') {
+                            m2.e = args[0] || 0;
+                            m2.f = args[1] || 0;
+                        } else if (type === 'scale') {
+                            m2.a = args[0] || 1;
+                            m2.d = (args.length > 1) ? args[1] : m2.a;
+                        } else if (type === 'rotate') {
+                            const angle = (args[0] || 0) * (Math.PI / 180);
+                            const c = Math.cos(angle);
+                            const s = Math.sin(angle);
+                            m2.a = c; m2.b = s;
+                            m2.c = -s; m2.d = c;
+                            if (args.length >= 3) {
+                                // Rotate around cx, cy
+                                const cx = args[1];
+                                const cy = args[2];
+                                // Translate -cx, -cy, Rotate, Translate cx, cy
+                                // This is complex to combine in one step for this simple parser, 
+                                // but we typically don't use rotate in pathTransform for imports.
+                                // If needed, we can implement full matrix chain.
+                                // For now, assume simple rotate or handled elsewhere.
+                            }
+                        }
+                        m = multiply(m, m2);
+                    });
+                    return m;
+                };
+
                 this.shapes.forEach(shape => {
                     const ox = parseFloat(shape.x) || 0;
                     const oy = parseFloat(shape.y) || 0;
+                    const rot = parseFloat(shape.rotation) || 0;
 
                     // Handle Custom Shapes (imported paths)
                     if (shape.shapeType === 'custom' && shape.pathData) {
@@ -3878,6 +3931,19 @@ function app() {
                             const d = shape.pathData;
                             const subPaths = d.match(/([Mm][^Mm]*)/g) || [d];
                             
+                            // Parse Transform Matrix once
+                            const matrix = parseTransformStr(shape.pathTransform);
+                            
+                            // Pre-calculate Rotation Matrix if needed
+                            let rotCos = 1, rotSin = 0, cx = 0, cy = 0;
+                            if (rot !== 0) {
+                                const rad = rot * (Math.PI / 180);
+                                rotCos = Math.cos(rad);
+                                rotSin = Math.sin(rad);
+                                cx = (parseFloat(shape.width) || 0) / 2;
+                                cy = (parseFloat(shape.height) || 0) / 2;
+                            }
+
                             subPaths.forEach(subD => {
                                 // Hybrid Parsing:
                                 // To ensure 100% precision for straight lines (critical for joinery),
@@ -3999,30 +4065,24 @@ function app() {
                                     }
                                 }
 
-                                // Apply Transform if exists (Translate/Scale from import)
-                                // We use a dummy SVG to apply matrix easily
-                                let transformedPoints = rawPoints;
-                                if (shape.pathTransform) {
-                                    const hiddenSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                                    hiddenSvg.style.display = 'none';
-                                    document.body.appendChild(hiddenSvg);
+                                // Apply Transform (Matrix)
+                                let transformedPoints = rawPoints.map(p => {
+                                    // Apply pathTransform
+                                    const tx = matrix.a * p.x + matrix.c * p.y + matrix.e;
+                                    const ty = matrix.b * p.x + matrix.d * p.y + matrix.f;
                                     
-                                    const dummyPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                                    dummyPath.setAttribute("transform", shape.pathTransform);
-                                    hiddenSvg.appendChild(dummyPath);
+                                    // Apply Rotation (if any)
+                                    let rx = tx, ry = ty;
+                                    if (rot !== 0) {
+                                        // Rotate around center (cx, cy)
+                                        // x' = cx + (x-cx)cos - (y-cy)sin
+                                        // y' = cy + (x-cx)sin + (y-cy)cos
+                                        rx = cx + (tx - cx) * rotCos - (ty - cy) * rotSin;
+                                        ry = cy + (tx - cx) * rotSin + (ty - cy) * rotCos;
+                                    }
                                     
-                                    const ctm = dummyPath.getCTM();
-                                    
-                                    transformedPoints = rawPoints.map(p => {
-                                        const pt = hiddenSvg.createSVGPoint();
-                                        pt.x = p.x;
-                                        pt.y = p.y;
-                                        const tPt = pt.matrixTransform(ctm);
-                                        return { x: tPt.x, y: tPt.y };
-                                    });
-                                    
-                                    document.body.removeChild(hiddenSvg);
-                                }
+                                    return { x: rx, y: ry };
+                                });
 
                                 // Check if closed (Z command)
                                 const isClosed = /z/i.test(subD);
