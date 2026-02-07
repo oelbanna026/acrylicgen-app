@@ -294,7 +294,6 @@ const i18n = {
 };
 
 function app() {
-        try {
         // Ensure AuthService is available
         let auth = window.AuthService;
         if (!auth) {
@@ -4880,24 +4879,6 @@ function app() {
             return x1 < x2 + w2 - margin && x1 + w1 - margin > x2 &&
                    y1 < y2 + h2 - margin && y1 + h1 - margin > y2;
         },
-    }; // Close return object
-    } catch (e) {
-        console.error("App initialization failed:", e);
-        if (window.Diagnostics) window.Diagnostics.run();
-        else alert("System Error: " + e.message);
-        return {
-            t: (k) => k,
-            loading: false,
-            shapes: [],
-            user: null,
-            showPricingModal: false,
-            showLoginModal: false,
-            showRegisterModal: false,
-            showDashboardModal: false,
-            showAdminModal: false,
-            showForgotPasswordModal: false,
-            showHistoryModal: false,
-            unit: 'cm',
             authLogin: { email: '', password: '' },
             authRegister: { name: '', email: '', password: '' },
             forgotPasswordEmail: '',
@@ -5142,10 +5123,6 @@ function app() {
         }
 
         };
-    } catch (e) {
-        console.error("App Initialization Error:", e);
-        return {}; // Return empty object or fallback
-    }
 }
 window.app = app;
     // Expose app function globally
