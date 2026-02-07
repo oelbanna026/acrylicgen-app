@@ -576,6 +576,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                         </svg>
                     </button>
+                    <!-- Joint Resizer Button -->
+                    <button @click="openJointResizer()" x-show="activeShape && activeShape.shapeType === 'custom'" :title="t('resize_joints') || 'Joint Resizer'" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-teal-500">
+                        <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Nesting Panel -->
@@ -1244,6 +1250,44 @@
             </main>
         </div>
     </div>
+    <!-- Joint Resizer Modal -->
+    <div x-show="resizeJointsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg p-6 relative" @click.outside="resizeJointsModal = false">
+            <button @click="resizeJointsModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" aria-label="Close">✕</button>
+            <h2 class="text-2xl font-bold mb-4 text-center" x-text="t('resize_joints') || 'Joint Resizer'"></h2>
+            
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-6 text-center" x-text="t('resize_joints_desc') || 'Adjust slot and tab sizes for different material thickness.'"></p>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300" x-text="t('current_thickness') || 'Current Thickness (mm)'"></label>
+                    <input type="number" step="0.1" x-model.number="jointOldSize" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600 text-center text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300" x-text="t('target_thickness') || 'Target Thickness (mm)'"></label>
+                    <input type="number" step="0.1" x-model.number="jointNewSize" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600 text-center text-lg">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">
+                    <span x-text="t('tolerance') || 'Kerf / Tolerance (mm)'"></span>
+                    <span class="text-xs font-normal text-gray-500" x-text="'(' + (t('subtracted_from_slot') || 'Subtracted from slot width') + ')'"></span>
+                </label>
+                <input type="number" step="0.05" x-model.number="jointTolerance" class="w-full p-3 rounded border dark:bg-slate-700 dark:border-slate-600">
+                <p class="text-xs text-gray-500 mt-1" x-text="t('tolerance_hint') || 'Example: For 3mm target and 0.2mm tolerance, slots become 2.8mm.'"></p>
+            </div>
+
+            <!-- Preview / Status Area -->
+            <div x-show="jointStatusMsg" class="mb-4 p-3 rounded bg-blue-50 text-blue-700 text-sm" x-text="jointStatusMsg"></div>
+
+            <div class="flex gap-3">
+                <button @click="previewJointResize()" class="flex-1 py-3 bg-gray-200 text-gray-800 rounded font-bold hover:bg-gray-300 transition" x-text="t('preview') || 'Preview'"></button>
+                <button @click="applyJointResize()" class="flex-1 py-3 bg-teal-600 text-white rounded font-bold hover:bg-teal-700 transition" x-text="t('apply') || 'Apply'"></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Login Modal -->
     <div x-show="showLoginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative" @click.outside="showLoginModal = false">

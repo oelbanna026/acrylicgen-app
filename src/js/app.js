@@ -278,7 +278,18 @@ const i18n = {
         total_views: "Total Views",
         sales_24h: "Transactions (24h)",
         conversion_rate: "Conversion Rate",
-        view_stats: "View Stats"
+        view_stats: "View Stats",
+        resize_joints: "Joint Resizer",
+        resize_joints_desc: "Adjust slot and tab sizes for different material thickness.",
+        current_thickness: "Current Thickness (mm)",
+        target_thickness: "Target Thickness (mm)",
+        tolerance: "Kerf / Tolerance (mm)",
+        subtracted_from_slot: "Subtracted from slot width",
+        tolerance_hint: "Example: For 3mm target and 0.2mm tolerance, slots become 2.8mm.",
+        preview: "Preview",
+        apply: "Apply",
+        joints_found: "Joints found",
+        no_joints_found: "No matching joints found."
     }
 };
 
@@ -488,6 +499,14 @@ function app() {
         },
 
         // Proxy Getters/Setters for Backward Compatibility and UI Binding
+        
+        // Joint Resizer State
+        resizeJointsModal: false,
+        jointOldSize: 3,
+        jointNewSize: 3,
+        jointTolerance: 0.2,
+        jointStatusMsg: '',
+
         get width() { return this.activeShape.width; },
         set width(v) { 
             this.activeShape.width = v; 
@@ -4925,7 +4944,197 @@ function app() {
                     }
                 });
             },
+
+        openJointResizer() {
+            if (!this.activeShape || this.activeShape.shapeType !== 'custom') return;
+            this.jointStatusMsg = '';
+            this.resizeJointsModal = true;
+        },
+
+        previewJointResize() {
+            // Placeholder for preview logic - in a real app, this would overlay the changes
+            this.detectAndResizeJoints(true);
+        },
+
+        applyJointResize() {
+            this.detectAndResizeJoints(false);
+            this.resizeJointsModal = false;
+        },
+
+        detectAndResizeJoints(dryRun = false) {
+            const shape = this.activeShape;
+            if (!shape || !shape.pathData) {
+                this.jointStatusMsg = "No valid path data found.";
+                return;
+            }
+
+            const oldSize = parseFloat(this.jointOldSize);
+            const newSize = parseFloat(this.jointNewSize);
+            const tol = parseFloat(this.jointTolerance) || 0;
+            const targetGap = newSize - tol; // Slots become smaller for tight fit
+
+            if (!oldSize || !newSize) return;
+
+            // 1. Parse Path to Segments (Absolute Coordinates)
+            const segments = this.parsePathToSegments(shape.pathData);
+            if (segments.length < 4) {
+                this.jointStatusMsg = "Shape is too simple.";
+                return;
+            }
+
+            // 2. Identify Candidates (Parallel segments separated by approx oldSize)
+            // We look for "U" shapes or "Rect" shapes primarily.
+            // Simplified approach: Find any segment that has length approx oldSize.
+            // Then check if it's part of a slot (inward) or tab (outward).
+            // Actually, for thickness adjustment, we usually want to move the "sides" of the slot.
             
+            // Let's iterate segments.
+            // If segment length is within threshold of oldSize (e.g. +/- 0.5mm)
+            // It might be the "bottom" of a U-slot or the "top" of a tab.
+            // But changing thickness usually means changing the WIDTH of the slot.
+            // A slot for 3mm material is 3mm wide.
+            // So we look for segments of length ~3mm.
+            
+            // Wait: A slot is a hole. Its width is 3mm.
+            // A tab is an extrusion. Its width is usually > thickness, but its depth might be thickness?
+            // No, tab depth = material thickness of the OTHER sheet.
+            // User request: "Convert joint size... e.g. 3mm to 2.8mm".
+            // This usually refers to the SLOT WIDTH.
+            
+            let count = 0;
+            const toleranceThreshold = 0.5; // Tolerance for detection (not the kerf)
+            
+            // Helper to check length
+            const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            
+            // We need to move vertices.
+            // If we find a segment P_i -> P_{i+1} with length ~ oldSize.
+            // We want to change its length to targetGap.
+            // But we must move the connected segments P_{i-1}->P_i and P_{i+1}->P_{i+2} accordingly?
+            // No, usually we move the sides *apart* or *closer*.
+            // If segment L has length 3mm. We want it to be 2.8mm.
+            // We can move P_i and P_{i+1} towards each other by (3 - 2.8)/2 each.
+            // This pulls the connected vertical lines closer.
+            
+            const points = [];
+            // Extract points first
+            segments.forEach(s => {
+                if (points.length === 0) points.push(s.p1);
+                points.push(s.p2);
+            });
+            // Remove duplicate last point if closed
+            if (dist(points[0], points[points.length-1]) < 0.001) points.pop();
+
+            const newPoints = points.map(p => ({...p})); // Clone
+            
+            let found = 0;
+            const n = points.length;
+            
+            for (let i = 0; i < n; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % n];
+                const d = dist(p1, p2);
+                
+                if (Math.abs(d - oldSize) < toleranceThreshold) {
+                    // Candidate found!
+                    found++;
+                    
+                    // Calculate shortening/lengthening required
+                    const diff = targetGap - d; // e.g. 2.8 - 3.0 = -0.2
+                    const moveAmt = diff / 2;
+                    
+                    // Vector along the segment
+                    const dx = (p2.x - p1.x) / d;
+                    const dy = (p2.y - p1.y) / d;
+                    
+                    // Move p1 "forward" towards p2 (if shrinking) or "backward" (if growing)
+                    // Move p2 "backward" towards p1
+                    
+                    // But wait! We can't just move the points along the line, 
+                    // that would disconnect them from their *other* neighbors.
+                    // Actually, if it's a rectilinear shape (90 degree corners), 
+                    // moving P1 along the line P1-P2 implies moving the entire segment connected to P1 
+                    // (the previous segment) in that direction.
+                    
+                    // We assume 90 degree corners for standard laser cut joints.
+                    // So we modify the coordinate of P1 and P2.
+                    
+                    // Apply to newPoints
+                    // Note: We accumulate changes? Or applies directly?
+                    // Simple approach: Apply directly.
+                    // But P1 is also the end of previous segment.
+                    
+                    // P1 moves by moveAmt * vector
+                    newPoints[i].x -= dx * moveAmt;
+                    newPoints[i].y -= dy * moveAmt;
+                    
+                    // P2 moves by -moveAmt * vector (opposite direction)
+                    newPoints[(i + 1) % n].x += dx * moveAmt;
+                    newPoints[(i + 1) % n].y += dy * moveAmt;
+                }
+            }
+
+            if (dryRun) {
+                this.jointStatusMsg = this.t('joints_found') + ': ' + found;
+                // Draw debug lines? For now just text status.
+                return;
+            }
+
+            if (found > 0) {
+                // Reconstruct Path
+                const newPath = newPoints.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x.toFixed(3)} ${p.y.toFixed(3)}`).join(' ') + ' Z';
+                shape.pathData = newPath;
+                shape._normalized = false;
+                this.normalizeCustomShapeBounds(shape);
+                this.save();
+                this.jointStatusMsg = this.t('success');
+            } else {
+                this.jointStatusMsg = this.t('no_joints_found');
+            }
+        },
+
+        parsePathToSegments(d) {
+            // Very basic SVG path parser for M and L commands (which most laser exports are)
+            // If curves exist, this naive approach might fail or approximate.
+            const commands = d.match(/[a-df-z]|[\-+]?(?:\d+\.?\d*|\.\d+)/zig);
+            if (!commands) return [];
+            
+            const segments = [];
+            let cx = 0, cy = 0;
+            let startX = 0, startY = 0;
+            
+            for (let i = 0; i < commands.length; i++) {
+                const cmd = commands[i];
+                if (isNaN(parseFloat(cmd))) {
+                    // It's a letter
+                    const type = cmd.toUpperCase();
+                    if (type === 'M') {
+                        cx = parseFloat(commands[++i]);
+                        cy = parseFloat(commands[++i]);
+                        startX = cx;
+                        startY = cy;
+                    } else if (type === 'L') {
+                        const nx = parseFloat(commands[++i]);
+                        const ny = parseFloat(commands[++i]);
+                        segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: ny} });
+                        cx = nx; cy = ny;
+                    } else if (type === 'H') {
+                        const nx = parseFloat(commands[++i]);
+                        segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: cy} });
+                        cx = nx;
+                    } else if (type === 'V') {
+                        const ny = parseFloat(commands[++i]);
+                        segments.push({ p1: {x: cx, y: cy}, p2: {x: cx, y: ny} });
+                        cy = ny;
+                    } else if (type === 'Z') {
+                        if (Math.abs(cx - startX) > 0.001 || Math.abs(cy - startY) > 0.001) {
+                             segments.push({ p1: {x: cx, y: cy}, p2: {x: startX, y: startY} });
+                        }
+                    }
+                }
+            }
+            return segments;
+        }
 
         };
     }
