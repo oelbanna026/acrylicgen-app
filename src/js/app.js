@@ -893,8 +893,10 @@ function app() {
             const newShapes = [];
             
             // Helper to create a shape at the correct world position
-            const createShape = (d, name, bounds) => {
+            const createShape = (d, name, bounds, indexOffset) => {
                 const s = defaultShape();
+                // Ensure unique ID for multiple shapes created in the same batch
+                s.id = Date.now() + indexOffset + Math.floor(Math.random() * 10000);
                 s.shapeType = 'custom';
                 s.name = name;
                 s.width = bounds.width;
@@ -924,7 +926,7 @@ function app() {
                 const part = parts[idx];
                 const holePaths = holesMap.get(idx) || [];
                 const d = [part.d, ...holePaths].join(' ');
-                const s = createShape(d, `${baseName} ${order + 1}`, part.bounds);
+                const s = createShape(d, `${baseName} ${order + 1}`, part.bounds, order);
                 if (holePaths.length) s.pathFillRule = 'evenodd';
                 newShapes.push(s);
             });
@@ -933,7 +935,7 @@ function app() {
                 // Fallback: If no outers found (weird topology), treat all parts as shapes
                 console.warn('No outer shapes detected, fallback to all parts');
                 parts.forEach((part, idx) => {
-                    const s = createShape(part.d, `${baseName} ${idx + 1}`, part.bounds);
+                    const s = createShape(part.d, `${baseName} ${idx + 1}`, part.bounds, idx);
                     newShapes.push(s);
                 });
             }
@@ -942,8 +944,13 @@ function app() {
 
             if (newShapes.length) {
                 const index = this.shapes.findIndex(s => s.id === shape.id);
-                if (index !== -1) this.shapes.splice(index, 1);
-                this.shapes.push(...newShapes);
+                if (index !== -1) {
+                    // Use splice to replace the old shape with new ones at the same position
+                    // This helps maintain order and might be friendlier to Alpine's DOM diffing
+                    this.shapes.splice(index, 1, ...newShapes);
+                } else {
+                    this.shapes.push(...newShapes);
+                }
                 this.activeShapeId = newShapes[0].id;
                 // Center view on the new shapes
                 // const bounds = this.getShapesBounds(newShapes);
