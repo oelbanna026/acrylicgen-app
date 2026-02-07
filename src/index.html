@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>Acrylic Designer Pro | Free Laser Cutting SVG & DXF Generator</title>
+    <link rel="icon" type="image/x-icon" href="assets/icon-192.png">
     
     <!-- Version -->
     <meta name="version" content="1.6.2">
@@ -1242,8 +1243,9 @@
                 </div>
                 
                 <!-- Debug / Status Overlay -->
-                <div x-show="holes.length === 0 && holePattern !== 'none'" 
-                     class="absolute top-5 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow-lg text-sm font-bold animate-pulse pointer-events-none">
+                <div x-show="holes.length === 0 && holePattern !== 'none' && activeShape && activeShape.shapeType !== 'custom'" 
+                     class="absolute top-5 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded shadow-lg text-sm font-bold animate-pulse pointer-events-none"
+                     x-cloak>
                      <span x-text="t('warning_no_holes')"></span>
                 </div>
 
