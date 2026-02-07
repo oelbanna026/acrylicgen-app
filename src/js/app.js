@@ -4946,9 +4946,14 @@ function app() {
             },
 
         openJointResizer() {
-            if (!this.activeShape || this.activeShape.shapeType !== 'custom') return;
+            console.log('openJointResizer triggered');
+            if (!this.activeShape || this.activeShape.shapeType !== 'custom') {
+                console.warn('Cannot open joint resizer: Invalid shape');
+                return;
+            }
             this.jointStatusMsg = '';
             this.resizeJointsModal = true;
+            console.log('Joint Resizer Modal Opened');
         },
 
         previewJointResize() {
