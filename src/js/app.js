@@ -78,6 +78,9 @@ const i18n = {
         loading: "جاري التحميل...",
         layers: "الطبقات / الأشكال",
         add_shape: "إضافة شكل",
+        import_design: "استيراد تصميم",
+        import_dxf_svg: "رفع DXF أو SVG",
+        import_failed: "تعذر استيراد الملف",
         ungroup: "فك التجميع",
         delete_selected: "حذف الشكل",
         nesting_success: "تم ترتيب الأشكال بنجاح!",
@@ -227,6 +230,9 @@ const i18n = {
         loading: "Loading...",
         layers: "Layers / Shapes",
         add_shape: "Add Shape",
+        import_design: "Import Design",
+        import_dxf_svg: "Upload DXF or SVG",
+        import_failed: "Failed to import file",
         ungroup: "Ungroup",
         delete_selected: "Delete Shape",
         nesting_success: "Shapes nested successfully!",
@@ -897,32 +903,466 @@ function app() {
 
 
 
-        measurePathBounds(paths) {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            svg.style.position = 'absolute';
-            svg.style.visibility = 'hidden';
-            svg.style.width = '0';
-            svg.style.height = '0';
-            document.body.appendChild(svg);
+        openImportDialog() {
+            if (this.$refs.importInput) {
+                this.$refs.importInput.value = '';
+                this.$refs.importInput.click();
+            }
+        },
 
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            paths.forEach(p => {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('d', p.d);
-                if (p.transform) path.setAttribute('transform', p.transform);
-                svg.appendChild(path);
-                const box = path.getBBox();
-                minX = Math.min(minX, box.x);
-                minY = Math.min(minY, box.y);
-                maxX = Math.max(maxX, box.x + box.width);
-                maxY = Math.max(maxY, box.y + box.height);
-                svg.removeChild(path);
+        async onImportFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            try {
+                const content = await file.text();
+                let parsed = null;
+                if (ext === 'svg') parsed = this.parseSvgContent(content);
+                if (ext === 'dxf') parsed = this.parseDxfContent(content);
+                if (!parsed) throw new Error('Unsupported');
+                const shape = this.buildImportedShape(parsed, file.name);
+                this.shapes.push(shape);
+                this.activeShapeId = shape.id;
+                this.selectShape(shape.id);
+                this.shapes = [...this.shapes];
+                this.fitShapesToSheet([shape]);
+                this.save();
+                this.centerView();
+            } catch (e) {
+                const message = e && e.message ? `: ${e.message}` : '';
+                alert(this.t('import_failed') + message);
+            }
+        },
+
+        buildImportedShape(parsed, filename) {
+            const shape = defaultShape();
+            shape.shapeType = 'custom';
+            shape.name = filename;
+            shape.width = parsed.width;
+            shape.height = parsed.height;
+            shape.x = 0;
+            shape.y = 0;
+            shape.rotation = 0;
+            shape.cornerType = 'straight';
+            shape.cornerRadius = 0;
+            shape.holePattern = 'none';
+            shape.holes = [];
+            // Use pathData directly
+            shape.pathData = parsed.pathData;
+            // IMPORTANT: Clear pathTransform initially to let normalizeCustomShapeBounds
+            // calculate the true bounding box from scratch. Relying on parsed.minX/minY
+            // can be error-prone if the parser logic differs from browser rendering.
+            shape.pathTransform = ''; 
+            
+            if (parsed.paths && parsed.paths.length > 1) shape.subpaths = parsed.paths;
+            
+            // Normalize: This will measure raw path, set shape.x/y to bounds.minX/minY,
+            // and set transform to translate(-minX, -minY).
+            this.normalizeCustomShapeBounds(shape);
+
+            // Ensure valid dimensions
+            if (!isFinite(shape.width) || shape.width <= 0) shape.width = 10;
+            if (!isFinite(shape.height) || shape.height <= 0) shape.height = 10;
+
+            // Now position it on the sheet
+            const sheetW = parseFloat(this.nestingSheetWidth) || 0;
+            const sheetH = parseFloat(this.nestingSheetHeight) || 0;
+            
+            if (sheetW > 0 && sheetH > 0) {
+                // If shape is larger than sheet, scale it down
+                if (shape.width > sheetW || shape.height > sheetH) {
+                    const scale = Math.min(sheetW / shape.width, sheetH / shape.height);
+                    if (isFinite(scale) && scale > 0) {
+                        // Apply scale to transform
+                        shape.pathTransform = `${shape.pathTransform || ''} scale(${scale.toFixed(6)} ${scale.toFixed(6)})`.trim();
+                        // Re-normalize to update width/height and x/y
+                        shape._normalized = false;
+                        this.normalizeCustomShapeBounds(shape);
+                    }
+                }
+                
+                // Center on sheet
+                // After normalize, shape acts like a rect at (shape.x, shape.y).
+                // But normalize sets shape.x to the raw path offset.
+                // We want to OVERWRITE that to place it where we want.
+                // Since the visual path is normalized to (0,0) relative to shape,
+                // setting shape.x sets the visual left edge.
+                
+                const targetX = (sheetW - shape.width) / 2;
+                const targetY = (sheetH - shape.height) / 2;
+                
+                shape.x = Math.max(0, targetX);
+                shape.y = Math.max(0, targetY);
+            } else {
+                shape.x = 0;
+                shape.y = 0;
+            }
+
+            return shape;
+        },
+
+        svgLengthToUnit(value) {
+            if (!value) return null;
+            const raw = String(value).trim();
+            const match = raw.match(/^([0-9.+-]+)([a-z%]*)$/i);
+            if (!match) return null;
+            const num = parseFloat(match[1]);
+            if (!isFinite(num)) return null;
+            const unit = (match[2] || '').toLowerCase();
+            const mmMap = {
+                mm: 1,
+                cm: 10,
+                in: 25.4,
+                pt: 25.4 / 72,
+                pc: 25.4 / 6,
+                px: 25.4 / 96
+            };
+            if (!unit || unit === 'px') {
+                const mm = num * mmMap.px;
+                return this.mmToUnit(mm);
+            }
+            if (mmMap[unit]) {
+                const mm = num * mmMap[unit];
+                return this.mmToUnit(mm);
+            }
+            return num;
+        },
+
+        parseSvgContent(text) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'image/svg+xml');
+            const svg = doc.querySelector('svg');
+            if (!svg) throw new Error('No SVG');
+
+            const nodes = Array.from(svg.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line'));
+            const paths = [];
+            nodes.forEach(node => {
+                const d = this.svgElementToPath(node);
+                if (d) paths.push({ d });
             });
+            if (paths.length === 0) throw new Error('No paths');
 
-            document.body.removeChild(svg);
-            if (!isFinite(minX)) return { minX: 0, minY: 0, width: 0, height: 0, maxX: 0, maxY: 0 };
-            return { minX, minY, width: maxX - minX, height: maxY - minY, maxX, maxY };
+            const bounds = this.measurePathBounds(paths);
+            const pathData = paths.map(p => p.d).join(' ');
+
+            let scaleX = 1;
+            let scaleY = 1;
+            const viewBox = svg.getAttribute('viewBox');
+            if (viewBox) {
+                const vb = viewBox.trim().split(/[\s,]+/).map(v => parseFloat(v));
+                const vbw = vb.length >= 4 ? vb[2] : null;
+                const vbh = vb.length >= 4 ? vb[3] : null;
+                const widthUnit = this.svgLengthToUnit(svg.getAttribute('width'));
+                const heightUnit = this.svgLengthToUnit(svg.getAttribute('height'));
+                if (vbw && vbh) {
+                    if (widthUnit && heightUnit) {
+                        scaleX = widthUnit / vbw;
+                        scaleY = heightUnit / vbh;
+                    } else if (widthUnit && !heightUnit) {
+                        scaleX = widthUnit / vbw;
+                        scaleY = scaleX;
+                    } else if (!widthUnit && heightUnit) {
+                        scaleY = heightUnit / vbh;
+                        scaleX = scaleY;
+                    }
+                }
+            } else {
+                const widthUnit = this.svgLengthToUnit(svg.getAttribute('width'));
+                const heightUnit = this.svgLengthToUnit(svg.getAttribute('height'));
+                if (widthUnit && bounds.width) scaleX = widthUnit / bounds.width;
+                if (heightUnit && bounds.height) scaleY = heightUnit / bounds.height;
+                if (widthUnit && !heightUnit) scaleY = scaleX;
+                if (!widthUnit && heightUnit) scaleX = scaleY;
+            }
+
+            const width = bounds.width * scaleX;
+            const height = bounds.height * scaleY;
+            const transform = `translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)}) scale(${scaleX.toFixed(6)} ${scaleY.toFixed(6)})`;
+
+            return { pathData, minX: bounds.minX, minY: bounds.minY, width, height, transform, paths: paths.map(p => p.d) };
+        },
+
+        svgElementToPath(node) {
+            const tag = node.tagName.toLowerCase();
+            if (tag === 'path') return node.getAttribute('d') || '';
+
+            if (tag === 'rect') {
+                const x = parseFloat(node.getAttribute('x') || '0');
+                const y = parseFloat(node.getAttribute('y') || '0');
+                const w = parseFloat(node.getAttribute('width') || '0');
+                const h = parseFloat(node.getAttribute('height') || '0');
+                const rx = parseFloat(node.getAttribute('rx') || '0');
+                const ry = parseFloat(node.getAttribute('ry') || '0');
+                if (rx > 0 || ry > 0) {
+                    const rrx = rx || ry;
+                    const rry = ry || rx;
+                    return `M ${x + rrx} ${y} H ${x + w - rrx} A ${rrx} ${rry} 0 0 1 ${x + w} ${y + rry} V ${y + h - rry} A ${rrx} ${rry} 0 0 1 ${x + w - rrx} ${y + h} H ${x + rrx} A ${rrx} ${rry} 0 0 1 ${x} ${y + h - rry} V ${y + rry} A ${rrx} ${rry} 0 0 1 ${x + rrx} ${y} Z`;
+                }
+                return `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`;
+            }
+
+            if (tag === 'circle') {
+                const cx = parseFloat(node.getAttribute('cx') || '0');
+                const cy = parseFloat(node.getAttribute('cy') || '0');
+                const r = parseFloat(node.getAttribute('r') || '0');
+                return `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+            }
+
+            if (tag === 'ellipse') {
+                const cx = parseFloat(node.getAttribute('cx') || '0');
+                const cy = parseFloat(node.getAttribute('cy') || '0');
+                const rx = parseFloat(node.getAttribute('rx') || '0');
+                const ry = parseFloat(node.getAttribute('ry') || '0');
+                return `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`;
+            }
+
+            if (tag === 'polygon' || tag === 'polyline') {
+                const points = this.parseSvgPoints(node.getAttribute('points') || '');
+                if (points.length === 0) return '';
+                const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                return tag === 'polygon' ? `${d} Z` : d;
+            }
+
+            if (tag === 'line') {
+                const x1 = parseFloat(node.getAttribute('x1') || '0');
+                const y1 = parseFloat(node.getAttribute('y1') || '0');
+                const x2 = parseFloat(node.getAttribute('x2') || '0');
+                const y2 = parseFloat(node.getAttribute('y2') || '0');
+                return `M ${x1} ${y1} L ${x2} ${y2}`;
+            }
+
+            return '';
+        },
+
+        parseSvgPoints(raw) {
+            const nums = raw.trim().split(/[\s,]+/).map(n => parseFloat(n)).filter(n => !isNaN(n));
+            const pts = [];
+            for (let i = 0; i < nums.length; i += 2) {
+                if (typeof nums[i + 1] === 'undefined') break;
+                pts.push({ x: nums[i], y: nums[i + 1] });
+            }
+            return pts;
+        },
+
+        getDxfUnitScale(lines) {
+            let insUnits = null;
+            for (let idx = 0; idx < lines.length - 1; idx++) {
+                const code = (lines[idx] || '').trim();
+                const value = (lines[idx + 1] || '').trim();
+                if (code === '9' && value === '$INSUNITS') {
+                    const nextCode = (lines[idx + 2] || '').trim();
+                    const nextVal = (lines[idx + 3] || '').trim();
+                    if (nextCode === '70') {
+                        insUnits = parseInt(nextVal, 10);
+                        break;
+                    }
+                }
+            }
+            let maxAbs = 0;
+            if (insUnits === null) {
+                for (let idx = 0; idx < lines.length - 1; idx++) {
+                    const code = (lines[idx] || '').trim();
+                    if (code === '10' || code === '11' || code === '20' || code === '21' || code === '40') {
+                        const value = parseFloat((lines[idx + 1] || '').trim());
+                        if (isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
+                    }
+                }
+            }
+            const mmPerUnit = (() => {
+                if (this.unit === 'mm') return 1;
+                if (this.unit === 'cm') return 10;
+                if (this.unit === 'inch') return 25.4;
+                return 1;
+            })();
+            const mmMap = {
+                0: 1,
+                1: 25.4,
+                2: 304.8,
+                4: 1,
+                5: 10,
+                6: 1000,
+                7: 1000000,
+                8: 0.0254,
+                9: 0.001
+            };
+            if (insUnits === null) {
+                if (this.unit === 'cm' && maxAbs > 500) return 0.1;
+                if (this.unit === 'mm' && maxAbs > 5000) return 0.1;
+            }
+            const mm = mmMap[insUnits] || 1;
+            return mm / mmPerUnit;
+        },
+
+        parseDxfContent(text) {
+            const lines = text.split(/\r?\n/);
+            let i = 0;
+            const paths = [];
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const unitScale = this.getDxfUnitScale(lines);
+
+            const nextPair = () => {
+                if (i >= lines.length - 1) return null;
+                const code = (lines[i] || '').trim();
+                const value = (lines[i + 1] || '').trim();
+                i += 2;
+                return { code, value };
+            };
+
+            const updateBounds = (x, y) => {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            };
+
+            const pointsToPath = (points, closed) => {
+                if (points.length === 0) return '';
+                const d = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                return closed ? `${d} Z` : d;
+            };
+
+            const bulgeArcPoints = (p1, p2, bulge) => {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const c = Math.hypot(dx, dy);
+                if (!c) return [p2];
+                const theta = 4 * Math.atan(bulge);
+                const r = (c / 2) / Math.sin(theta / 2);
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const h = Math.sqrt(Math.max(0, r * r - (c / 2) * (c / 2)));
+                const dir = bulge >= 0 ? 1 : -1;
+                const perpX = (-dy / c) * dir;
+                const perpY = (dx / c) * dir;
+                const cx = midX + perpX * h;
+                const cy = midY + perpY * h;
+                let a1 = Math.atan2(p1.y - cy, p1.x - cx);
+                let a2 = Math.atan2(p2.y - cy, p2.x - cx);
+                let delta = a2 - a1;
+                if (dir > 0 && delta < 0) delta += Math.PI * 2;
+                if (dir < 0 && delta > 0) delta -= Math.PI * 2;
+                const segments = Math.max(6, Math.ceil(Math.abs(delta) / (Math.PI / 12)));
+                const pts = [];
+                for (let s = 1; s <= segments; s++) {
+                    const a = a1 + (delta * s) / segments;
+                    pts.push({ x: cx + Math.cos(a) * Math.abs(r), y: cy + Math.sin(a) * Math.abs(r) });
+                }
+                return pts;
+            };
+
+            const polylineWithBulgeToPath = (points, closed) => {
+                if (points.length === 0) return '';
+                const out = [{ x: points[0].x, y: points[0].y }];
+                for (let idx = 0; idx < points.length - 1; idx++) {
+                    const p1 = points[idx];
+                    const p2 = points[idx + 1];
+                    if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
+                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                    } else {
+                        out.push({ x: p2.x, y: p2.y });
+                    }
+                }
+                if (closed && points.length > 2) {
+                    const p1 = points[points.length - 1];
+                    const p2 = points[0];
+                    if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
+                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                    } else {
+                        out.push({ x: p2.x, y: p2.y });
+                    }
+                }
+                return pointsToPath(out, closed);
+            };
+
+            while (i < lines.length) {
+                const pair = nextPair();
+                if (!pair) break;
+                if (pair.code === '0' && (pair.value === 'LWPOLYLINE' || pair.value === 'POLYLINE')) {
+                    const points = [];
+                    let closed = false;
+                    let hasBulge = false;
+                    while (i < lines.length) {
+                        const p = nextPair();
+                        if (!p || p.code === '0') {
+                            i -= 2;
+                            break;
+                        }
+                        if (p.code === '70') closed = (parseInt(p.value) & 1) !== 0;
+                        if (p.code === '10') points.push({ x: parseFloat(p.value) * unitScale, y: 0, bulge: 0 });
+                        if (p.code === '20' && points.length > 0) {
+                            points[points.length - 1].y = -parseFloat(p.value) * unitScale; 
+                            updateBounds(points[points.length - 1].x, points[points.length - 1].y);
+                        }
+                        if (p.code === '42' && points.length > 0) {
+                            points[points.length - 1].bulge = parseFloat(p.value);
+                            hasBulge = true;
+                        }
+                    }
+                    if (points.length > 1) {
+                        if (hasBulge) paths.push({ d: polylineWithBulgeToPath(points, closed) });
+                        else paths.push({ d: pointsToPath(points, closed) });
+                    }
+                } else if (pair.code === '0' && pair.value === 'LINE') {
+                    let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+                    while (i < lines.length) {
+                        const p = nextPair();
+                        if (!p || p.code === '0') {
+                            i -= 2;
+                            break;
+                        }
+                        if (p.code === '10') x1 = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') y1 = -parseFloat(p.value) * unitScale;
+                        if (p.code === '11') x2 = parseFloat(p.value) * unitScale;
+                        if (p.code === '21') y2 = -parseFloat(p.value) * unitScale;
+                    }
+                    updateBounds(x1, y1);
+                    updateBounds(x2, y2);
+                    paths.push({ d: `M ${x1} ${y1} L ${x2} ${y2}` });
+                } else if (pair.code === '0' && pair.value === 'CIRCLE') {
+                    let cx = 0, cy = 0, r = 0;
+                    while (i < lines.length) {
+                        const p = nextPair();
+                        if (!p || p.code === '0') {
+                            i -= 2;
+                            break;
+                        }
+                        if (p.code === '10') cx = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') cy = -parseFloat(p.value) * unitScale;
+                        if (p.code === '40') r = parseFloat(p.value) * unitScale;
+                    }
+                    updateBounds(cx - r, cy - r);
+                    updateBounds(cx + r, cy + r);
+                    paths.push({ d: `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z` });
+                } else if (pair.code === '0' && pair.value === 'ARC') {
+                     let cx = 0, cy = 0, r = 0, startAngle = 0, endAngle = 0;
+                    while (i < lines.length) {
+                        const p = nextPair();
+                        if (!p || p.code === '0') {
+                            i -= 2;
+                            break;
+                        }
+                        if (p.code === '10') cx = parseFloat(p.value) * unitScale;
+                        if (p.code === '20') cy = -parseFloat(p.value) * unitScale;
+                        if (p.code === '40') r = parseFloat(p.value) * unitScale;
+                        if (p.code === '50') startAngle = parseFloat(p.value) * (Math.PI / 180);
+                        if (p.code === '51') endAngle = parseFloat(p.value) * (Math.PI / 180);
+                    }
+                     const startX = cx + r * Math.cos(startAngle);
+                     const startY = cy - r * Math.sin(startAngle); 
+                     const endX = cx + r * Math.cos(endAngle);
+                     const endY = cy - r * Math.sin(endAngle);
+                     paths.push({ d: `M ${startX} ${startY} L ${endX} ${endY}` });
+                }
+            }
+
+            if (paths.length === 0) throw new Error('No paths found in DXF');
+            
+            const pathData = paths.map(p => p.d).join(' ');
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const transform = `translate(${(-minX).toFixed(3)} ${(-minY).toFixed(3)})`;
+            
+            return { pathData, minX, minY, width, height, transform, paths: paths.map(p => p.d) };
         },
 
         getDxfUnitScale(lines) {
