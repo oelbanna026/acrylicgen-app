@@ -5096,7 +5096,7 @@ function app() {
         parsePathToSegments(d) {
             // Very basic SVG path parser for M and L commands (which most laser exports are)
             // If curves exist, this naive approach might fail or approximate.
-            const commands = d.match(/[a-df-z]|[\-+]?(?:\d+\.?\d*|\.\d+)/zig);
+            const commands = d.match(/[a-df-z]|[\-+]?(?:\d+\.?\d*|\.\d+)/gi);
             if (!commands) return [];
             
             const segments = [];
