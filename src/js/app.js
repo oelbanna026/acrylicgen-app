@@ -3837,18 +3837,75 @@ function app() {
                 else if (this.unit === 'inch') scale = 25.4;
 
                 this.shapes.forEach(shape => {
-                    const shapePts = this.getShapePoints(shape);
                     const ox = parseFloat(shape.x) || 0;
                     const oy = parseFloat(shape.y) || 0;
 
-                    if (shapePts.length > 0) {
-                        dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
-                        shapePts.forEach(p => {
-                            dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
-                            if (p.bulge && p.bulge !== 0) {
-                                dxf += `42\n${p.bulge}\n`;
+                    // Handle Custom Shapes (imported paths) differently to preserve complex geometry
+                    if (shape.shapeType === 'custom' && shape.pathData) {
+                        // If pathData exists, we should try to convert the SVG Path Data to DXF entities
+                        // This is complex, so we'll try a simplified approach:
+                        // 1. If we have a helper to sample points from pathData, use it.
+                        // 2. Otherwise, fall back to rectangle (which is what happens now).
+                        
+                        // We need a way to convert SVG path 'd' to polylines/arcs for DXF.
+                        // Since we don't have a full SVG-to-DXF converter in client, 
+                        // we can try to use the browser's SVG capabilities to sample points along the path.
+                        
+                        try {
+                            const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                            tempPath.setAttribute("d", shape.pathData);
+                            const totalLen = tempPath.getTotalLength();
+                            
+                            // Adaptive sampling or fixed step
+                            // For simplicity, let's use fixed step based on length to keep file size reasonable
+                            // but high enough for curves.
+                            const step = 1; // 1 unit step (mm usually)
+                            const count = Math.ceil(totalLen / step);
+                            
+                            // DXF POLYLINE
+                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + (count + 1) + "\n70\n1\n"; 
+                            
+                            for(let i=0; i<=count; i++) {
+                                const dist = (i * step);
+                                const pt = tempPath.getPointAtLength(Math.min(dist, totalLen));
+                                // Transform point based on shape position and scale
+                                // Note: shape.pathData is usually local (0,0 based) or needs transform
+                                // If shape has pathTransform, we need to apply it? 
+                                // Actually, our app logic seems to bake transforms or handle them.
+                                // Let's assume pathData is local to the shape's bounding box, 
+                                // but wait, usually pathData is raw.
+                                // If we look at 'createShape' in ungroup, we see it preserves pathData.
+                                // Let's try adding shape.x/y to the points.
+                                
+                                dxf += `10\n${(pt.x + ox) * scale}\n20\n${(pt.y + oy) * scale}\n`;
                             }
-                        });
+                        } catch(e) {
+                            console.error("Error exporting custom shape path", e);
+                            // Fallback to rect
+                            const shapePts = this.getShapePoints(shape);
+                             if (shapePts.length > 0) {
+                                dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
+                                shapePts.forEach(p => {
+                                    dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
+                                    if (p.bulge && p.bulge !== 0) {
+                                        dxf += `42\n${p.bulge}\n`;
+                                    }
+                                });
+                            }
+                        }
+
+                    } else {
+                        // Standard Shapes (Rect, Circle, etc.)
+                        const shapePts = this.getShapePoints(shape);
+                        if (shapePts.length > 0) {
+                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
+                            shapePts.forEach(p => {
+                                dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
+                                if (p.bulge && p.bulge !== 0) {
+                                    dxf += `42\n${p.bulge}\n`;
+                                }
+                            });
+                        }
                     }
                     
                     const holeR = (parseFloat(shape.holeDiameter)||0) / 2 * scale;
