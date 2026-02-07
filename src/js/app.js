@@ -3934,14 +3934,29 @@ function app() {
                             // Parse Transform Matrix once
                             const matrix = parseTransformStr(shape.pathTransform);
                             
+                            // [Fix] Calculate implicit scale from UI resizing vs Raw Path
+                            let scaleX = 1, scaleY = 1;
+                            let minX = 0, minY = 0;
+                            
+                            try {
+                                const currentBounds = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform }]);
+                                if (currentBounds.width > 0 && shape.width > 0) scaleX = parseFloat(shape.width) / currentBounds.width;
+                                if (currentBounds.height > 0 && shape.height > 0) scaleY = parseFloat(shape.height) / currentBounds.height;
+                                minX = currentBounds.minX;
+                                minY = currentBounds.minY;
+                            } catch(e) {
+                                console.warn("Failed to measure bounds for scaling", e);
+                            }
+
                             // Pre-calculate Rotation Matrix if needed
                             let rotCos = 1, rotSin = 0, cx = 0, cy = 0;
                             if (rot !== 0) {
                                 const rad = rot * (Math.PI / 180);
                                 rotCos = Math.cos(rad);
                                 rotSin = Math.sin(rad);
-                                cx = (parseFloat(shape.width) || 0) / 2;
-                                cy = (parseFloat(shape.height) || 0) / 2;
+                                // Center of rotation is relative to the SCALED shape's bounding box
+                                cx = minX + (parseFloat(shape.width) || 0) / 2;
+                                cy = minY + (parseFloat(shape.height) || 0) / 2;
                             }
 
                             subPaths.forEach(subD => {
@@ -4068,9 +4083,15 @@ function app() {
                                 // Apply Transform (Matrix)
                                 let transformedPoints = rawPoints.map(p => {
                                     // Apply pathTransform
-                                    const tx = matrix.a * p.x + matrix.c * p.y + matrix.e;
-                                    const ty = matrix.b * p.x + matrix.d * p.y + matrix.f;
+                                    let tx = matrix.a * p.x + matrix.c * p.y + matrix.e;
+                                    let ty = matrix.b * p.x + matrix.d * p.y + matrix.f;
                                     
+                                    // Apply User Scale (implicit resize from UI)
+                                    if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
+                                        tx = minX + (tx - minX) * scaleX;
+                                        ty = minY + (ty - minY) * scaleY;
+                                    }
+
                                     // Apply Rotation (if any)
                                     let rx = tx, ry = ty;
                                     if (rot !== 0) {
