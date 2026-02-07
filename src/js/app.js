@@ -4556,7 +4556,7 @@ function app() {
             if (this.shapes.length === 0) return;
             
             window.Monetization.executeProtectedAction(() => {
-                this.fitShapesToSheet(this.shapes);
+                // this.fitShapesToSheet(this.shapes); // Disable auto-scale to preserve dimensions
                 this.shapes.forEach(s => {
                     if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
                 });
@@ -4684,7 +4684,7 @@ function app() {
     
                 // Simulate async for UI update
                 setTimeout(() => {
-                    this.fitShapesToSheet(this.shapes);
+                    // this.fitShapesToSheet(this.shapes); // Disable auto-scale on nest to preserve dimensions
                     this.shapes.forEach(s => {
                         if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
                     });
