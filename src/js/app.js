@@ -817,6 +817,7 @@ function app() {
         },
 
         ungroupSelectedShape() {
+            console.log('Ungrouping shape...');
             const shape = this.activeShape;
             if (!shape || !shape.subpaths || shape.subpaths.length < 2) return;
             const baseX = parseFloat(shape.x) || 0;
@@ -824,12 +825,16 @@ function app() {
             const baseRot = parseFloat(shape.rotation) || 0;
             const baseName = shape.name || 'Shape';
             const parentTransform = shape.pathTransform || '';
+            console.log('Parent Transform:', parentTransform);
+            console.log('Base Pos:', baseX, baseY);
 
             // Extract parts (these bounds are RELATIVE to shape.x because of parentTransform)
             const parts = shape.subpaths.map((d) => {
                 const bounds = this.measurePathBounds([{ d, transform: parentTransform }]);
                 return { d, bounds };
             }).filter(p => p.bounds.width && p.bounds.height);
+            
+            console.log('Parts found:', parts.length);
             if (parts.length === 0) return;
 
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -841,14 +846,20 @@ function app() {
             document.body.appendChild(svg);
 
             const isInside = (outerD, innerBounds) => {
-                const outer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                outer.setAttribute('d', outerD);
-                if (parentTransform) outer.setAttribute('transform', parentTransform);
-                svg.appendChild(outer);
-                const point = new DOMPoint(innerBounds.minX + innerBounds.width / 2, innerBounds.minY + innerBounds.height / 2);
-                const inside = outer.isPointInFill ? outer.isPointInFill(point) : false;
-                svg.removeChild(outer);
-                return inside;
+                try {
+                    const outer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    outer.setAttribute('d', outerD);
+                    if (parentTransform) outer.setAttribute('transform', parentTransform);
+                    svg.appendChild(outer);
+                    const point = new DOMPoint(innerBounds.minX + innerBounds.width / 2, innerBounds.minY + innerBounds.height / 2);
+                    // Check if isPointInFill is supported
+                    const inside = (typeof outer.isPointInFill === 'function') ? outer.isPointInFill(point) : false;
+                    svg.removeChild(outer);
+                    return inside;
+                } catch(e) {
+                    console.warn('isInside check failed', e);
+                    return false;
+                }
             };
 
             const outers = [];
@@ -861,9 +872,12 @@ function app() {
                     if (cIdx === idx) return;
                     const b = candidate.bounds;
                     const area = b.width * b.height;
-                    if (isInside(candidate.d, p.bounds) && area < parentArea) {
-                        parentIdx = cIdx;
-                        parentArea = area;
+                    // Only check containment if candidate is larger than p
+                    if (area > p.bounds.width * p.bounds.height) {
+                         if (isInside(candidate.d, p.bounds) && area < parentArea) {
+                            parentIdx = cIdx;
+                            parentArea = area;
+                        }
                     }
                 });
                 if (parentIdx === -1) {
@@ -899,13 +913,7 @@ function app() {
                 s.x = baseX;
                 s.y = baseY;
                 
-                // Normalize: This will measure path with transform, 
-                // add local offset to s.x, and append -offset to transform.
-                // Since 'bounds' above was measured relative to baseX (visual 0),
-                // bounds.minX is the offset from baseX.
-                // normalizeCustomShapeBounds will find exactly bounds.minX as the offset.
-                // So s.x becomes baseX + bounds.minX.
-                // This is exactly what we want!
+                // Normalize
                 s._normalized = false;
                 this.normalizeCustomShapeBounds(s);
                 
@@ -923,21 +931,26 @@ function app() {
 
             if (newShapes.length === 0) {
                 // Fallback: If no outers found (weird topology), treat all parts as shapes
+                console.warn('No outer shapes detected, fallback to all parts');
                 parts.forEach((part, idx) => {
                     const s = createShape(part.d, `${baseName} ${idx + 1}`, part.bounds);
                     newShapes.push(s);
                 });
             }
 
+            console.log('New shapes created:', newShapes.length);
+
             if (newShapes.length) {
                 const index = this.shapes.findIndex(s => s.id === shape.id);
                 if (index !== -1) this.shapes.splice(index, 1);
                 this.shapes.push(...newShapes);
                 this.activeShapeId = newShapes[0].id;
-                // Do NOT refit all shapes, just keep them where they are relative to original group
-                // this.fitShapesToSheet(this.shapes); 
-                // Maybe center view on the new group?
-                // this.centerView();
+                // Center view on the new shapes
+                // const bounds = this.getShapesBounds(newShapes);
+                // if (bounds) {
+                //    this.pan.x = -bounds.minX + (window.innerWidth/this.zoom)/2 - (bounds.width/2);
+                //    this.pan.y = -bounds.minY + (window.innerHeight/this.zoom)/2 - (bounds.height/2);
+                // }
             } else {
                 this.activeShapeId = shape.id;
             }
