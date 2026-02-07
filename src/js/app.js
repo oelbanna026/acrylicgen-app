@@ -1294,57 +1294,48 @@ function app() {
                 return closed ? `${d} Z` : d;
             };
 
-            const bulgeArcPoints = (p1, p2, bulge) => {
+            const bulgeToSvgArc = (p1, p2, bulge) => {
                 const dx = p2.x - p1.x;
                 const dy = p2.y - p1.y;
-                const c = Math.hypot(dx, dy);
-                if (!c) return [p2];
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist === 0) return '';
+
                 const theta = 4 * Math.atan(bulge);
-                const r = (c / 2) / Math.sin(theta / 2);
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                const h = Math.sqrt(Math.max(0, r * r - (c / 2) * (c / 2)));
-                const dir = bulge >= 0 ? 1 : -1;
-                const perpX = (-dy / c) * dir;
-                const perpY = (dx / c) * dir;
-                const cx = midX + perpX * h;
-                const cy = midY + perpY * h;
-                let a1 = Math.atan2(p1.y - cy, p1.x - cx);
-                let a2 = Math.atan2(p2.y - cy, p2.x - cx);
-                let delta = a2 - a1;
-                if (dir > 0 && delta < 0) delta += Math.PI * 2;
-                if (dir < 0 && delta > 0) delta -= Math.PI * 2;
-                const segments = Math.max(6, Math.ceil(Math.abs(delta) / (Math.PI / 12)));
-                const pts = [];
-                for (let s = 1; s <= segments; s++) {
-                    const a = a1 + (delta * s) / segments;
-                    pts.push({ x: cx + Math.cos(a) * Math.abs(r), y: cy + Math.sin(a) * Math.abs(r) });
-                }
-                return pts;
+                const radius = Math.abs(dist / (2 * Math.sin(theta / 2)));
+                
+                // DXF bulge > 0 is CCW. In SVG (Y-down), CCW in standard math becomes CW visually.
+                // So bulge > 0 => Sweep 0. bulge < 0 => Sweep 1.
+                const sweep = bulge > 0 ? 0 : 1;
+                const largeArc = Math.abs(theta) > Math.PI ? 1 : 0;
+                
+                return `A ${radius} ${radius} 0 ${largeArc} ${sweep} ${p2.x} ${p2.y}`;
             };
 
             const polylineWithBulgeToPath = (points, closed) => {
                 if (points.length === 0) return '';
-                const out = [{ x: points[0].x, y: points[0].y }];
+                let d = `M ${points[0].x} ${points[0].y}`;
+                
                 for (let idx = 0; idx < points.length - 1; idx++) {
                     const p1 = points[idx];
                     const p2 = points[idx + 1];
                     if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
-                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                        d += ' ' + bulgeToSvgArc(p1, p2, p1.bulge);
                     } else {
-                        out.push({ x: p2.x, y: p2.y });
+                        d += ` L ${p2.x} ${p2.y}`;
                     }
                 }
-                if (closed && points.length > 2) {
+                
+                if (closed) {
                     const p1 = points[points.length - 1];
                     const p2 = points[0];
                     if (p1.bulge && Math.abs(p1.bulge) > 1e-6) {
-                        out.push(...bulgeArcPoints(p1, p2, p1.bulge));
+                        d += ' ' + bulgeToSvgArc(p1, p2, p1.bulge);
                     } else {
-                        out.push({ x: p2.x, y: p2.y });
+                        d += ` L ${p2.x} ${p2.y}`;
                     }
+                    d += ' Z';
                 }
-                return pointsToPath(out, closed);
+                return d;
             };
 
             while (i < lines.length) {
@@ -1353,7 +1344,6 @@ function app() {
                 if (pair.code === '0' && (pair.value === 'LWPOLYLINE' || pair.value === 'POLYLINE')) {
                     const points = [];
                     let closed = false;
-                    let hasBulge = false;
                     while (i < lines.length) {
                         const p = nextPair();
                         if (!p || p.code === '0') {
@@ -1368,12 +1358,10 @@ function app() {
                         }
                         if (p.code === '42' && points.length > 0) {
                             points[points.length - 1].bulge = parseFloat(p.value);
-                            hasBulge = true;
                         }
                     }
                     if (points.length > 1) {
-                        if (hasBulge) paths.push({ d: polylineWithBulgeToPath(points, closed) });
-                        else paths.push({ d: pointsToPath(points, closed) });
+                         paths.push({ d: polylineWithBulgeToPath(points, closed) });
                     }
                 } else if (pair.code === '0' && pair.value === 'LINE') {
                     let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
@@ -1421,10 +1409,43 @@ function app() {
                         if (p.code === '51') endAngle = parseFloat(p.value) * (Math.PI / 180);
                     }
                      const startX = cx + r * Math.cos(startAngle);
-                     const startY = cy - r * Math.sin(startAngle); 
+                     const startY = cy - r * Math.sin(startAngle); // Y is flipped (-val) so angle logic?
+                     // Wait, if Y is flipped, standard sin/cos logic works if we consider angles in standard math
+                     // but visualize them flipped.
+                     // DXF angles are CCW from X axis.
+                     // x = r cos a, y = r sin a.
+                     // Imported y = -y. So startY = -(cy_dxf + r sin a).
+                     // But cy is already -cy_dxf.
+                     // So startY = cy - r * sin(angle) IS WRONG if we want to match visual.
+                     // Let's check math:
+                     // DXF: P = (cx + r cos a, cy + r sin a)
+                     // Import: P' = (cx, -cy - r sin a) = (cx, -(cy + r sin a)).
+                     // My code: cy = -parseFloat(val). So cy is already negated center.
+                     // We want P'.y = cy - r * sin(angle).
+                     // Yes, this is correct because `cy` is negative-space center.
+                     // And `sin` component should be subtracted to go "up" in negative space (which is down in DXF).
+                     
+                     // BUT, DXF Y is Up. SVG Y is Down.
+                     // (10, 10) in DXF -> (10, -10) in SVG.
+                     // Arc from 0 to 90 deg (3 o'clock to 12 o'clock in DXF).
+                     // Start: (10 + r, 10). End: (10, 10 + r).
+                     // SVG: Start (10+r, -10). End (10, -10-r).
+                     // Visually, this is 3 o'clock to 12 o'clock (CCW) on screen? No.
+                     // -10 is higher than -10-r. So it goes Up.
+                     // So visually it matches.
+                     
+                     // Now let's form the path.
+                     const startX2 = cx + r * Math.cos(startAngle);
+                     const startY2 = cy - r * Math.sin(startAngle); // -r sin because Y is flipped
                      const endX = cx + r * Math.cos(endAngle);
                      const endY = cy - r * Math.sin(endAngle);
-                     paths.push({ d: `M ${startX} ${startY} L ${endX} ${endY}` });
+                     
+                     let delta = endAngle - startAngle;
+                     while (delta < 0) delta += Math.PI * 2;
+                     const largeArc = delta > Math.PI ? 1 : 0;
+                     const sweep = 0; // CCW in DXF -> CW in SVG (Y flipped)
+                     
+                     paths.push({ d: `M ${startX2} ${startY2} A ${r} ${r} 0 ${largeArc} ${sweep} ${endX} ${endY}` });
                 }
             }
 
