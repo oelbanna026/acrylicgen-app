@@ -3884,26 +3884,11 @@ function app() {
                                     rawPoints.push({ x: tPt.x, y: tPt.y });
                                 }
                                 
-                                // Simplify: Remove collinear points to reduce file size and jaggedness
-                                const simplified = [];
-                                if (rawPoints.length > 0) simplified.push(rawPoints[0]);
-                                
-                                for (let i = 1; i < rawPoints.length - 1; i++) {
-                                    const prev = simplified[simplified.length - 1];
-                                    const curr = rawPoints[i];
-                                    const next = rawPoints[i+1];
-                                    
-                                    // Calculate area of triangle formed by prev, curr, next (Cross product)
-                                    // If area is near zero, they are collinear
-                                    const area = Math.abs(0.5 * (prev.x * (curr.y - next.y) + curr.x * (next.y - prev.y) + next.x * (prev.y - curr.y)));
-                                    
-                                    // Threshold for collinearity (0.0001 sq units - much tighter to keep sharp corners)
-                                    // Previously 0.001 which smoothed out some sharp corners
-                                    if (area > 0.0001) {
-                                        simplified.push(curr);
-                                    }
-                                }
-                                if (rawPoints.length > 1) simplified.push(rawPoints[rawPoints.length - 1]);
+                                // Simplify: DISABLED for Pixel Perfect Export
+                                // Even with high threshold, simplification can remove subtle intentional details in intricate joinery.
+                                // We will export ALL sampled points to ensure 100% fidelity to the source path.
+                                // File size will be larger, but accuracy is paramount for laser cutting.
+                                const simplified = rawPoints;
 
                                 // Output LWPOLYLINE
                                 dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + simplified.length + "\n70\n1\n"; 
