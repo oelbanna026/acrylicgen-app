@@ -3293,8 +3293,12 @@ function app() {
                         this.unit = d.unit;
                         this.shapes[0].shapeType = d.shapeType || 'rectangle';
                         this.shapes[0].cornerType = d.cornerType;
-                        this.shapes[0].holePattern = d.holePattern;
-                        this.currency = d.currency || 'USD';
+                        this.shapes[0].holePattern = d.holePattern || 'none';
+                    if (this.shapes[0].holePattern !== 'none' && (!d.holes || d.holes.length === 0)) {
+                        // Fix invalid state where holes are expected but missing
+                        this.shapes[0].holePattern = 'none';
+                    }
+                    this.currency = d.currency || 'USD';
                         
                         if (d.holeDiameterMm && !d.holeDiameter) {
                             const val = d.holeDiameterMm;
@@ -4926,6 +4930,13 @@ function app() {
                     
                     // Stop loading spinner
                     this.loading = false;
+                    
+                    // Check for pending Google Auth
+                    if (window.pendingGoogleCredential) {
+                        console.log('Found pending Google Credential, processing...');
+                        this.handleGoogleLogin(window.pendingGoogleCredential);
+                        window.pendingGoogleCredential = null;
+                    }
                 });
             },
 
@@ -5134,6 +5145,8 @@ window.app = app;
     // Setup Google Auth Handler Outside Alpine Scope
     window.handleGoogleCredentialResponse = (response) => {
         console.log('Google Auth Response Received (Global):', response);
+        // Store for Alpine to pick up if not ready
+        window.pendingGoogleCredential = response.credential;
         // Dispatch event for Alpine to catch
         window.dispatchEvent(new CustomEvent('google-auth-success', { detail: response.credential }));
     };
