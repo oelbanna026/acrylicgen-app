@@ -828,10 +828,16 @@ function app() {
             console.log('Parent Transform:', parentTransform);
             console.log('Base Pos:', baseX, baseY);
 
-            // Extract parts (these bounds are RELATIVE to shape.x because of parentTransform)
+            // Extract parts (using LOCAL bounds for accurate containment check)
             const parts = shape.subpaths.map((d) => {
-                const bounds = this.measurePathBounds([{ d, transform: parentTransform }]);
-                return { d, bounds };
+                // Use empty transform to get local bounds for geometry check
+                const localBounds = this.measurePathBounds([{ d, transform: '' }]);
+                // We also need world bounds for final shape creation if we were using it, 
+                // but createShape recalculates it via normalizeCustomShapeBounds. 
+                // However, createShape takes 'bounds' argument to set initial width/height.
+                // Since normalizeCustomShapeBounds handles scale, using localBounds for width/height is safe-ish,
+                // but let's stick to using local logic for grouping only.
+                return { d, bounds: localBounds };
             }).filter(p => p.bounds.width && p.bounds.height);
             
             console.log('Parts found:', parts.length);
@@ -849,7 +855,7 @@ function app() {
                 try {
                     const outer = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     outer.setAttribute('d', outerD);
-                    if (parentTransform) outer.setAttribute('transform', parentTransform);
+                    // Do NOT apply parentTransform here. Check in local space.
                     svg.appendChild(outer);
                     const point = new DOMPoint(innerBounds.minX + innerBounds.width / 2, innerBounds.minY + innerBounds.height / 2);
                     // Check if isPointInFill is supported
