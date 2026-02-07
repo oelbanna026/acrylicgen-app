@@ -3897,8 +3897,9 @@ function app() {
                                     // If area is near zero, they are collinear
                                     const area = Math.abs(0.5 * (prev.x * (curr.y - next.y) + curr.x * (next.y - prev.y) + next.x * (prev.y - curr.y)));
                                     
-                                    // Threshold for collinearity (0.001 sq units)
-                                    if (area > 0.001) {
+                                    // Threshold for collinearity (0.0001 sq units - much tighter to keep sharp corners)
+                                    // Previously 0.001 which smoothed out some sharp corners
+                                    if (area > 0.0001) {
                                         simplified.push(curr);
                                     }
                                 }
