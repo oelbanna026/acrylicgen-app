@@ -3842,36 +3842,83 @@ function app() {
 
                     // Handle Custom Shapes (imported paths) differently to preserve complex geometry
                     if (shape.shapeType === 'custom' && shape.pathData) {
-                        // If pathData exists, we should try to convert the SVG Path Data to DXF entities
-                        // This is complex, so we'll try a simplified approach:
-                        // 1. If we have a helper to sample points from pathData, use it.
-                        // 2. Otherwise, fall back to rectangle (which is what happens now).
-                        
-                        // We need a way to convert SVG path 'd' to polylines/arcs for DXF.
-                        // Since we don't have a full SVG-to-DXF converter in client, 
-                        // we can try to use the browser's SVG capabilities to sample points along the path.
-                        
                         try {
+                            // Create temp path to read geometry
                             const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
                             tempPath.setAttribute("d", shape.pathData);
-                            const totalLen = tempPath.getTotalLength();
                             
-                            // Adaptive sampling or fixed step
-                            // Increased resolution: step = 0.05 (was 0.1) to ensure extremely smooth curves and joints
-                            const step = 0.05; 
-                            const count = Math.ceil(totalLen / step);
+                            // Get Transform Matrix (CTM) if shape has pathTransform
+                            // We need to append to DOM to get CTM in some browsers, but let's try creating a dummy SVG
+                            const hiddenSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                            hiddenSvg.style.display = 'none';
+                            document.body.appendChild(hiddenSvg);
+                            hiddenSvg.appendChild(tempPath);
                             
-                            // DXF POLYLINE
-                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + (count + 1) + "\n70\n1\n"; 
-                            
-                            for(let i=0; i<=count; i++) {
-                                const dist = (i * step);
-                                const pt = tempPath.getPointAtLength(Math.min(dist, totalLen));
-                                // High precision export
-                                const px = ((pt.x + ox) * scale).toFixed(4);
-                                const py = ((pt.y + oy) * scale).toFixed(4);
-                                dxf += `10\n${px}\n20\n${py}\n`;
+                            if (shape.pathTransform) {
+                                tempPath.setAttribute("transform", shape.pathTransform);
                             }
+                            
+                            const ctm = tempPath.getCTM();
+                            
+                            // Split into sub-paths (M commands) to avoid connecting lines
+                            const d = shape.pathData;
+                            // Match M or m followed by anything until next M or m or end
+                            // This regex splits by M/m but keeps the delimiter at the start
+                            const subPaths = d.match(/([Mm][^Mm]*)/g) || [d];
+                            
+                            subPaths.forEach(subD => {
+                                tempPath.setAttribute("d", subD);
+                                const len = tempPath.getTotalLength();
+                                if (len < 0.1) return; // Skip tiny artifacts
+
+                                // Sampling Resolution
+                                const step = 0.1; // 0.1mm is very high resolution
+                                const count = Math.ceil(len / step);
+                                
+                                const rawPoints = [];
+                                for(let i=0; i<=count; i++) {
+                                    const dist = Math.min(i * step, len);
+                                    const pt = tempPath.getPointAtLength(dist);
+                                    // Apply Transform
+                                    const tPt = pt.matrixTransform(ctm);
+                                    rawPoints.push({ x: tPt.x, y: tPt.y });
+                                }
+                                
+                                // Simplify: Remove collinear points to reduce file size and jaggedness
+                                const simplified = [];
+                                if (rawPoints.length > 0) simplified.push(rawPoints[0]);
+                                
+                                for (let i = 1; i < rawPoints.length - 1; i++) {
+                                    const prev = simplified[simplified.length - 1];
+                                    const curr = rawPoints[i];
+                                    const next = rawPoints[i+1];
+                                    
+                                    // Calculate area of triangle formed by prev, curr, next (Cross product)
+                                    // If area is near zero, they are collinear
+                                    const area = Math.abs(0.5 * (prev.x * (curr.y - next.y) + curr.x * (next.y - prev.y) + next.x * (prev.y - curr.y)));
+                                    
+                                    // Threshold for collinearity (0.001 sq units)
+                                    if (area > 0.001) {
+                                        simplified.push(curr);
+                                    }
+                                }
+                                if (rawPoints.length > 1) simplified.push(rawPoints[rawPoints.length - 1]);
+
+                                // Output LWPOLYLINE
+                                dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + simplified.length + "\n70\n1\n"; 
+                                simplified.forEach(pt => {
+                                    // Add Shape Position (ox, oy)
+                                    // Note: If ctm already includes shape position (unlikely, usually just local transform), we add ox/oy.
+                                    // normalizeCustomShapeBounds puts path at 0,0 relative to shape.x,y.
+                                    // So we MUST add ox/oy.
+                                    const x = ((pt.x + ox) * scale).toFixed(4);
+                                    const y = ((pt.y + oy) * scale).toFixed(4);
+                                    dxf += `10\n${x}\n20\n${y}\n`;
+                                });
+                            });
+                            
+                            document.body.removeChild(hiddenSvg);
+
                         } catch(e) {
                             console.error("Error exporting custom shape path", e);
                             // Fallback to rect
