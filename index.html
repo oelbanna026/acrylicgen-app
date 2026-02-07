@@ -97,7 +97,7 @@
     <script defer src="src/vendor/driver.js"></script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="src/css/style.css?v=74">
+    <link rel="stylesheet" href="src/css/style.css?v=80">
     
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-WJ1VJDNSHK"></script>
     <script>
@@ -120,12 +120,12 @@
     <link rel="stylesheet" href="src/vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="src/js/auth.js?v=78"></script>
-    <script defer src="src/js/tour.js?v=78"></script>
-    <script src="src/js/monetization.js?v=78"></script>
-    <script defer src="src/js/diagnostics.js?v=78"></script>
-    <script src="src/js/utils/calculator.js?v=78"></script>
-    <script src="src/js/app.js?v=78"></script>
+    <script src="src/js/auth.js?v=80"></script>
+    <script defer src="src/js/tour.js?v=80"></script>
+    <script src="src/js/monetization.js?v=80"></script>
+    <script defer src="src/js/diagnostics.js?v=80"></script>
+    <script src="src/js/utils/calculator.js?v=80"></script>
+    <script src="src/js/app.js?v=80"></script>
     <!-- <script defer src="src/js/app.bundle.js?v=51"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -138,8 +138,8 @@
                     registration.unregister();
                 }
                 // Force reload if not already reloaded
-                if (!sessionStorage.getItem('force_reload_v78')) {
-                    sessionStorage.setItem('force_reload_v78', 'true');
+                if (!sessionStorage.getItem('force_reload_v80')) {
+                    sessionStorage.setItem('force_reload_v80', 'true');
                     window.location.reload();
                 }
             });
