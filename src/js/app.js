@@ -998,7 +998,8 @@ function app() {
                 this.activeShapeId = shape.id;
                 this.selectShape(shape.id);
                 this.shapes = [...this.shapes];
-                this.fitShapesToSheet([shape]);
+                // Disable auto-fit to sheet to preserve original dimensions
+                // this.fitShapesToSheet([shape]);
                 this.save();
                 this.centerView();
             } catch (e) {
@@ -1042,7 +1043,8 @@ function app() {
             const sheetH = parseFloat(this.nestingSheetHeight) || 0;
             
             if (sheetW > 0 && sheetH > 0) {
-                // If shape is larger than sheet, scale it down
+                // [Modified] Do NOT scale down automatically. User expects 1:1 import.
+                /*
                 if (shape.width > sheetW || shape.height > sheetH) {
                     const scale = Math.min(sheetW / shape.width, sheetH / shape.height);
                     if (isFinite(scale) && scale > 0) {
@@ -1053,6 +1055,7 @@ function app() {
                         this.normalizeCustomShapeBounds(shape);
                     }
                 }
+                */
                 
                 // Center on sheet
                 // After normalize, shape acts like a rect at (shape.x, shape.y).
@@ -1259,8 +1262,16 @@ function app() {
                 9: 0.001
             };
             if (insUnits === null) {
+                // If units are missing, assume 1 drawing unit = 1 App Unit.
+                // This avoids "shrinking" effect when user draws in cm but exports without units.
+                // Previously we assumed mm (scale 0.1 for cm app), now we assume scale 1.
+                return 1; 
+                
+                /* 
+                // Old Heuristic:
                 if (this.unit === 'cm' && maxAbs > 500) return 0.1;
                 if (this.unit === 'mm' && maxAbs > 5000) return 0.1;
+                */
             }
             const mm = mmMap[insUnits] || 1;
             return mm / mmPerUnit;
@@ -1501,8 +1512,8 @@ function app() {
                 9: 0.001
             };
             if (insUnits === null) {
-                if (this.unit === 'cm' && maxAbs > 500) return 0.1;
-                if (this.unit === 'mm' && maxAbs > 5000) return 0.1;
+                // If units are missing, assume 1 drawing unit = 1 App Unit.
+                return 1;
             }
             const mm = mmMap[insUnits] || 1;
             return mm / mmPerUnit;
