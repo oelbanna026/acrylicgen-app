@@ -3857,8 +3857,8 @@ function app() {
                             const totalLen = tempPath.getTotalLength();
                             
                             // Adaptive sampling or fixed step
-                            // Increased resolution: step = 0.1 (was 1.0) to fix "jagged/distorted" look on curves
-                            const step = 0.1; 
+                            // Increased resolution: step = 0.05 (was 0.1) to ensure extremely smooth curves and joints
+                            const step = 0.05; 
                             const count = Math.ceil(totalLen / step);
                             
                             // DXF POLYLINE
@@ -3867,16 +3867,10 @@ function app() {
                             for(let i=0; i<=count; i++) {
                                 const dist = (i * step);
                                 const pt = tempPath.getPointAtLength(Math.min(dist, totalLen));
-                                // Transform point based on shape position and scale
-                                // Note: shape.pathData is usually local (0,0 based) or needs transform
-                                // If shape has pathTransform, we need to apply it? 
-                                // Actually, our app logic seems to bake transforms or handle them.
-                                // Let's assume pathData is local to the shape's bounding box, 
-                                // but wait, usually pathData is raw.
-                                // If we look at 'createShape' in ungroup, we see it preserves pathData.
-                                // Let's try adding shape.x/y to the points.
-                                
-                                dxf += `10\n${(pt.x + ox) * scale}\n20\n${(pt.y + oy) * scale}\n`;
+                                // High precision export
+                                const px = ((pt.x + ox) * scale).toFixed(4);
+                                const py = ((pt.y + oy) * scale).toFixed(4);
+                                dxf += `10\n${px}\n20\n${py}\n`;
                             }
                         } catch(e) {
                             console.error("Error exporting custom shape path", e);
