@@ -644,10 +644,8 @@
                             <div class="flex gap-2">
                                 <button @click="clearAllShapes()" class="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition" x-show="shapes.length > 0" x-text="t('delete_all')">Clear</button>
                                 <button @click="addShape()" class="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition" x-text="t('add_shape')">+</button>
-                                <button @click="openImportDialog()" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700 transition" x-text="t('import_design')"></button>
                             </div>
                         </div>
-                        <input type="file" x-ref="importInput" accept=".svg,.dxf" class="hidden" @change="onImportFile">
                         <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                             <template x-for="(s, index) in shapes" :key="s.id">
                                 <div class="flex items-center justify-between p-2 rounded cursor-pointer border transition"
