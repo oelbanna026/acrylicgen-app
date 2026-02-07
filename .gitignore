@@ -9,6 +9,7 @@ admin-dashboard/.env.local
 server/firebase-admin.json
 server/firebase-admin.json.json
 server/secrets/
+!server/secrets/firebase-admin.json
 
 # Secrets & Keys
 gcs-key*
@@ -16,6 +17,8 @@ server/gcs-key*
 *.pem
 *.key
 server/services/*.json
+server/config/serviceAccountKey.json
+
 
 # Database (Local)
 *.sqlite
