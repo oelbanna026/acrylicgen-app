@@ -3916,23 +3916,12 @@ function app() {
                                         }
                                         i = 3;
                                     }
-                                    
-                                    // If M has more args, subsequent are implicit L
-                                    // handled in loop below if we reset cmd to L/l?
-                                    // Actually, standard parser handles implicit.
-                                    // For simplicity, let's assume M is followed by command or implicit L.
-                                    // We'll treat subsequent numbers as L if no command provided.
                                 }
                                 
                                 const getArg = () => parseFloat(tokens[i++]);
                                 const isCmd = (t) => /^[a-df-z]$/i.test(t);
                                 
-                                const rawPoints = []; // Start empty. M doesn't add a point to polyline unless it's a vertex?
-                                // DXF LWPOLYLINE needs vertices. M is just start.
-                                // We add vertices for L, C, etc.
-                                // The first point of polyline is implicit? No, LWPOLYLINE has vertices.
-                                // We should push start point?
-                                // Yes, if we are drawing segments, we need start point.
+                                const rawPoints = []; 
                                 rawPoints.push({ x: currentX, y: currentY });
 
                                 while (i < tokens.length) {
@@ -4004,11 +3993,35 @@ function app() {
                                         }
                                         
                                         // Update current to last point
-                                        // (The last point of sample should be the target, but getPointAtLength(len) is precise)
                                         const last = tempPath.getPointAtLength(len);
                                         currentX = last.x;
                                         currentY = last.y;
                                     }
+                                }
+
+                                // Apply Transform if exists (Translate/Scale from import)
+                                // We use a dummy SVG to apply matrix easily
+                                let transformedPoints = rawPoints;
+                                if (shape.pathTransform) {
+                                    const hiddenSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                                    hiddenSvg.style.display = 'none';
+                                    document.body.appendChild(hiddenSvg);
+                                    
+                                    const dummyPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                                    dummyPath.setAttribute("transform", shape.pathTransform);
+                                    hiddenSvg.appendChild(dummyPath);
+                                    
+                                    const ctm = dummyPath.getCTM();
+                                    
+                                    transformedPoints = rawPoints.map(p => {
+                                        const pt = hiddenSvg.createSVGPoint();
+                                        pt.x = p.x;
+                                        pt.y = p.y;
+                                        const tPt = pt.matrixTransform(ctm);
+                                        return { x: tPt.x, y: tPt.y };
+                                    });
+                                    
+                                    document.body.removeChild(hiddenSvg);
                                 }
 
                                 // Check if closed (Z command)
@@ -4016,8 +4029,8 @@ function app() {
 
                                 // Output LWPOLYLINE
                                 // Flag 1 = Closed, 0 = Open
-                                dxf += `0\nLWPOLYLINE\n8\n0\n90\n${rawPoints.length}\n70\n${isClosed ? 1 : 0}\n`; 
-                                rawPoints.forEach(pt => {
+                                dxf += `0\nLWPOLYLINE\n8\n0\n90\n${transformedPoints.length}\n70\n${isClosed ? 1 : 0}\n`; 
+                                transformedPoints.forEach(pt => {
                                     const x = ((pt.x + ox) * scale).toFixed(4);
                                     // Flip Y
                                     const y = ((sheetH - (pt.y + oy)) * scale).toFixed(4);
