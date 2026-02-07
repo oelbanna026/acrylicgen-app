@@ -828,6 +828,21 @@ function app() {
             console.log('Parent Transform:', parentTransform);
             console.log('Base Pos:', baseX, baseY);
 
+            // [Fix] Calculate implicit scale from Parent Shape (User Resize vs Raw Path)
+            let parentScaleX = 1, parentScaleY = 1;
+            try {
+                // Measure the raw path bounds (as if it wasn't resized by width/height overrides)
+                const parentRawBounds = this.measurePathBounds([{ d: shape.pathData, transform: shape.pathTransform || '' }]);
+                if (parentRawBounds.width > 0 && shape.width > 0) {
+                    parentScaleX = parseFloat(shape.width) / parentRawBounds.width;
+                }
+                if (parentRawBounds.height > 0 && shape.height > 0) {
+                    parentScaleY = parseFloat(shape.height) / parentRawBounds.height;
+                }
+            } catch(e) {
+                console.warn("Ungroup scale calc failed", e);
+            }
+
             // Extract parts (using LOCAL bounds for accurate containment check)
             const parts = shape.subpaths.map((d) => {
                 // Use empty transform to get local bounds for geometry check
@@ -913,8 +928,11 @@ function app() {
                 s.holePattern = 'none';
                 s.holes = [];
                 s.pathData = d;
-                // Preserve parent transform initially to maintain visual appearance
+                // Preserve parent transform AND apply implicit scale
                 s.pathTransform = parentTransform;
+                if (Math.abs(parentScaleX - 1) > 0.001 || Math.abs(parentScaleY - 1) > 0.001) {
+                    s.pathTransform = (s.pathTransform || '') + ` scale(${parentScaleX}, ${parentScaleY})`;
+                }
                 s.pathFillRule = 'nonzero';
                 
                 // Set initial position to parent's position
