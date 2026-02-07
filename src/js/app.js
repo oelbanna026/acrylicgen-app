@@ -5142,6 +5142,9 @@ function app() {
         }
 
         };
+    } catch (e) {
+        console.error("App Initialization Error:", e);
+        return {}; // Return empty object or fallback
     }
 }
 window.app = app;
