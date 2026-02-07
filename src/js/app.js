@@ -666,6 +666,51 @@ function app() {
             return n.toFixed(2);
         },
 
+        measurePathBounds(paths) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            
+            // Create a temporary SVG to measure paths
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.style.position = "absolute";
+            svg.style.visibility = "hidden";
+            svg.style.width = "0";
+            svg.style.height = "0";
+            document.body.appendChild(svg);
+            
+            try {
+                paths.forEach(p => {
+                    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    pathEl.setAttribute("d", p.d);
+                    if (p.transform) pathEl.setAttribute("transform", p.transform);
+                    g.appendChild(pathEl);
+                    svg.appendChild(g);
+                    
+                    const box = g.getBBox();
+                    
+                    minX = Math.min(minX, box.x);
+                    minY = Math.min(minY, box.y);
+                    maxX = Math.max(maxX, box.x + box.width);
+                    maxY = Math.max(maxY, box.y + box.height);
+                    
+                    svg.removeChild(g);
+                });
+            } catch(e) {
+                console.error("Measure Error", e);
+                return { minX: 0, minY: 0, width: 10, height: 10, maxX: 10, maxY: 10 };
+            } finally {
+                if (svg.parentNode) svg.parentNode.removeChild(svg);
+            }
+            
+            if (minX === Infinity) return { minX: 0, minY: 0, width: 0, height: 0, maxX: 0, maxY: 0 };
+            
+            return {
+                minX, minY, maxX, maxY,
+                width: maxX - minX,
+                height: maxY - minY
+            };
+        },
+
         normalizeCustomShapeBounds(shape) {
             if (!shape || shape.shapeType !== 'custom' || !shape.pathData) return;
             if (shape._normalized) return;

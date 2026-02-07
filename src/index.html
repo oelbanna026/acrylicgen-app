@@ -120,12 +120,12 @@
     <link rel="stylesheet" href="vendor/driver.css">
 
     <!-- App Logic (Defer all) -->
-    <script src="js/auth.js?v=80"></script>
-    <script defer src="js/tour.js?v=80"></script>
-    <script src="js/monetization.js?v=80"></script>
-    <script defer src="js/diagnostics.js?v=80"></script>
-    <script src="js/utils/calculator.js?v=80"></script>
-    <script src="js/app.js?v=80"></script>
+    <script src="js/auth.js?v=81"></script>
+    <script defer src="js/tour.js?v=81"></script>
+    <script src="js/monetization.js?v=81"></script>
+    <script defer src="js/diagnostics.js?v=81"></script>
+    <script src="js/utils/calculator.js?v=81"></script>
+    <script src="js/app.js?v=81"></script>
     <!-- <script defer src="js/app.bundle.js?v=13"></script> -->
     
     <!-- Alpine.js (Must load after app.js) -->
@@ -136,8 +136,8 @@
                 for(let registration of registrations) {
                     registration.unregister();
                 }
-                if (!sessionStorage.getItem('force_reload_v80')) {
-                    sessionStorage.setItem('force_reload_v80', 'true');
+                if (!sessionStorage.getItem('force_reload_v81')) {
+                    sessionStorage.setItem('force_reload_v81', 'true');
                     window.location.reload();
                 }
             });
