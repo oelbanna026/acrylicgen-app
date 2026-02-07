@@ -328,7 +328,7 @@ function app() {
             cornerType: 'straight',
             cornerRadius: 5,
             cornerSides: { tl: true, tr: true, br: true, bl: true },
-            holePattern: 'corners',
+            holePattern: 'none',
             holeCount: 8,
             holeDiameter: 0.8,
             holeMargin: 3,
