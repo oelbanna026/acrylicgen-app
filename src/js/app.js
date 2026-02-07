@@ -3857,9 +3857,8 @@ function app() {
                             const totalLen = tempPath.getTotalLength();
                             
                             // Adaptive sampling or fixed step
-                            // For simplicity, let's use fixed step based on length to keep file size reasonable
-                            // but high enough for curves.
-                            const step = 1; // 1 unit step (mm usually)
+                            // Increased resolution: step = 0.1 (was 1.0) to fix "jagged/distorted" look on curves
+                            const step = 0.1; 
                             const count = Math.ceil(totalLen / step);
                             
                             // DXF POLYLINE
