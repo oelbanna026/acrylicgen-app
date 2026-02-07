@@ -686,6 +686,78 @@ function app() {
             shape._normalized = true;
         },
 
+        getShapesBounds(shapes) {
+            const list = Array.isArray(shapes) ? shapes : this.shapes;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            list.forEach(s => {
+                const box = this.getShapeBoundingBox(s);
+                if (!isFinite(box.minX) || !isFinite(box.minY) || !isFinite(box.maxX) || !isFinite(box.maxY)) return;
+                minX = Math.min(minX, box.minX);
+                minY = Math.min(minY, box.minY);
+                maxX = Math.max(maxX, box.maxX);
+                maxY = Math.max(maxY, box.maxY);
+            });
+            if (minX === Infinity) return null;
+            return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+        },
+
+        fitShapesToSheet(shapes) {
+            const list = Array.isArray(shapes) ? shapes : this.shapes;
+            const sheetW = parseFloat(this.nestingSheetWidth) || 0;
+            const sheetH = parseFloat(this.nestingSheetHeight) || 0;
+            if (!sheetW || !sheetH || list.length === 0) return;
+
+            list.forEach(s => {
+                if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
+            });
+
+            const bounds = this.getShapesBounds(list);
+            if (!bounds) return;
+
+            let scale = 1;
+            if (bounds.width > sheetW || bounds.height > sheetH) {
+                scale = Math.min(sheetW / bounds.width, sheetH / bounds.height);
+            }
+
+            if (isFinite(scale) && scale > 0 && scale < 1) {
+                list.forEach(s => {
+                    if (s.shapeType === 'custom' && s.pathData) {
+                        s.pathTransform = `${s.pathTransform || ''} scale(${scale.toFixed(6)} ${scale.toFixed(6)})`.trim();
+                        s._normalized = false;
+                        this.normalizeCustomShapeBounds(s);
+                        s.x = (parseFloat(s.x) || 0) * scale;
+                        s.y = (parseFloat(s.y) || 0) * scale;
+                    } else {
+                        s.x = parseFloat(((parseFloat(s.x) || 0) * scale).toFixed(3));
+                        s.y = parseFloat(((parseFloat(s.y) || 0) * scale).toFixed(3));
+                        s.width = parseFloat(((parseFloat(s.width) || 0) * scale).toFixed(3));
+                        s.height = parseFloat(((parseFloat(s.height) || 0) * scale).toFixed(3));
+                        s.cornerRadius = parseFloat(((parseFloat(s.cornerRadius) || 0) * scale).toFixed(3));
+                        s.holeDiameter = parseFloat(((parseFloat(s.holeDiameter) || 0) * scale).toFixed(3));
+                        s.holeMargin = parseFloat(((parseFloat(s.holeMargin) || 0) * scale).toFixed(3));
+                        this.updateHoles(s);
+                    }
+                });
+            }
+
+            const bounds2 = this.getShapesBounds(list);
+            if (!bounds2) return;
+
+            let dx = 0;
+            let dy = 0;
+            if (bounds2.minX < 0) dx = -bounds2.minX;
+            if (bounds2.maxX + dx > sheetW) dx += sheetW - (bounds2.maxX + dx);
+            if (bounds2.minY < 0) dy = -bounds2.minY;
+            if (bounds2.maxY + dy > sheetH) dy += sheetH - (bounds2.maxY + dy);
+
+            if (dx !== 0 || dy !== 0) {
+                list.forEach(s => {
+                    s.x = parseFloat(((parseFloat(s.x) || 0) + dx).toFixed(3));
+                    s.y = parseFloat(((parseFloat(s.y) || 0) + dy).toFixed(3));
+                });
+            }
+        },
+
         setNestingNotice(message) {
             this.nestingNotice = message || '';
             if (!message) return;
@@ -830,6 +902,7 @@ function app() {
                 this.shapes.push(...newShapes);
                 this.shapes = [...this.shapes];
                 this.activeShapeId = newShapes[0].id;
+                this.fitShapesToSheet(this.shapes);
                 this.centerView();
             } else {
                 this.activeShapeId = shape.id;
@@ -859,6 +932,7 @@ function app() {
                 this.activeShapeId = shape.id;
                 this.selectShape(shape.id);
                 this.shapes = [...this.shapes];
+                this.fitShapesToSheet([shape]);
                 this.save();
                 this.centerView();
             } catch (e) {
@@ -3810,6 +3884,7 @@ function app() {
             if (this.shapes.length === 0) return;
             
             window.Monetization.executeProtectedAction(() => {
+                this.fitShapesToSheet(this.shapes);
                 this.shapes.forEach(s => {
                     if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
                 });
@@ -3937,6 +4012,7 @@ function app() {
     
                 // Simulate async for UI update
                 setTimeout(() => {
+                    this.fitShapesToSheet(this.shapes);
                     this.shapes.forEach(s => {
                         if (s.shapeType === 'custom') this.normalizeCustomShapeBounds(s);
                     });

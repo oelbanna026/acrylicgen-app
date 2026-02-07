@@ -1,20 +1,20 @@
-const CACHE_NAME = 'acrylic-app-v75';
+const CACHE_NAME = 'acrylic-app-v76';
 const ASSETS = [
     './',
     './index.html',
-    './src/css/style.css?v=75',
-    './src/js/app.js?v=75',
-    './src/js/auth.js?v=75',
-    './src/js/tour.js?v=75',
-    './src/js/monetization.js?v=75',
-    './src/js/diagnostics.js?v=75',
+    './src/css/style.css?v=76',
+    './src/js/app.js?v=76',
+    './src/js/auth.js?v=76',
+    './src/js/tour.js?v=76',
+    './src/js/monetization.js?v=76',
+    './src/js/diagnostics.js?v=76',
     './src/manifest.json',
     './src/vendor/tailwindcss.js',
     './src/vendor/alpine.min.js',
     './src/vendor/jspdf.umd.min.js',
     './src/vendor/driver.js',
     './src/vendor/driver.css',
-    './src/js/utils/calculator.js?v=75'
+    './src/js/utils/calculator.js?v=76'
 ];
 
 // Install Event: Cache assets
