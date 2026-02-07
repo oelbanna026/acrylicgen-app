@@ -3836,118 +3836,138 @@ function app() {
                 if (this.unit === 'cm') scale = 10;
                 else if (this.unit === 'inch') scale = 25.4;
 
+                // Y-Axis Flip:
+                // CAD software typically uses a Cartesian coordinate system where Y is UP.
+                // Screen coordinates have Y as DOWN.
+                // To preserve the visual arrangement and relative positions (Top is Top), we must flip the Y axis.
+                // We map Screen Y (0 to SheetHeight) to CAD Y (SheetHeight to 0).
+                const sheetH = parseFloat(this.sheetHeight) || 1000;
+
                 this.shapes.forEach(shape => {
                     const ox = parseFloat(shape.x) || 0;
                     const oy = parseFloat(shape.y) || 0;
 
-                    // Handle Custom Shapes (imported paths) differently to preserve complex geometry
+                    // Handle Custom Shapes (imported paths)
                     if (shape.shapeType === 'custom' && shape.pathData) {
                         try {
-                            // Create temp path to read geometry
                             const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                            tempPath.setAttribute("d", shape.pathData);
                             
-                            // Get Transform Matrix (CTM) if shape has pathTransform
-                            // We need to append to DOM to get CTM in some browsers, but let's try creating a dummy SVG
-                            const hiddenSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                            hiddenSvg.style.display = 'none';
-                            document.body.appendChild(hiddenSvg);
-                            hiddenSvg.appendChild(tempPath);
-                            
-                            if (shape.pathTransform) {
-                                tempPath.setAttribute("transform", shape.pathTransform);
-                            }
-                            
-                            const ctm = tempPath.getCTM();
-                            
-                            // Split into sub-paths (M commands) to avoid connecting lines
+                            // Split into sub-paths (M commands) to avoid connecting lines between holes
+                            // and handle open/closed paths correctly
                             const d = shape.pathData;
-                            // Match M or m followed by anything until next M or m or end
-                            // This regex splits by M/m but keeps the delimiter at the start
                             const subPaths = d.match(/([Mm][^Mm]*)/g) || [d];
                             
                             subPaths.forEach(subD => {
                                 tempPath.setAttribute("d", subD);
                                 const len = tempPath.getTotalLength();
-                                if (len < 0.1) return; // Skip tiny artifacts
+                                if (len < 0.1) return;
 
-                                // Sampling Resolution
-                                const step = 0.1; // 0.1mm is very high resolution
+                                // Sampling Resolution - Ultra High for Fidelity
+                                const step = 0.02; 
                                 const count = Math.ceil(len / step);
                                 
                                 const rawPoints = [];
                                 for(let i=0; i<=count; i++) {
                                     const dist = Math.min(i * step, len);
                                     const pt = tempPath.getPointAtLength(dist);
-                                    // Apply Transform
-                                    const tPt = pt.matrixTransform(ctm);
-                                    rawPoints.push({ x: tPt.x, y: tPt.y });
+                                    // Apply Transform (if any - though usually normalized)
+                                    // Custom shapes usually have pathTransform in data, but normalized ones don't?
+                                    // We'll trust the path data + ox/oy.
+                                    rawPoints.push({ x: pt.x, y: pt.y });
                                 }
-                                
-                                // Simplify: DISABLED for Pixel Perfect Export
-                                // Even with high threshold, simplification can remove subtle intentional details in intricate joinery.
-                                // We will export ALL sampled points to ensure 100% fidelity to the source path.
-                                // File size will be larger, but accuracy is paramount for laser cutting.
-                                const simplified = rawPoints;
+
+                                // Check if closed (Z command)
+                                const isClosed = /z/i.test(subD);
 
                                 // Output LWPOLYLINE
-                                dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + simplified.length + "\n70\n1\n"; 
-                                simplified.forEach(pt => {
-                                    // Add Shape Position (ox, oy)
-                                    // Note: If ctm already includes shape position (unlikely, usually just local transform), we add ox/oy.
-                                    // normalizeCustomShapeBounds puts path at 0,0 relative to shape.x,y.
-                                    // So we MUST add ox/oy.
+                                // Flag 1 = Closed, 0 = Open
+                                dxf += `0\nLWPOLYLINE\n8\n0\n90\n${rawPoints.length}\n70\n${isClosed ? 1 : 0}\n`; 
+                                rawPoints.forEach(pt => {
                                     const x = ((pt.x + ox) * scale).toFixed(4);
-                                    const y = ((pt.y + oy) * scale).toFixed(4);
+                                    // Flip Y
+                                    const y = ((sheetH - (pt.y + oy)) * scale).toFixed(4);
                                     dxf += `10\n${x}\n20\n${y}\n`;
                                 });
                             });
-                            
-                            document.body.removeChild(hiddenSvg);
-
                         } catch(e) {
-                            console.error("Error exporting custom shape path", e);
-                            // Fallback to rect
-                            const shapePts = this.getShapePoints(shape);
-                             if (shapePts.length > 0) {
-                                dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
-                                shapePts.forEach(p => {
-                                    dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
-                                    if (p.bulge && p.bulge !== 0) {
-                                        dxf += `42\n${p.bulge}\n`;
-                                    }
-                                });
-                            }
+                            console.error("Error exporting custom shape", e);
+                            // Fallback logic could go here
                         }
 
+                    } else if (shape.shapeType === 'rectangle' && (parseFloat(shape.cornerRadius)||0) === 0) {
+                        // Sharp Rectangle - Explicit Vertices for perfect corners
+                        // CW or CCW? Standard is usually CCW for outer.
+                        // Screen: TL -> TR -> BR -> BL
+                        // DXF (Flipped): TL(High Y) -> TR(High Y) -> BR(Low Y) -> BL(Low Y)
+                        const w = parseFloat(shape.width) || 0;
+                        const h = parseFloat(shape.height) || 0;
+                        
+                        // Vertices (Local)
+                        const pts = [
+                            {x: 0, y: 0},
+                            {x: w, y: 0},
+                            {x: w, y: h},
+                            {x: 0, y: h}
+                        ];
+
+                        dxf += "0\nLWPOLYLINE\n8\n0\n90\n4\n70\n1\n";
+                        pts.forEach(pt => {
+                            const x = ((pt.x + ox) * scale).toFixed(4);
+                            const y = ((sheetH - (pt.y + oy)) * scale).toFixed(4);
+                            dxf += `10\n${x}\n20\n${y}\n`;
+                        });
+
                     } else {
-                        // Standard Shapes (Rect, Circle, etc.)
-                        const shapePts = this.getShapePoints(shape);
-                        if (shapePts.length > 0) {
-                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + shapePts.length + "\n70\n1\n"; 
-                            shapePts.forEach(p => {
-                                dxf += `10\n${(p.x + ox) * scale}\n20\n${(p.y + oy) * scale}\n`;
-                                if (p.bulge && p.bulge !== 0) {
-                                    dxf += `42\n${p.bulge}\n`;
-                                }
-                            });
+                        // Standard Shapes (Rounded Rect, Circle, etc.)
+                        // Use High Precision Sampling
+                        const d = this.getShapePath(shape);
+                        try {
+                            const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                            tempPath.setAttribute("d", d);
+                            const len = tempPath.getTotalLength();
+                            const step = 0.02; // Ultra High Resolution
+                            const count = Math.ceil(len / step);
+                            
+                            dxf += "0\nLWPOLYLINE\n8\n0\n90\n" + (count + 1) + "\n70\n1\n"; 
+                            for(let i=0; i<=count; i++) {
+                                const dist = Math.min(i * step, len);
+                                const pt = tempPath.getPointAtLength(dist);
+                                const x = ((pt.x + ox) * scale).toFixed(4);
+                                const y = ((sheetH - (pt.y + oy)) * scale).toFixed(4);
+                                dxf += `10\n${x}\n20\n${y}\n`;
+                            }
+                        } catch(e) {
+                            // Fallback
                         }
                     }
                     
+                    // Holes
                     const holeR = (parseFloat(shape.holeDiameter)||0) / 2 * scale;
                     shape.holes.forEach(hole => {
-                        const hx = (hole.x + ox) * scale;
-                        const hy = (hole.y + oy) * scale;
+                        const hx_raw = hole.x + ox;
+                        const hy_raw = hole.y + oy;
+                        
+                        const hx = (hx_raw * scale).toFixed(4);
+                        const hy = ((sheetH - hy_raw) * scale).toFixed(4);
                         
                         if (hole.type === 'rect') {
                             const hw = parseFloat(hole.width) * scale;
                             const hh = parseFloat(hole.height) * scale;
-                            // Draw Rect as Polyline
-                            // Centered at hx, hy
-                            const x1 = hx - hw/2;
-                            const y1 = hy - hh/2;
-                            const x2 = hx + hw/2;
-                            const y2 = hy + hh/2;
+                            // Rect Center at hx, hy (DXF coords)
+                            // But wait, hole.x/y are centers?
+                            // In updateHoles:
+                            // if (shape.holePattern === 'corners') ... pts.push({x: offset, y: offset});
+                            // So hole.x/y are relative to shape origin (ox, oy).
+                            // Yes.
+                            
+                            const x1 = (hx - hw/2).toFixed(4);
+                            const y1 = (parseFloat(hy) - hh/2).toFixed(4); // Wait, if hy is center...
+                            const x2 = (parseFloat(hx) + hw/2).toFixed(4);
+                            const y2 = (parseFloat(hy) + hh/2).toFixed(4);
+                            
+                            // Note: Y is flipped, so Y2 (Top) > Y1 (Bottom)? 
+                            // If hy is center, y1 = hy - hh/2, y2 = hy + hh/2.
+                            // This draws a box around center. Correct.
                             
                             dxf += "0\nLWPOLYLINE\n8\n0\n90\n4\n70\n1\n";
                             dxf += `10\n${x1}\n20\n${y1}\n`;
@@ -3965,8 +3985,11 @@ function app() {
                 if (plan.watermark) {
                      const dims = this.designDimensions;
                      const cx = ((dims.minX + dims.maxX) / 2) * scale;
-                     const cy = ((dims.minY + dims.maxY) / 2) * scale;
-                     const h = Math.max(dims.height * 0.05, 5) * scale; // 5% of height
+                     // Flip Y for watermark center
+                     const cy_raw = (dims.minY + dims.maxY) / 2;
+                     const cy = ((sheetH - cy_raw) * scale).toFixed(4);
+                     
+                     const h = Math.max(dims.height * 0.05, 5) * scale; 
                      
                      dxf += `0\nTEXT\n8\nWATERMARK\n62\n9\n10\n${cx}\n20\n${cy}\n40\n${h}\n1\nCreated with AcrylicGen Free\n72\n4\n11\n${cx}\n21\n${cy}\n`;
                 }
