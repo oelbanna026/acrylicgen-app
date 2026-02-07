@@ -780,6 +780,7 @@ function app() {
             const baseName = shape.name || 'Shape';
             const parentTransform = shape.pathTransform || '';
 
+            // Extract parts (these bounds are RELATIVE to shape.x because of parentTransform)
             const parts = shape.subpaths.map((d) => {
                 const bounds = this.measurePathBounds([{ d, transform: parentTransform }]);
                 return { d, bounds };
@@ -831,67 +832,54 @@ function app() {
             document.body.removeChild(svg);
 
             const newShapes = [];
-            const used = new Set();
-            outers.forEach((idx, order) => {
-                const part = parts[idx];
-                const bounds = part.bounds;
-                const targetMinX = baseX + bounds.minX;
-                const targetMinY = baseY + bounds.minY;
-                const holePaths = holesMap.get(idx) || [];
-                const d = [part.d, ...holePaths].join(' ');
+            
+            // Helper to create a shape at the correct world position
+            const createShape = (d, name, bounds) => {
                 const s = defaultShape();
                 s.shapeType = 'custom';
-                s.name = `${baseName} ${order + 1}`;
+                s.name = name;
                 s.width = bounds.width;
                 s.height = bounds.height;
-                s.x = baseX + bounds.minX;
-                s.y = baseY + bounds.minY;
                 s.rotation = baseRot;
                 s.cornerType = 'straight';
                 s.cornerRadius = 0;
                 s.holePattern = 'none';
                 s.holes = [];
                 s.pathData = d;
-                s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
-                s.pathFillRule = holePaths.length ? 'evenodd' : 'nonzero';
+                // Preserve parent transform initially to maintain visual appearance
+                s.pathTransform = parentTransform;
+                s.pathFillRule = 'nonzero';
+                
+                // Set initial position to parent's position
+                s.x = baseX;
+                s.y = baseY;
+                
+                // Normalize: This will measure path with transform, 
+                // add local offset to s.x, and append -offset to transform.
+                // Since 'bounds' above was measured relative to baseX (visual 0),
+                // bounds.minX is the offset from baseX.
+                // normalizeCustomShapeBounds will find exactly bounds.minX as the offset.
+                // So s.x becomes baseX + bounds.minX.
+                // This is exactly what we want!
                 s._normalized = false;
                 this.normalizeCustomShapeBounds(s);
-                const box = this.getShapeBoundingBox(s);
-                if (isFinite(box.minX) && isFinite(box.minY)) {
-                    s.x += targetMinX - box.minX;
-                    s.y += targetMinY - box.minY;
-                }
+                
+                return s;
+            };
+
+            outers.forEach((idx, order) => {
+                const part = parts[idx];
+                const holePaths = holesMap.get(idx) || [];
+                const d = [part.d, ...holePaths].join(' ');
+                const s = createShape(d, `${baseName} ${order + 1}`, part.bounds);
+                if (holePaths.length) s.pathFillRule = 'evenodd';
                 newShapes.push(s);
-                used.add(idx);
             });
 
             if (newShapes.length === 0) {
+                // Fallback: If no outers found (weird topology), treat all parts as shapes
                 parts.forEach((part, idx) => {
-                    const bounds = part.bounds;
-                    const targetMinX = baseX + bounds.minX;
-                    const targetMinY = baseY + bounds.minY;
-                    const s = defaultShape();
-                    s.shapeType = 'custom';
-                    s.name = `${baseName} ${idx + 1}`;
-                    s.width = bounds.width;
-                    s.height = bounds.height;
-                    s.x = baseX + bounds.minX;
-                    s.y = baseY + bounds.minY;
-                    s.rotation = baseRot;
-                    s.cornerType = 'straight';
-                    s.cornerRadius = 0;
-                    s.holePattern = 'none';
-                    s.holes = [];
-                    s.pathData = part.d;
-                    s.pathTransform = `${parentTransform} translate(${(-bounds.minX).toFixed(3)} ${(-bounds.minY).toFixed(3)})`;
-                    s.pathFillRule = 'nonzero';
-                    s._normalized = false;
-                    this.normalizeCustomShapeBounds(s);
-                    const box = this.getShapeBoundingBox(s);
-                    if (isFinite(box.minX) && isFinite(box.minY)) {
-                        s.x += targetMinX - box.minX;
-                        s.y += targetMinY - box.minY;
-                    }
+                    const s = createShape(part.d, `${baseName} ${idx + 1}`, part.bounds);
                     newShapes.push(s);
                 });
             }
@@ -900,10 +888,11 @@ function app() {
                 const index = this.shapes.findIndex(s => s.id === shape.id);
                 if (index !== -1) this.shapes.splice(index, 1);
                 this.shapes.push(...newShapes);
-                this.shapes = [...this.shapes];
                 this.activeShapeId = newShapes[0].id;
-                this.fitShapesToSheet(this.shapes);
-                this.centerView();
+                // Do NOT refit all shapes, just keep them where they are relative to original group
+                // this.fitShapesToSheet(this.shapes); 
+                // Maybe center view on the new group?
+                // this.centerView();
             } else {
                 this.activeShapeId = shape.id;
             }
@@ -954,51 +943,55 @@ function app() {
             shape.cornerRadius = 0;
             shape.holePattern = 'none';
             shape.holes = [];
+            // Use pathData directly
             shape.pathData = parsed.pathData;
-            shape.pathTransform = parsed.transform || `translate(${(-parsed.minX).toFixed(3)} ${(-parsed.minY).toFixed(3)})`;
+            // IMPORTANT: Clear pathTransform initially to let normalizeCustomShapeBounds
+            // calculate the true bounding box from scratch. Relying on parsed.minX/minY
+            // can be error-prone if the parser logic differs from browser rendering.
+            shape.pathTransform = ''; 
+            
             if (parsed.paths && parsed.paths.length > 1) shape.subpaths = parsed.paths;
+            
+            // Normalize: This will measure raw path, set shape.x/y to bounds.minX/minY,
+            // and set transform to translate(-minX, -minY).
             this.normalizeCustomShapeBounds(shape);
 
+            // Ensure valid dimensions
+            if (!isFinite(shape.width) || shape.width <= 0) shape.width = 10;
+            if (!isFinite(shape.height) || shape.height <= 0) shape.height = 10;
+
+            // Now position it on the sheet
             const sheetW = parseFloat(this.nestingSheetWidth) || 0;
             const sheetH = parseFloat(this.nestingSheetHeight) || 0;
+            
             if (sheetW > 0 && sheetH > 0) {
-                let baseBox = this.getShapeBoundingBox({ ...shape, x: 0, y: 0 });
-                if (isFinite(baseBox.width) && isFinite(baseBox.height) && baseBox.width > 0 && baseBox.height > 0) {
-                    if (baseBox.width > sheetW || baseBox.height > sheetH) {
-                        const scale = Math.min(sheetW / baseBox.width, sheetH / baseBox.height);
-                        if (isFinite(scale) && scale > 0) {
-                            shape.pathTransform = `${shape.pathTransform || ''} scale(${scale.toFixed(6)} ${scale.toFixed(6)})`.trim();
-                            shape._normalized = false;
-                            this.normalizeCustomShapeBounds(shape);
-                        }
-                        baseBox = this.getShapeBoundingBox({ ...shape, x: 0, y: 0 });
+                // If shape is larger than sheet, scale it down
+                if (shape.width > sheetW || shape.height > sheetH) {
+                    const scale = Math.min(sheetW / shape.width, sheetH / shape.height);
+                    if (isFinite(scale) && scale > 0) {
+                        // Apply scale to transform
+                        shape.pathTransform = `${shape.pathTransform || ''} scale(${scale.toFixed(6)} ${scale.toFixed(6)})`.trim();
+                        // Re-normalize to update width/height and x/y
+                        shape._normalized = false;
+                        this.normalizeCustomShapeBounds(shape);
                     }
-                    const targetMinX = Math.max(0, (sheetW - baseBox.width) / 2);
-                    const targetMinY = Math.max(0, (sheetH - baseBox.height) / 2);
-                    shape.x = targetMinX - baseBox.minX;
-                    shape.y = targetMinY - baseBox.minY;
-                    const placedBox = this.getShapeBoundingBox({ ...shape });
-                    if (isFinite(placedBox.minX) && isFinite(placedBox.minY)) {
-                        if (placedBox.minX < 0) shape.x -= placedBox.minX;
-                        if (placedBox.minY < 0) shape.y -= placedBox.minY;
-                        if (placedBox.maxX > sheetW) shape.x -= (placedBox.maxX - sheetW);
-                        if (placedBox.maxY > sheetH) shape.y -= (placedBox.maxY - sheetH);
-                    }
-                } else {
-                    shape.x = 0;
-                    shape.y = 0;
                 }
+                
+                // Center on sheet
+                // After normalize, shape acts like a rect at (shape.x, shape.y).
+                // But normalize sets shape.x to the raw path offset.
+                // We want to OVERWRITE that to place it where we want.
+                // Since the visual path is normalized to (0,0) relative to shape,
+                // setting shape.x sets the visual left edge.
+                
+                const targetX = (sheetW - shape.width) / 2;
+                const targetY = (sheetH - shape.height) / 2;
+                
+                shape.x = Math.max(0, targetX);
+                shape.y = Math.max(0, targetY);
             } else {
                 shape.x = 0;
                 shape.y = 0;
-            }
-
-            const finalBox = this.getShapeBoundingBox({ ...shape, x: shape.x || 0, y: shape.y || 0 });
-            if (!isFinite(shape.width) || !isFinite(shape.height) || shape.width <= 0 || shape.height <= 0) {
-                if (isFinite(finalBox.width) && isFinite(finalBox.height)) {
-                    shape.width = finalBox.width;
-                    shape.height = finalBox.height;
-                }
             }
 
             return shape;
