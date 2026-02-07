@@ -3858,22 +3858,136 @@ function app() {
                             const subPaths = d.match(/([Mm][^Mm]*)/g) || [d];
                             
                             subPaths.forEach(subD => {
-                                tempPath.setAttribute("d", subD);
-                                const len = tempPath.getTotalLength();
-                                if (len < 0.1) return;
-
-                                // Sampling Resolution - Ultra High for Fidelity
-                                const step = 0.02; 
-                                const count = Math.ceil(len / step);
+                                // Hybrid Parsing:
+                                // To ensure 100% precision for straight lines (critical for joinery),
+                                // we parse the path commands.
+                                // If it's a Line (L, H, V, Z), we use the exact coordinate.
+                                // If it's a Curve (C, S, Q, T, A), we sample it.
                                 
-                                const rawPoints = [];
-                                for(let i=0; i<=count; i++) {
-                                    const dist = Math.min(i * step, len);
-                                    const pt = tempPath.getPointAtLength(dist);
-                                    // Apply Transform (if any - though usually normalized)
-                                    // Custom shapes usually have pathTransform in data, but normalized ones don't?
-                                    // We'll trust the path data + ox/oy.
-                                    rawPoints.push({ x: pt.x, y: pt.y });
+                                // Tokenize
+                                // Regex matches command letter or number
+                                const tokens = subD.match(/([a-df-z])|([-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?)/ig);
+                                if (!tokens) return;
+                                
+                                let currentX = 0;
+                                let currentY = 0;
+                                let startX = 0; // For Z
+                                let startY = 0;
+                                
+                                let cmd = '';
+                                let args = [];
+                                
+                                let i = 0;
+                                // Handle first M/m manually
+                                if (tokens.length > 0 && /^[Mm]$/.test(tokens[0])) {
+                                    cmd = tokens[0];
+                                    i = 1;
+                                    // M has 2 args
+                                    if (tokens.length >= 3) {
+                                        const x = parseFloat(tokens[1]);
+                                        const y = parseFloat(tokens[2]);
+                                        if (cmd === 'M') {
+                                            currentX = x; currentY = y;
+                                            startX = x; startY = y;
+                                        } else {
+                                            currentX += x; currentY += y;
+                                            startX = currentX; startY = currentY;
+                                        }
+                                        i = 3;
+                                    }
+                                    
+                                    // If M has more args, subsequent are implicit L
+                                    // handled in loop below if we reset cmd to L/l?
+                                    // Actually, standard parser handles implicit.
+                                    // For simplicity, let's assume M is followed by command or implicit L.
+                                    // We'll treat subsequent numbers as L if no command provided.
+                                }
+                                
+                                const getArg = () => parseFloat(tokens[i++]);
+                                const isCmd = (t) => /^[a-df-z]$/i.test(t);
+                                
+                                const rawPoints = []; // Start empty. M doesn't add a point to polyline unless it's a vertex?
+                                // DXF LWPOLYLINE needs vertices. M is just start.
+                                // We add vertices for L, C, etc.
+                                // The first point of polyline is implicit? No, LWPOLYLINE has vertices.
+                                // We should push start point?
+                                // Yes, if we are drawing segments, we need start point.
+                                rawPoints.push({ x: currentX, y: currentY });
+
+                                while (i < tokens.length) {
+                                    const token = tokens[i];
+                                    if (isCmd(token)) {
+                                        cmd = token;
+                                        i++;
+                                    } else {
+                                        // Implicit command repetition
+                                        if (cmd === 'M') cmd = 'L';
+                                        if (cmd === 'm') cmd = 'l';
+                                    }
+                                    
+                                    const c = cmd.toUpperCase();
+                                    
+                                    if (c === 'Z') {
+                                        // Close Path
+                                        rawPoints.push({ x: startX, y: startY });
+                                        currentX = startX;
+                                        currentY = startY;
+                                        continue;
+                                    }
+                                    
+                                    if (c === 'L') {
+                                        const x = getArg();
+                                        const y = getArg();
+                                        const tx = (cmd === 'l') ? currentX + x : x;
+                                        const ty = (cmd === 'l') ? currentY + y : y;
+                                        rawPoints.push({ x: tx, y: ty });
+                                        currentX = tx; currentY = ty;
+                                    } else if (c === 'H') {
+                                        const x = getArg();
+                                        const tx = (cmd === 'h') ? currentX + x : x;
+                                        rawPoints.push({ x: tx, y: currentY });
+                                        currentX = tx;
+                                    } else if (c === 'V') {
+                                        const y = getArg();
+                                        const ty = (cmd === 'v') ? currentY + y : y;
+                                        rawPoints.push({ x: currentX, y: ty });
+                                        currentY = ty;
+                                    } else {
+                                        // Curves (C, S, Q, T, A)
+                                        // Construct a temp path for just this segment
+                                        let segArgs = [];
+                                        // Consume args based on command
+                                        let count = 0;
+                                        if (c === 'C') count = 6;
+                                        else if (c === 'S') count = 4;
+                                        else if (c === 'Q') count = 4;
+                                        else if (c === 'T') count = 2;
+                                        else if (c === 'A') count = 7;
+                                        
+                                        for(let k=0; k<count; k++) segArgs.push(getArg());
+                                        
+                                        // Create Mini-Path
+                                        const miniD = `M ${currentX} ${currentY} ${cmd} ${segArgs.join(' ')}`;
+                                        tempPath.setAttribute("d", miniD);
+                                        const len = tempPath.getTotalLength();
+                                        
+                                        // High Precision Sampling for Curve
+                                        // Use very fine step for curves
+                                        const step = 0.02; 
+                                        const n = Math.ceil(len / step);
+                                        
+                                        for(let k=1; k<=n; k++) { // Start from 1, 0 is currentX/Y which is already pushed
+                                            const dist = Math.min(k * step, len);
+                                            const pt = tempPath.getPointAtLength(dist);
+                                            rawPoints.push({ x: pt.x, y: pt.y });
+                                        }
+                                        
+                                        // Update current to last point
+                                        // (The last point of sample should be the target, but getPointAtLength(len) is precise)
+                                        const last = tempPath.getPointAtLength(len);
+                                        currentX = last.x;
+                                        currentY = last.y;
+                                    }
                                 }
 
                                 // Check if closed (Z command)
