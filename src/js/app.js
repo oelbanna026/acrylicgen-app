@@ -5006,7 +5006,8 @@ function app() {
             const oldSizeUnit = oldSize * mmToUnit;
             const targetGapUnit = targetGap * mmToUnit;
             const toleranceThreshold = 0.5 * mmToUnit;
-            const axisEps = 1e-6;
+            const axisTol = Math.max(toleranceThreshold * 0.2, 1e-4);
+            const orthoTol = 0.3;
 
             const subpaths = this.parsePathToSubpaths(shape.pathData);
             if (!subpaths.length) {
@@ -5044,7 +5045,7 @@ function app() {
                     if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
                         const dxRaw = p2.x - p1.x;
                         const dyRaw = p2.y - p1.y;
-                        const isAxisAligned = Math.abs(dxRaw) < axisEps || Math.abs(dyRaw) < axisEps;
+                        const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol;
                         if (!isAxisAligned) continue;
 
                         const p0 = points[prevIdx];
@@ -5055,11 +5056,14 @@ function app() {
                         const v23y = p3.y - p2.y;
                         const len01 = Math.hypot(v01x, v01y);
                         const len23 = Math.hypot(v23x, v23y);
-                        if (len01 < oldSizeUnit * 0.5 || len23 < oldSizeUnit * 0.5) continue;
-
-                        const dot1 = (v01x * dxRaw) + (v01y * dyRaw);
-                        const dot2 = (v23x * dxRaw) + (v23y * dyRaw);
-                        if (Math.abs(dot1) > axisEps || Math.abs(dot2) > axisEps) continue;
+                        if (len01 > axisTol) {
+                            const dot1 = Math.abs((v01x / len01) * dx + (v01y / len01) * dy);
+                            if (dot1 > orthoTol) continue;
+                        }
+                        if (len23 > axisTol) {
+                            const dot2 = Math.abs((v23x / len23) * dx + (v23y / len23) * dy);
+                            if (dot2 > orthoTol) continue;
+                        }
 
                         found++;
                         const diff = targetGapUnit - d;
