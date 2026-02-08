@@ -2062,6 +2062,19 @@ function app() {
 
 
         // Auth Methods
+        handleRequestError(e, prefix = '') {
+            const msg = e && e.message ? e.message : String(e || '');
+            if (msg === 'Unauthorized' || msg === 'auth required') {
+                this.showLoginModal = true;
+                return;
+            }
+            if (prefix) {
+                alert(prefix + msg);
+                return;
+            }
+            alert(msg);
+        },
+
         async handleGoogleLogin(credential) {
             this.loading = true;
             try {
@@ -2092,7 +2105,7 @@ function app() {
                     }
                 }
             } catch (e) {
-                alert('Google Login Failed: ' + e.message);
+                this.handleRequestError(e, 'Google Login Failed: ');
             } finally {
                 this.loading = false;
             }
@@ -2125,7 +2138,7 @@ function app() {
                     }
                 }
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2135,7 +2148,7 @@ function app() {
                 this.showRegisterModal = false;
                 this.authRegister = { name: '', email: '', password: '' };
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2146,7 +2159,7 @@ function app() {
                 this.showOtpModal = false;
                 this.authOtp = { email: '', code: '' };
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2155,7 +2168,7 @@ function app() {
                 await auth.resendOtp(this.authOtp.email.trim());
                 alert('OTP sent');
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2166,7 +2179,7 @@ function app() {
                 this.showForgotPasswordModal = false;
                 this.forgotPasswordEmail = '';
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
         
@@ -2181,7 +2194,7 @@ function app() {
                 this.history = await auth.getHistory();
                 this.showHistoryModal = true;
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2245,7 +2258,12 @@ function app() {
             } catch (e) {
                 this.adminStats = this.adminStats || {};
                 this.adminUsers = this.adminUsers || [];
-                alert(e.message || 'Failed to load admin data');
+                const msg = e && e.message ? e.message : 'Failed to load admin data';
+                if (msg === 'Unauthorized' || msg === 'auth required') {
+                    this.showLoginModal = true;
+                    return;
+                }
+                alert(msg);
             } finally {
                 this.loading = false;
             }
@@ -2299,7 +2317,7 @@ function app() {
                     window.history.replaceState({}, document.title, url.pathname);
                 }
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -2312,7 +2330,7 @@ function app() {
                 this.showPricingModal = false;
                 window.trackEvent('purchase', { item: amount + '_credits', type: 'credits' });
             } catch (e) {
-                alert(e.message);
+                this.handleRequestError(e);
             }
         },
 
@@ -3894,12 +3912,16 @@ function app() {
                     if (!res.success) {
                         const msg = (res && res.message) ? res.message : (this.lang === 'ar' ? 'فشل التصدير' : 'Export failed');
                         if (msg.includes('credits')) this.showPricingModal = true;
-                        alert(msg);
+                        if (msg === 'Unauthorized' || msg === 'auth required') {
+                            this.showLoginModal = true;
+                        } else {
+                            alert(msg);
+                        }
                         return;
                     }
                     this.user = auth.user;
                 } catch (e) {
-                    alert(e.message);
+                    this.handleRequestError(e);
                     return;
                 }
 
@@ -4292,12 +4314,16 @@ function app() {
                     if (!res.success) {
                         const msg = (res && res.message) ? res.message : (this.lang === 'ar' ? 'فشل التصدير' : 'Export failed');
                         if (msg.includes('credits')) this.showPricingModal = true;
-                        alert(msg);
+                        if (msg === 'Unauthorized' || msg === 'auth required') {
+                            this.showLoginModal = true;
+                        } else {
+                            alert(msg);
+                        }
                         return;
                     }
                     this.user = auth.user;
                 } catch (e) {
-                    alert(e.message);
+                    this.handleRequestError(e);
                     return;
                 }
     
