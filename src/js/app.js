@@ -5001,6 +5001,11 @@ function app() {
 
             if (!oldSize || !newSize) return;
 
+            const unit = this.unit || 'cm';
+            const mmToUnit = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
+            const oldSizeUnit = oldSize * mmToUnit;
+            const targetGapUnit = targetGap * mmToUnit;
+
             const subpaths = this.parsePathToSubpaths(shape.pathData);
             if (!subpaths.length) {
                 this.jointStatusMsg = "Shape is too simple.";
@@ -5012,8 +5017,14 @@ function app() {
             let totalFound = 0;
 
             const updatedSubpaths = subpaths.map(sp => {
-                if (!sp.closed || !sp.points || sp.points.length < 3) return sp;
-                const points = sp.points;
+                if (!sp.points || sp.points.length < 3) return sp;
+                let points = sp.points;
+                let closed = sp.closed;
+                if (!closed && dist(points[0], points[points.length - 1]) < 0.001) {
+                    closed = true;
+                    points = points.slice(0, -1);
+                }
+                if (!closed || points.length < 3) return sp;
                 const n = points.length;
                 const newPoints = points.map(p => ({...p}));
                 let found = 0;
@@ -5023,9 +5034,9 @@ function app() {
                     const p2 = points[(i + 1) % n];
                     const d = dist(p1, p2);
 
-                    if (Math.abs(d - oldSize) < toleranceThreshold) {
+                    if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
                         found++;
-                        const diff = targetGap - d;
+                        const diff = targetGapUnit - d;
                         const moveAmt = diff / 2;
                         const dx = (p2.x - p1.x) / d;
                         const dy = (p2.y - p1.y) / d;
@@ -5049,7 +5060,7 @@ function app() {
                 }
 
                 totalFound += found;
-                return { ...sp, points: newPoints };
+                return { ...sp, points: newPoints, closed };
             });
 
             if (dryRun) {
