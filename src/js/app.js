@@ -5153,13 +5153,23 @@ window.app = app;
 
         // 2. Try Direct Access to Alpine Component (Robust Fallback)
         try {
-            // Find the root element that has x-data="app()"
-            const root = document.querySelector('[x-data*="app"]');
+            // Check body first as it is the root
+            const root = document.body;
             if (root && root.__x) {
-                console.log('Found Alpine root via __x, calling handleGoogleLogin directly');
+                console.log('Found Alpine root on body via __x, calling handleGoogleLogin directly');
                 root.__x.$data.handleGoogleLogin(response.credential);
+            } else if (root && root._x_dataStack && root._x_dataStack[0]) {
+                console.log('Found Alpine root on body via _x_dataStack, calling handleGoogleLogin directly');
+                root._x_dataStack[0].handleGoogleLogin(response.credential);
             } else {
-                 console.warn('Alpine root not found or __x property missing');
+                 // Try querySelector as backup
+                 const qRoot = document.querySelector('[x-data]');
+                 if (qRoot && qRoot.__x) {
+                    console.log('Found Alpine root via querySelector __x');
+                    qRoot.__x.$data.handleGoogleLogin(response.credential);
+                 } else {
+                    console.warn('Alpine root not found. Please refresh the page.');
+                 }
             }
         } catch (e) {
             console.error('Failed to invoke Alpine method directly:', e);
