@@ -5005,6 +5005,8 @@ function app() {
             const mmToUnit = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
             const oldSizeUnit = oldSize * mmToUnit;
             const targetGapUnit = targetGap * mmToUnit;
+            const toleranceThreshold = 0.5 * mmToUnit;
+            const axisEps = 1e-6;
 
             const subpaths = this.parsePathToSubpaths(shape.pathData);
             if (!subpaths.length) {
@@ -5012,7 +5014,6 @@ function app() {
                 return;
             }
 
-            const toleranceThreshold = 0.5;
             const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
             let totalFound = 0;
 
@@ -5027,25 +5028,46 @@ function app() {
                 if (!closed || points.length < 3) return sp;
                 const n = points.length;
                 const newPoints = points.map(p => ({...p}));
+                const moved = new Set();
                 let found = 0;
 
                 for (let i = 0; i < n; i++) {
+                    const prevIdx = (i - 1 + n) % n;
+                    const nextIdx = (i + 1) % n;
+                    const nextNextIdx = (i + 2) % n;
+                    if (moved.has(prevIdx) || moved.has(i) || moved.has(nextIdx) || moved.has(nextNextIdx)) continue;
+
                     const p1 = points[i];
-                    const p2 = points[(i + 1) % n];
+                    const p2 = points[nextIdx];
                     const d = dist(p1, p2);
 
                     if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
+                        const dxRaw = p2.x - p1.x;
+                        const dyRaw = p2.y - p1.y;
+                        const isAxisAligned = Math.abs(dxRaw) < axisEps || Math.abs(dyRaw) < axisEps;
+                        if (!isAxisAligned) continue;
+
+                        const p0 = points[prevIdx];
+                        const p3 = points[nextNextIdx];
+                        const v01x = p1.x - p0.x;
+                        const v01y = p1.y - p0.y;
+                        const v23x = p3.x - p2.x;
+                        const v23y = p3.y - p2.y;
+                        const len01 = Math.hypot(v01x, v01y);
+                        const len23 = Math.hypot(v23x, v23y);
+                        if (len01 < oldSizeUnit * 0.5 || len23 < oldSizeUnit * 0.5) continue;
+
+                        const dot1 = (v01x * dxRaw) + (v01y * dyRaw);
+                        const dot2 = (v23x * dxRaw) + (v23y * dyRaw);
+                        if (Math.abs(dot1) > axisEps || Math.abs(dot2) > axisEps) continue;
+
                         found++;
                         const diff = targetGapUnit - d;
                         const moveAmt = diff / 2;
-                        const dx = (p2.x - p1.x) / d;
-                        const dy = (p2.y - p1.y) / d;
+                        const dx = dxRaw / d;
+                        const dy = dyRaw / d;
                         const moveX = dx * moveAmt;
                         const moveY = dy * moveAmt;
-
-                        const prevIdx = (i - 1 + n) % n;
-                        const nextIdx = (i + 1) % n;
-                        const nextNextIdx = (i + 2) % n;
 
                         newPoints[i].x -= moveX;
                         newPoints[i].y -= moveY;
@@ -5056,6 +5078,11 @@ function app() {
                         newPoints[nextIdx].y += moveY;
                         newPoints[nextNextIdx].x += moveX;
                         newPoints[nextNextIdx].y += moveY;
+
+                        moved.add(prevIdx);
+                        moved.add(i);
+                        moved.add(nextIdx);
+                        moved.add(nextNextIdx);
                     }
                 }
 
