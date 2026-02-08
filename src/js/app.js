@@ -5121,8 +5121,7 @@ function app() {
         },
 
         parsePathToSegments(d) {
-            // Very basic SVG path parser for M and L commands (which most laser exports are)
-            // If curves exist, this naive approach might fail or approximate.
+            // Enhanced SVG path parser supporting relative commands
             const commands = d.match(/[a-df-z]|[\-+]?(?:\d+\.?\d*|\.\d+)/gi);
             if (!commands) return [];
             
@@ -5133,30 +5132,62 @@ function app() {
             for (let i = 0; i < commands.length; i++) {
                 const cmd = commands[i];
                 if (isNaN(parseFloat(cmd))) {
-                    // It's a letter
+                    const isRelative = cmd === cmd.toLowerCase();
                     const type = cmd.toUpperCase();
+                    
                     if (type === 'M') {
-                        cx = parseFloat(commands[++i]);
-                        cy = parseFloat(commands[++i]);
+                        let nx = parseFloat(commands[++i]);
+                        let ny = parseFloat(commands[++i]);
+                        if (isRelative) {
+                            nx += cx;
+                            ny += cy;
+                        }
+                        cx = nx;
+                        cy = ny;
                         startX = cx;
                         startY = cy;
+                        
+                        // Handle implicit L after M
+                        // While next token is a number, treat as L/l
+                        while (i + 1 < commands.length && !isNaN(parseFloat(commands[i + 1]))) {
+                            let lnx = parseFloat(commands[++i]);
+                            let lny = parseFloat(commands[++i]);
+                            if (isRelative) {
+                                lnx += cx;
+                                lny += cy;
+                            }
+                            segments.push({ p1: {x: cx, y: cy}, p2: {x: lnx, y: lny} });
+                            cx = lnx; cy = lny;
+                        }
+                        
                     } else if (type === 'L') {
-                        const nx = parseFloat(commands[++i]);
-                        const ny = parseFloat(commands[++i]);
+                        let nx = parseFloat(commands[++i]);
+                        let ny = parseFloat(commands[++i]);
+                        if (isRelative) {
+                            nx += cx;
+                            ny += cy;
+                        }
                         segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: ny} });
                         cx = nx; cy = ny;
                     } else if (type === 'H') {
-                        const nx = parseFloat(commands[++i]);
+                        let nx = parseFloat(commands[++i]);
+                        if (isRelative) {
+                            nx += cx;
+                        }
                         segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: cy} });
                         cx = nx;
                     } else if (type === 'V') {
-                        const ny = parseFloat(commands[++i]);
+                        let ny = parseFloat(commands[++i]);
+                        if (isRelative) {
+                            ny += cy;
+                        }
                         segments.push({ p1: {x: cx, y: cy}, p2: {x: cx, y: ny} });
                         cy = ny;
                     } else if (type === 'Z') {
                         if (Math.abs(cx - startX) > 0.001 || Math.abs(cy - startY) > 0.001) {
                              segments.push({ p1: {x: cx, y: cy}, p2: {x: startX, y: startY} });
                         }
+                        cx = startX; cy = startY;
                     }
                 }
             }
