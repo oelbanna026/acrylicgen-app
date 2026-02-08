@@ -128,10 +128,15 @@ function ensureDeviceTrial(deviceHash, userId) {
 }
 
 router.post('/google', async (req, res) => {
+    console.log('Received /auth/google request'); // Debug log
     const { credential, deviceId } = req.body;
-    if (!credential) return res.status(400).json({ error: 'No credential provided' });
+    if (!credential) {
+        console.log('No credential provided in body');
+        return res.status(400).json({ error: 'No credential provided' });
+    }
 
     try {
+        console.log('Verifying Google ID Token...');
         const ticket = await client.verifyIdToken({
             idToken: credential,
             audience: GOOGLE_CLIENT_ID
