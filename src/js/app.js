@@ -4971,145 +4971,73 @@ function app() {
             const oldSize = parseFloat(this.jointOldSize);
             const newSize = parseFloat(this.jointNewSize);
             const tol = parseFloat(this.jointTolerance) || 0;
-            const targetGap = newSize - tol; // Slots become smaller for tight fit
+            const targetGap = newSize - tol;
 
             if (!oldSize || !newSize) return;
 
-            // 1. Parse Path to Segments (Absolute Coordinates)
-            const segments = this.parsePathToSegments(shape.pathData);
-            if (segments.length < 4) {
+            const subpaths = this.parsePathToSubpaths(shape.pathData);
+            if (!subpaths.length) {
                 this.jointStatusMsg = "Shape is too simple.";
                 return;
             }
 
-            // 2. Identify Candidates (Parallel segments separated by approx oldSize)
-            // We look for "U" shapes or "Rect" shapes primarily.
-            // Simplified approach: Find any segment that has length approx oldSize.
-            // Then check if it's part of a slot (inward) or tab (outward).
-            // Actually, for thickness adjustment, we usually want to move the "sides" of the slot.
-            
-            // Let's iterate segments.
-            // If segment length is within threshold of oldSize (e.g. +/- 0.5mm)
-            // It might be the "bottom" of a U-slot or the "top" of a tab.
-            // But changing thickness usually means changing the WIDTH of the slot.
-            // A slot for 3mm material is 3mm wide.
-            // So we look for segments of length ~3mm.
-            
-            // Wait: A slot is a hole. Its width is 3mm.
-            // A tab is an extrusion. Its width is usually > thickness, but its depth might be thickness?
-            // No, tab depth = material thickness of the OTHER sheet.
-            // User request: "Convert joint size... e.g. 3mm to 2.8mm".
-            // This usually refers to the SLOT WIDTH.
-            
-            let count = 0;
-            const toleranceThreshold = 0.5; // Tolerance for detection (not the kerf)
-            
-            // Helper to check length
+            const toleranceThreshold = 0.5;
             const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            
-            // We need to move vertices.
-            // If we find a segment P_i -> P_{i+1} with length ~ oldSize.
-            // We want to change its length to targetGap.
-            // But we must move the connected segments P_{i-1}->P_i and P_{i+1}->P_{i+2} accordingly?
-            // No, usually we move the sides *apart* or *closer*.
-            // If segment L has length 3mm. We want it to be 2.8mm.
-            // We can move P_i and P_{i+1} towards each other by (3 - 2.8)/2 each.
-            // This pulls the connected vertical lines closer.
-            
-            const points = [];
-            // Extract points first
-            segments.forEach(s => {
-                if (points.length === 0) points.push(s.p1);
-                points.push(s.p2);
-            });
-            // Remove duplicate last point if closed
-            if (dist(points[0], points[points.length-1]) < 0.001) points.pop();
+            let totalFound = 0;
 
-            const newPoints = points.map(p => ({...p})); // Clone
-            
-            let found = 0;
-            const n = points.length;
-            
-            for (let i = 0; i < n; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % n];
-                const d = dist(p1, p2);
-                
-                if (Math.abs(d - oldSize) < toleranceThreshold) {
-                    // Candidate found!
-                    found++;
-                    
-                    // Calculate shortening/lengthening required
-                    const diff = targetGap - d; // e.g. 2.8 - 3.0 = -0.2
-                    const moveAmt = diff / 2;
-                    
-                    // Vector along the segment
-                    const dx = (p2.x - p1.x) / d;
-                    const dy = (p2.y - p1.y) / d;
-                    
-                    // Move p1 "forward" towards p2 (if shrinking) or "backward" (if growing)
-                    // Move p2 "backward" towards p1
-                    
-                    // But wait! We can't just move the points along the line, 
-                    // that would disconnect them from their *other* neighbors.
-                    // Actually, if it's a rectilinear shape (90 degree corners), 
-                    // moving P1 along the line P1-P2 implies moving the entire segment connected to P1 
-                    // (the previous segment) in that direction.
-                    
-                    // We assume 90 degree corners for standard laser cut joints.
-                    // So we modify the coordinate of P1 and P2.
-                    
-                    // Fix: Apply change with direction awareness
-                    // P1 moves AWAY from P2 (to lengthen) or TOWARDS P2 (to shorten)
-                    // If targetGap < d (shortening), we move P1 towards P2.
-                    // diff = targetGap - d (negative if shortening)
-                    // moveAmt = diff / 2
-                    
-                    // P1 new pos = P1 + (vector * -moveAmt) -> Wait, if diff is negative (shorten), we want P1 to move towards P2 (+vector)
-                    // Let's re-verify:
-                    // P1 = (0,0), P2 = (10,0). d=10. target=8. diff = -2. moveAmt = -1.
-                    // dx=1, dy=0.
-                    // We want P1 to become (1,0). 
-                    // P1 + dx * (-moveAmt) = 0 + 1 * 1 = 1. Correct.
-                    
-                    // P2 new pos = P2 + (vector * moveAmt)
-                    // P2 = (10,0). P2 + 1 * -1 = 9. Correct.
-                    // So P1 moves by -moveAmt, P2 moves by +moveAmt.
-                    
-                    const moveX = dx * moveAmt;
-                    const moveY = dy * moveAmt;
+            const updatedSubpaths = subpaths.map(sp => {
+                if (!sp.closed || !sp.points || sp.points.length < 3) return sp;
+                const points = sp.points;
+                const n = points.length;
+                const newPoints = points.map(p => ({...p}));
+                let found = 0;
 
-                    // Move P1
-                    newPoints[i].x -= moveX;
-                    newPoints[i].y -= moveY;
-                    
-                    // Also move P_prev (neighbor of P1) by the same amount to keep the corner 90deg
-                    // P_prev is at index (i - 1 + n) % n
-                    const prevIdx = (i - 1 + n) % n;
-                    newPoints[prevIdx].x -= moveX;
-                    newPoints[prevIdx].y -= moveY;
+                for (let i = 0; i < n; i++) {
+                    const p1 = points[i];
+                    const p2 = points[(i + 1) % n];
+                    const d = dist(p1, p2);
 
-                    // Move P2
-                    newPoints[(i + 1) % n].x += moveX;
-                    newPoints[(i + 1) % n].y += moveY;
-                    
-                    // Also move P_next (neighbor of P2) by the same amount
-                    // P_next is at index (i + 2) % n
-                    const nextNextIdx = (i + 2) % n;
-                    newPoints[nextNextIdx].x += moveX;
-                    newPoints[nextNextIdx].y += moveY;
+                    if (Math.abs(d - oldSize) < toleranceThreshold) {
+                        found++;
+                        const diff = targetGap - d;
+                        const moveAmt = diff / 2;
+                        const dx = (p2.x - p1.x) / d;
+                        const dy = (p2.y - p1.y) / d;
+                        const moveX = dx * moveAmt;
+                        const moveY = dy * moveAmt;
+
+                        const prevIdx = (i - 1 + n) % n;
+                        const nextIdx = (i + 1) % n;
+                        const nextNextIdx = (i + 2) % n;
+
+                        newPoints[i].x -= moveX;
+                        newPoints[i].y -= moveY;
+                        newPoints[prevIdx].x -= moveX;
+                        newPoints[prevIdx].y -= moveY;
+
+                        newPoints[nextIdx].x += moveX;
+                        newPoints[nextIdx].y += moveY;
+                        newPoints[nextNextIdx].x += moveX;
+                        newPoints[nextNextIdx].y += moveY;
+                    }
                 }
-            }
+
+                totalFound += found;
+                return { ...sp, points: newPoints };
+            });
 
             if (dryRun) {
-                this.jointStatusMsg = this.t('joints_found') + ': ' + found;
-                // Draw debug lines? For now just text status.
+                this.jointStatusMsg = this.t('joints_found') + ': ' + totalFound;
                 return;
             }
 
-            if (found > 0) {
-                // Reconstruct Path
-                const newPath = newPoints.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x.toFixed(3)} ${p.y.toFixed(3)}`).join(' ') + ' Z';
+            if (totalFound > 0) {
+                const newPath = updatedSubpaths.map(sp => {
+                    if (!sp.points || sp.points.length < 2) return '';
+                    let d = sp.points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x.toFixed(3)} ${p.y.toFixed(3)}`).join(' ');
+                    if (sp.closed) d += ' Z';
+                    return d;
+                }).filter(Boolean).join(' ');
                 shape.pathData = newPath;
                 shape._normalized = false;
                 this.normalizeCustomShapeBounds(shape);
@@ -5120,14 +5048,21 @@ function app() {
             }
         },
 
-        parsePathToSegments(d) {
-            // Enhanced SVG path parser supporting relative commands
+        parsePathToSubpaths(d) {
             const commands = d.match(/[a-df-z]|[\-+]?(?:\d+\.?\d*|\.\d+)/gi);
             if (!commands) return [];
             
-            const segments = [];
+            const subpaths = [];
+            let current = null;
             let cx = 0, cy = 0;
             let startX = 0, startY = 0;
+            
+            const startSubpath = (x, y) => {
+                if (current && current.points.length > 0) subpaths.push(current);
+                current = { points: [{ x, y }], closed: false };
+                startX = x;
+                startY = y;
+            };
             
             for (let i = 0; i < commands.length; i++) {
                 const cmd = commands[i];
@@ -5142,13 +5077,8 @@ function app() {
                             nx += cx;
                             ny += cy;
                         }
-                        cx = nx;
-                        cy = ny;
-                        startX = cx;
-                        startY = cy;
-                        
-                        // Handle implicit L after M
-                        // While next token is a number, treat as L/l
+                        cx = nx; cy = ny;
+                        startSubpath(cx, cy);
                         while (i + 1 < commands.length && !isNaN(parseFloat(commands[i + 1]))) {
                             let lnx = parseFloat(commands[++i]);
                             let lny = parseFloat(commands[++i]);
@@ -5156,10 +5086,9 @@ function app() {
                                 lnx += cx;
                                 lny += cy;
                             }
-                            segments.push({ p1: {x: cx, y: cy}, p2: {x: lnx, y: lny} });
+                            if (current) current.points.push({ x: lnx, y: lny });
                             cx = lnx; cy = lny;
                         }
-                        
                     } else if (type === 'L') {
                         let nx = parseFloat(commands[++i]);
                         let ny = parseFloat(commands[++i]);
@@ -5167,31 +5096,38 @@ function app() {
                             nx += cx;
                             ny += cy;
                         }
-                        segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: ny} });
+                        if (!current) startSubpath(cx, cy);
+                        if (current) current.points.push({ x: nx, y: ny });
                         cx = nx; cy = ny;
                     } else if (type === 'H') {
                         let nx = parseFloat(commands[++i]);
                         if (isRelative) {
                             nx += cx;
                         }
-                        segments.push({ p1: {x: cx, y: cy}, p2: {x: nx, y: cy} });
+                        if (!current) startSubpath(cx, cy);
+                        if (current) current.points.push({ x: nx, y: cy });
                         cx = nx;
                     } else if (type === 'V') {
                         let ny = parseFloat(commands[++i]);
                         if (isRelative) {
                             ny += cy;
                         }
-                        segments.push({ p1: {x: cx, y: cy}, p2: {x: cx, y: ny} });
+                        if (!current) startSubpath(cx, cy);
+                        if (current) current.points.push({ x: cx, y: ny });
                         cy = ny;
                     } else if (type === 'Z') {
-                        if (Math.abs(cx - startX) > 0.001 || Math.abs(cy - startY) > 0.001) {
-                             segments.push({ p1: {x: cx, y: cy}, p2: {x: startX, y: startY} });
+                        if (current) {
+                            current.closed = true;
+                            subpaths.push(current);
+                            current = null;
                         }
                         cx = startX; cy = startY;
                     }
                 }
             }
-            return segments;
+            
+            if (current && current.points.length > 0) subpaths.push(current);
+            return subpaths;
         }
 
         };
