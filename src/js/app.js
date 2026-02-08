@@ -5147,8 +5147,23 @@ window.app = app;
         console.log('Google Auth Response Received (Global):', response);
         // Store for Alpine to pick up if not ready
         window.pendingGoogleCredential = response.credential;
-        // Dispatch event for Alpine to catch
+        
+        // 1. Try Dispatch event for Alpine to catch (Standard way)
         window.dispatchEvent(new CustomEvent('google-auth-success', { detail: response.credential }));
+
+        // 2. Try Direct Access to Alpine Component (Robust Fallback)
+        try {
+            // Find the root element that has x-data="app()"
+            const root = document.querySelector('[x-data*="app"]');
+            if (root && root.__x) {
+                console.log('Found Alpine root via __x, calling handleGoogleLogin directly');
+                root.__x.$data.handleGoogleLogin(response.credential);
+            } else {
+                 console.warn('Alpine root not found or __x property missing');
+            }
+        } catch (e) {
+            console.error('Failed to invoke Alpine method directly:', e);
+        }
     };
 
 })();
