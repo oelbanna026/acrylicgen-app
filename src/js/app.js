@@ -5076,11 +5076,28 @@ function app() {
                     // P2 = (10,0). P2 + 1 * -1 = 9. Correct.
                     // So P1 moves by -moveAmt, P2 moves by +moveAmt.
                     
-                    newPoints[i].x -= dx * moveAmt;
-                    newPoints[i].y -= dy * moveAmt;
+                    const moveX = dx * moveAmt;
+                    const moveY = dy * moveAmt;
+
+                    // Move P1
+                    newPoints[i].x -= moveX;
+                    newPoints[i].y -= moveY;
                     
-                    newPoints[(i + 1) % n].x += dx * moveAmt;
-                    newPoints[(i + 1) % n].y += dy * moveAmt;
+                    // Also move P_prev (neighbor of P1) by the same amount to keep the corner 90deg
+                    // P_prev is at index (i - 1 + n) % n
+                    const prevIdx = (i - 1 + n) % n;
+                    newPoints[prevIdx].x -= moveX;
+                    newPoints[prevIdx].y -= moveY;
+
+                    // Move P2
+                    newPoints[(i + 1) % n].x += moveX;
+                    newPoints[(i + 1) % n].y += moveY;
+                    
+                    // Also move P_next (neighbor of P2) by the same amount
+                    // P_next is at index (i + 2) % n
+                    const nextNextIdx = (i + 2) % n;
+                    newPoints[nextNextIdx].x += moveX;
+                    newPoints[nextNextIdx].y += moveY;
                 }
             }
 
