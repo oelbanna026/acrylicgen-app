@@ -5059,16 +5059,26 @@ function app() {
                     // We assume 90 degree corners for standard laser cut joints.
                     // So we modify the coordinate of P1 and P2.
                     
-                    // Apply to newPoints
-                    // Note: We accumulate changes? Or applies directly?
-                    // Simple approach: Apply directly.
-                    // But P1 is also the end of previous segment.
+                    // Fix: Apply change with direction awareness
+                    // P1 moves AWAY from P2 (to lengthen) or TOWARDS P2 (to shorten)
+                    // If targetGap < d (shortening), we move P1 towards P2.
+                    // diff = targetGap - d (negative if shortening)
+                    // moveAmt = diff / 2
                     
-                    // P1 moves by moveAmt * vector
+                    // P1 new pos = P1 + (vector * -moveAmt) -> Wait, if diff is negative (shorten), we want P1 to move towards P2 (+vector)
+                    // Let's re-verify:
+                    // P1 = (0,0), P2 = (10,0). d=10. target=8. diff = -2. moveAmt = -1.
+                    // dx=1, dy=0.
+                    // We want P1 to become (1,0). 
+                    // P1 + dx * (-moveAmt) = 0 + 1 * 1 = 1. Correct.
+                    
+                    // P2 new pos = P2 + (vector * moveAmt)
+                    // P2 = (10,0). P2 + 1 * -1 = 9. Correct.
+                    // So P1 moves by -moveAmt, P2 moves by +moveAmt.
+                    
                     newPoints[i].x -= dx * moveAmt;
                     newPoints[i].y -= dy * moveAmt;
                     
-                    // P2 moves by -moveAmt * vector (opposite direction)
                     newPoints[(i + 1) % n].x += dx * moveAmt;
                     newPoints[(i + 1) % n].y += dy * moveAmt;
                 }
