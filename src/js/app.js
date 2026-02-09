@@ -5025,6 +5025,8 @@ function app() {
                 const axisTol = Math.max(toleranceThreshold * 0.2, 1e-6);
                 const orthoTol = 0.3;
                 let totalFound = 0;
+                let autoLen = null;
+                const smallSegs = [];
 
                 const updatedSubpaths = subpaths.map(sp => {
                     if (!sp.points || sp.points.length < 3) return sp;
@@ -5040,6 +5042,19 @@ function app() {
                     const moved = new Set();
                     let found = 0;
 
+                    // Collect axis-aligned small segment lengths for auto-detect
+                    for (let i = 0; i < n; i++) {
+                        const p1 = points[i];
+                        const p2 = points[(i + 1) % n];
+                        const dxRaw0 = p2.x - p1.x;
+                        const dyRaw0 = p2.y - p1.y;
+                        const d0 = Math.hypot(dxRaw0, dyRaw0);
+                        const isAxis0 = Math.abs(dxRaw0) < axisTol || Math.abs(dyRaw0) < axisTol;
+                        if (isAxis0 && d0 > axisTol) {
+                            smallSegs.push(d0);
+                        }
+                    }
+
                     for (let i = 0; i < n; i++) {
                         const prevIdx = (i - 1 + n) % n;
                         const nextIdx = (i + 1) % n;
@@ -5050,7 +5065,27 @@ function app() {
                         const p2 = points[nextIdx];
                         const d = dist(p1, p2);
 
-                        if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
+                        // Auto-detect notch length once per subpath if needed
+                        if (!autoLen && smallSegs.length >= 6) {
+                            const sorted = smallSegs.slice().sort((a,b)=>a-b);
+                            // Bin by rounding to 0.05*scale
+                            const binSize = Math.max(0.05 * scale, axisTol * 2);
+                            const bins = new Map();
+                            sorted.forEach(val => {
+                                const key = Math.round(val / binSize) * binSize;
+                                bins.set(key, (bins.get(key) || 0) + 1);
+                            });
+                            let bestKey = null, bestCount = 0;
+                            bins.forEach((cnt, key) => {
+                                if (cnt > bestCount) { bestCount = cnt; bestKey = key; }
+                            });
+                            if (bestKey && bestCount >= 6) autoLen = bestKey;
+                        }
+
+                        const expected = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ||
+                                         (autoLen && Math.abs(d - autoLen) < Math.max(toleranceThreshold, autoLen * 0.25));
+
+                        if (expected) {
                             const dxRaw = p2.x - p1.x;
                             const dyRaw = p2.y - p1.y;
                             if (d <= axisTol) continue;
@@ -5077,7 +5112,8 @@ function app() {
                             }
 
                             found++;
-                            const diff = targetGapUnit - d;
+                            const baseLen = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ? oldSizeUnit : (autoLen || d);
+                            const diff = (targetGapUnit - baseLen);
                             const moveAmt = diff / 2;
                             const moveX = dx * moveAmt;
                             const moveY = dy * moveAmt;
