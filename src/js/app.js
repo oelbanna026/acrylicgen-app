@@ -5246,89 +5246,33 @@ function app() {
                             found++;
                             const baseLen = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ? oldSizeUnit : (autoLen || d);
                             const diff = (targetGapUnit - baseLen);
-                            let moveAmt = diff / 2;
-                            const maxMove = Math.min(Math.abs(baseLen), Math.abs(targetGapUnit)) * 0.6;
-                            if (isFinite(maxMove) && maxMove > 0) {
-                                if (moveAmt > maxMove) moveAmt = maxMove;
-                                if (moveAmt < -maxMove) moveAmt = -maxMove;
-                            }
-                            // Movement should be along the segment vector (p1->p2)
-                            // To shrink the gap: p1 moves towards p2, p2 moves towards p1
-                            // To expand the gap: p1 moves away from p2, p2 moves away from p1
-                            // Current logic: p1 -= move, p2 += move.
-                            // If diff < 0 (shrink), moveAmt < 0. p1 -= (-val) => p1 += val (towards p2). Correct.
-                            // If diff > 0 (expand), moveAmt > 0. p1 -= val (away from p2). Correct.
                             
-                            const moveX = dx * moveAmt;
-                            const moveY = dy * moveAmt;
-
-                            // Apply movement to the joint segment endpoints
-                            newPoints[i].x -= moveX;
-                            newPoints[i].y -= moveY;
-                            newPoints[nextIdx].x += moveX;
-                            newPoints[nextIdx].y += moveY;
-
-                            // We revert to moving ONLY p1 and p2 (the joint tips), but we add a post-process
-                            // step to "straighten" the walls if they become slanted.
-                            // Moving p0/p3 blindly causes issues when the geometry is complex or noisy.
+                            // MIDPOINT RESIZING STRATEGY:
+                            // Calculate midpoint and expand/shrink outwards from center.
+                            const midX = (p1.x + p2.x) / 2;
+                            const midY = (p1.y + p2.y) / 2;
+                            const halfNew = targetGapUnit / 2;
                             
+                            // New positions based on midpoint and direction vector (dx, dy)
+                            newPoints[i].x = midX - dx * halfNew;
+                            newPoints[i].y = midY - dy * halfNew;
+                            
+                            newPoints[nextIdx].x = midX + dx * halfNew;
+                            newPoints[nextIdx].y = midY + dy * halfNew;
+
                             moved.add(i);
                             moved.add(nextIdx);
                         }
                     }
 
-                    // Post-process: Straighten walls for moved joints
-                    // If p1 was moved, the wall p0->p1 might be slanted. We project p0 to align with p1's new position
-                    // perpendicular to the joint vector.
-                    // Actually, simpler: if p0-p1 was vertical, and p1 moved horizontally, p0-p1 is now slanted.
-                    // We should move p0 horizontally to match p1.
-                    
-                    // We need to iterate again or track which joints were modified.
-                    // Let's do a quick pass to fix orthogonality for moved points.
-                    if (found > 0) {
-                        for (let i = 0; i < idxCount; i++) {
-                            if (!moved.has(i)) continue;
-                            
-                            // This point 'i' was moved. It's either a p1 or p2 of a joint.
-                            // Let's check its neighbors.
-                            const prev = closed ? (i - 1 + n) % n : i - 1;
-                            const next = closed ? (i + 1) % n : i + 1;
-                            
-                            // We only adjust neighbors that were NOT moved by the joint logic (p0 or p3)
-                            // If neighbor is not in 'moved' set, we might need to align it.
-                            
-                            const adjustNeighbor = (neighborIdx) => {
-                                if (neighborIdx < 0 || neighborIdx >= n) return;
-                                if (moved.has(neighborIdx)) return; // Already part of another joint?
-                                
-                                const p_curr = newPoints[i]; // The moved joint point
-                                const p_neigh = newPoints[neighborIdx]; // The static wall anchor
-                                
-                                // Original vector (before move)
-                                const p_curr_orig = points[i];
-                                const p_neigh_orig = points[neighborIdx];
-                                
-                                const dxOrig = p_curr_orig.x - p_neigh_orig.x;
-                                const dyOrig = p_curr_orig.y - p_neigh_orig.y;
-                                
-                                // Check if original wall was axis-aligned
-                                const isVert = Math.abs(dxOrig) < axisTol;
-                                const isHorz = Math.abs(dyOrig) < axisTol;
-                                
-                                if (isVert) {
-                                    // It was vertical. Align neighbor's X to current's X
-                                    p_neigh.x = p_curr.x;
-                                    // p_neigh.y stays same (unless we want to preserve length? No, wall length changes)
-                                } else if (isHorz) {
-                                    // It was horizontal. Align neighbor's Y to current's Y
-                                    p_neigh.y = p_curr.y;
-                                }
-                            };
-                            
-                            adjustNeighbor(prev);
-                            adjustNeighbor(next);
-                        }
-                    }
+                    // Post-process not needed for Midpoint Strategy as we keep walls slanted naturally?
+                    // Actually, if we change the length of the segment, and the walls were orthogonal to it,
+                    // they might become non-orthogonal if the neighbors don't move.
+                    // But users found "wall moving" distorted the shape.
+                    // Let's stick to PURE segment resizing first.
+                    // If the user wants to keep walls straight, we might need to project neighbors later.
+                    // For now, removing the aggressive "Straighten walls" post-process to avoid unwanted artifacts.
+
 
                     if (found === 0 && autoLen) {
                         for (let i = 0; i < idxCount; i++) {
