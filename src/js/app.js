@@ -4983,15 +4983,17 @@ function app() {
         },
 
         applyJointResize() {
-            this.detectAndResizeJoints(false);
-            this.resizeJointsModal = false;
+            const found = this.detectAndResizeJoints(false);
+            if (found > 0) {
+                this.resizeJointsModal = false;
+            }
         },
 
         detectAndResizeJoints(dryRun = false) {
             const shape = this.activeShape;
             if (!shape || !shape.pathData) {
                 this.jointStatusMsg = "No valid path data found.";
-                return;
+                return 0;
             }
 
             const oldSize = parseFloat(this.jointOldSize);
@@ -4999,109 +5001,127 @@ function app() {
             const tol = parseFloat(this.jointTolerance) || 0;
             const targetGap = newSize - tol;
 
-            if (!oldSize || !newSize) return;
+            if (!oldSize || !newSize) return 0;
 
             const unit = this.unit || 'cm';
-            const mmToUnit = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
-            const oldSizeUnit = oldSize * mmToUnit;
-            const targetGapUnit = targetGap * mmToUnit;
-            const toleranceThreshold = 0.5 * mmToUnit;
-            const axisTol = Math.max(toleranceThreshold * 0.2, 1e-4);
-            const orthoTol = 0.3;
+            const baseScale = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
+            const scaleCandidates = [baseScale, 1, 0.1, 10];
+            if (unit === 'inch') {
+                scaleCandidates.push(1 / 2.54);
+            }
+            const scales = Array.from(new Set(scaleCandidates.filter(v => isFinite(v) && v > 0)));
 
             const subpaths = this.parsePathToSubpaths(shape.pathData);
             if (!subpaths.length) {
                 this.jointStatusMsg = "Shape is too simple.";
-                return;
+                return 0;
             }
 
             const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
-            let totalFound = 0;
+            const runDetection = (scale) => {
+                const oldSizeUnit = oldSize * scale;
+                const targetGapUnit = targetGap * scale;
+                const toleranceThreshold = 0.5 * scale;
+                const axisTol = Math.max(toleranceThreshold * 0.2, 1e-6);
+                const orthoTol = 0.3;
+                let totalFound = 0;
 
-            const updatedSubpaths = subpaths.map(sp => {
-                if (!sp.points || sp.points.length < 3) return sp;
-                let points = sp.points;
-                let closed = sp.closed;
-                if (!closed && dist(points[0], points[points.length - 1]) < 0.001) {
-                    closed = true;
-                    points = points.slice(0, -1);
-                }
-                if (!closed || points.length < 3) return sp;
-                const n = points.length;
-                const newPoints = points.map(p => ({...p}));
-                const moved = new Set();
-                let found = 0;
-
-                for (let i = 0; i < n; i++) {
-                    const prevIdx = (i - 1 + n) % n;
-                    const nextIdx = (i + 1) % n;
-                    const nextNextIdx = (i + 2) % n;
-                    if (moved.has(prevIdx) || moved.has(i) || moved.has(nextIdx) || moved.has(nextNextIdx)) continue;
-
-                    const p1 = points[i];
-                    const p2 = points[nextIdx];
-                    const d = dist(p1, p2);
-
-                    if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
-                        const dxRaw = p2.x - p1.x;
-                        const dyRaw = p2.y - p1.y;
-                        if (d <= axisTol) continue;
-                        const dx = dxRaw / d;
-                        const dy = dyRaw / d;
-                        const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol;
-                        if (!isAxisAligned) continue;
-
-                        const p0 = points[prevIdx];
-                        const p3 = points[nextNextIdx];
-                        const v01x = p1.x - p0.x;
-                        const v01y = p1.y - p0.y;
-                        const v23x = p3.x - p2.x;
-                        const v23y = p3.y - p2.y;
-                        const len01 = Math.hypot(v01x, v01y);
-                        const len23 = Math.hypot(v23x, v23y);
-                        if (len01 > axisTol) {
-                            const dot1 = Math.abs((v01x / len01) * dx + (v01y / len01) * dy);
-                            if (dot1 > orthoTol) continue;
-                        }
-                        if (len23 > axisTol) {
-                            const dot2 = Math.abs((v23x / len23) * dx + (v23y / len23) * dy);
-                            if (dot2 > orthoTol) continue;
-                        }
-
-                        found++;
-                        const diff = targetGapUnit - d;
-                        const moveAmt = diff / 2;
-                        const moveX = dx * moveAmt;
-                        const moveY = dy * moveAmt;
-
-                        newPoints[i].x -= moveX;
-                        newPoints[i].y -= moveY;
-                        newPoints[prevIdx].x -= moveX;
-                        newPoints[prevIdx].y -= moveY;
-
-                        newPoints[nextIdx].x += moveX;
-                        newPoints[nextIdx].y += moveY;
-                        newPoints[nextNextIdx].x += moveX;
-                        newPoints[nextNextIdx].y += moveY;
-
-                        moved.add(prevIdx);
-                        moved.add(i);
-                        moved.add(nextIdx);
-                        moved.add(nextNextIdx);
+                const updatedSubpaths = subpaths.map(sp => {
+                    if (!sp.points || sp.points.length < 3) return sp;
+                    let points = sp.points;
+                    let closed = sp.closed;
+                    if (!closed && dist(points[0], points[points.length - 1]) < 0.001) {
+                        closed = true;
+                        points = points.slice(0, -1);
                     }
+                    if (!closed || points.length < 3) return sp;
+                    const n = points.length;
+                    const newPoints = points.map(p => ({...p}));
+                    const moved = new Set();
+                    let found = 0;
+
+                    for (let i = 0; i < n; i++) {
+                        const prevIdx = (i - 1 + n) % n;
+                        const nextIdx = (i + 1) % n;
+                        const nextNextIdx = (i + 2) % n;
+                        if (moved.has(prevIdx) || moved.has(i) || moved.has(nextIdx) || moved.has(nextNextIdx)) continue;
+
+                        const p1 = points[i];
+                        const p2 = points[nextIdx];
+                        const d = dist(p1, p2);
+
+                        if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
+                            const dxRaw = p2.x - p1.x;
+                            const dyRaw = p2.y - p1.y;
+                            if (d <= axisTol) continue;
+                            const dx = dxRaw / d;
+                            const dy = dyRaw / d;
+                            const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol;
+                            if (!isAxisAligned) continue;
+
+                            const p0 = points[prevIdx];
+                            const p3 = points[nextNextIdx];
+                            const v01x = p1.x - p0.x;
+                            const v01y = p1.y - p0.y;
+                            const v23x = p3.x - p2.x;
+                            const v23y = p3.y - p2.y;
+                            const len01 = Math.hypot(v01x, v01y);
+                            const len23 = Math.hypot(v23x, v23y);
+                            if (len01 > axisTol) {
+                                const dot1 = Math.abs((v01x / len01) * dx + (v01y / len01) * dy);
+                                if (dot1 > orthoTol) continue;
+                            }
+                            if (len23 > axisTol) {
+                                const dot2 = Math.abs((v23x / len23) * dx + (v23y / len23) * dy);
+                                if (dot2 > orthoTol) continue;
+                            }
+
+                            found++;
+                            const diff = targetGapUnit - d;
+                            const moveAmt = diff / 2;
+                            const moveX = dx * moveAmt;
+                            const moveY = dy * moveAmt;
+
+                            newPoints[i].x -= moveX;
+                            newPoints[i].y -= moveY;
+                            newPoints[prevIdx].x -= moveX;
+                            newPoints[prevIdx].y -= moveY;
+
+                            newPoints[nextIdx].x += moveX;
+                            newPoints[nextIdx].y += moveY;
+                            newPoints[nextNextIdx].x += moveX;
+                            newPoints[nextNextIdx].y += moveY;
+
+                            moved.add(prevIdx);
+                            moved.add(i);
+                            moved.add(nextIdx);
+                            moved.add(nextNextIdx);
+                        }
+                    }
+
+                    totalFound += found;
+                    return { ...sp, points: newPoints, closed };
+                });
+
+                return { totalFound, updatedSubpaths, scale };
+            };
+
+            let best = null;
+            for (const scale of scales) {
+                const result = runDetection(scale);
+                if (!best || result.totalFound > best.totalFound) {
+                    best = result;
                 }
-
-                totalFound += found;
-                return { ...sp, points: newPoints, closed };
-            });
-
-            if (dryRun) {
-                this.jointStatusMsg = this.t('joints_found') + ': ' + totalFound;
-                return;
             }
 
-            if (totalFound > 0) {
-                const newPath = updatedSubpaths.map(sp => {
+            if (dryRun) {
+                const count = best ? best.totalFound : 0;
+                this.jointStatusMsg = this.t('joints_found') + ': ' + count;
+                return count;
+            }
+
+            if (best && best.totalFound > 0) {
+                const newPath = best.updatedSubpaths.map(sp => {
                     if (!sp.points || sp.points.length < 2) return '';
                     let d = sp.points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x.toFixed(3)} ${p.y.toFixed(3)}`).join(' ');
                     if (sp.closed) d += ' Z';
@@ -5115,6 +5135,7 @@ function app() {
             } else {
                 this.jointStatusMsg = this.t('no_joints_found');
             }
+            return best ? best.totalFound : 0;
         },
 
         parsePathToSubpaths(d) {
