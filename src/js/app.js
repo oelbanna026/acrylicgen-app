@@ -5329,8 +5329,6 @@ function app() {
                             adjustNeighbor(next);
                         }
                     }
-                        }
-                    }
 
                     if (found === 0 && autoLen) {
                         for (let i = 0; i < idxCount; i++) {
