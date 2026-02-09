@@ -5045,6 +5045,9 @@ function app() {
                     if (Math.abs(d - oldSizeUnit) < toleranceThreshold) {
                         const dxRaw = p2.x - p1.x;
                         const dyRaw = p2.y - p1.y;
+                        if (d <= axisTol) continue;
+                        const dx = dxRaw / d;
+                        const dy = dyRaw / d;
                         const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol;
                         if (!isAxisAligned) continue;
 
@@ -5068,8 +5071,6 @@ function app() {
                         found++;
                         const diff = targetGapUnit - d;
                         const moveAmt = diff / 2;
-                        const dx = dxRaw / d;
-                        const dy = dyRaw / d;
                         const moveX = dx * moveAmt;
                         const moveY = dy * moveAmt;
 
