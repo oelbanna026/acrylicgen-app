@@ -5065,6 +5065,7 @@ function app() {
                     for (let i = 0; i < idxCount; i++) {
                         const p1 = points[i];
                         const p2 = points[i + 1];
+                        if (!p1 || !p2) continue;
                         const dxRaw0 = p2.x - p1.x;
                         const dyRaw0 = p2.y - p1.y;
                         const d0 = Math.hypot(dxRaw0, dyRaw0);
@@ -5085,7 +5086,9 @@ function app() {
 
                         const p1 = points[i];
                         const p2 = points[nextIdx];
+                        if (!p1 || !p2) continue;
                         const d = dist(p1, p2);
+                        if (!isFinite(d) || d <= 0) continue;
 
                         // Auto-detect notch length once per subpath if needed
                         if (!autoLen && smallSegs.length >= 6) {
@@ -5121,6 +5124,7 @@ function app() {
 
                             const p0 = points[prevIdx];
                             const p3 = points[nextNextIdx];
+                            if (!p0 || !p3) continue;
                             const v01x = p1.x - p0.x;
                             const v01y = p1.y - p0.y;
                             const v23x = p3.x - p2.x;
