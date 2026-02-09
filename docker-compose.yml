@@ -37,7 +37,6 @@ services:
   # Next.js App (DXF tool + SaaS pages)
   nextapp:
     build: ./next-saas-migration
-    container_name: acrylic_nextapp
     restart: unless-stopped
     environment:
       - NODE_ENV=production
