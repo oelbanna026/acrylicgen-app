@@ -499,13 +499,6 @@ function app() {
 
         // Proxy Getters/Setters for Backward Compatibility and UI Binding
         
-        // Joint Resizer State
-        resizeJointsModal: false,
-        jointOldSize: 3,
-        jointNewSize: 3,
-        jointTolerance: 0.2,
-        jointStatusMsg: '',
-        
         // Monetization placeholders
         payPalAmount: 0,
         payPalDescription: '',
@@ -5000,68 +4993,11 @@ function app() {
                 const joined = this.activeShape.subpaths.filter(Boolean).join(' ');
                 if (joined) this.activeShape.pathData = joined;
             }
-            this.jointStatusMsg = '';
-            this.resizeJointsModal = true;
-            console.log('Joint Resizer Modal Opened');
         },
 
-        previewJointResize() {
-            try {
-                this.jointStatusMsg = this.t('processing') || 'Processing...';
-                const found = this.detectAndResizeJoints(true);
-                if (found === 0 && !this.jointStatusMsg) {
-                    this.jointStatusMsg = this.t('no_joints_found') || 'No joints found';
-                }
-            } catch (e) {
-                this.jointStatusMsg = this.lang === 'ar' ? `خطأ أثناء المعالجة: ${e.message || e}` : `Processing error: ${e.message || e}`;
-            }
-        },
 
-        applyJointResize() {
-            try {
-                this.jointStatusMsg = this.t('processing') || 'Processing...';
-                const found = this.detectAndResizeJoints(false);
-                if (found > 0) {
-                    this.resizeJointsModal = false;
-                } else if (!this.jointStatusMsg) {
-                    this.jointStatusMsg = this.t('no_joints_found') || 'No joints found';
-                }
-            } catch (e) {
-                this.jointStatusMsg = this.lang === 'ar' ? `خطأ أثناء المعالجة: ${e.message || e}` : `Processing error: ${e.message || e}`;
-            }
-        },
 
-        detectAndResizeJoints(dryRun = false) {
-            try {
-                const shape = this.activeShape;
-                if (!shape || !shape.pathData) {
-                    this.jointStatusMsg = this.lang === 'ar' ? 'لا يوجد مسار صالح' : 'No valid path data found.';
-                    return 0;
-                }
 
-                const oldSize = parseFloat(this.jointOldSize);
-                const newSize = parseFloat(this.jointNewSize);
-                const tol = parseFloat(this.jointTolerance) || 0;
-                const targetGap = newSize - tol;
-
-                if (!oldSize || !newSize) {
-                    this.jointStatusMsg = this.lang === 'ar' ? 'قيم غير صالحة' : 'Invalid inputs';
-                    return 0;
-                }
-
-                const unit = this.unit || 'cm';
-                const baseScale = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
-                const scaleCandidates = [baseScale, 1, 0.1, 10];
-                if (unit === 'inch') {
-                    scaleCandidates.push(1 / 2.54);
-                }
-                const scales = Array.from(new Set(scaleCandidates.filter(v => isFinite(v) && v > 0)));
-
-                let subpaths = this.parsePathToSubpaths(shape.pathData);
-                if (!subpaths.length) {
-                    this.jointStatusMsg = this.lang === 'ar' ? 'المسار بسيط جداً' : 'Shape is too simple.';
-                    return 0;
-                }
 
                 // SIMPLIFY: Merge collinear segments (Iterative and more aggressive)
                 const simplify = (points, closed) => {
@@ -5374,175 +5310,7 @@ function app() {
             }
         },
 
-        parsePathToSubpaths(d) {
-            const tokens = d.match(/[a-zA-Z]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g);
-            if (!tokens) return [];
-            
-            const subpaths = [];
-            let current = null;
-            let cx = 0, cy = 0;
-            let startX = 0, startY = 0;
-            let cmd = '';
-            
-            const isCommand = (t) => /^[a-zA-Z]$/.test(t);
-            const startSubpath = (x, y) => {
-                if (current && current.points.length > 0) subpaths.push(current);
-                current = { points: [{ x, y }], closed: false };
-                startX = x;
-                startY = y;
-            };
-            
-            let i = 0;
-            while (i < tokens.length) {
-                if (isCommand(tokens[i])) {
-                    cmd = tokens[i];
-                    i++;
-                }
-                if (!cmd) break;
-                
-                const isRelative = cmd === cmd.toLowerCase();
-                const type = cmd.toUpperCase();
-                
-                if (type === 'M') {
-                    if (i + 1 >= tokens.length) break;
-                    let nx = parseFloat(tokens[i++]);
-                    let ny = parseFloat(tokens[i++]);
-                    if (isRelative) {
-                        nx += cx;
-                        ny += cy;
-                    }
-                    cx = nx; cy = ny;
-                    startSubpath(cx, cy);
-                    while (i + 1 < tokens.length && !isCommand(tokens[i])) {
-                        let lnx = parseFloat(tokens[i++]);
-                        let lny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            lnx += cx;
-                            lny += cy;
-                        }
-                        if (current) current.points.push({ x: lnx, y: lny });
-                        cx = lnx; cy = lny;
-                    }
-                } else if (type === 'L') {
-                    while (i + 1 < tokens.length && !isCommand(tokens[i])) {
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                    }
-                } else if (type === 'H') {
-                    while (i < tokens.length && !isCommand(tokens[i])) {
-                        let nx = parseFloat(tokens[i++]);
-                        if (isRelative) nx += cx;
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: cy });
-                        cx = nx;
-                    }
-                } else if (type === 'V') {
-                    while (i < tokens.length && !isCommand(tokens[i])) {
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) ny += cy;
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: cx, y: ny });
-                        cy = ny;
-                    }
-                } else if (type === 'C') {
-                    while (i + 5 < tokens.length && !isCommand(tokens[i])) {
-                        const x1 = parseFloat(tokens[i++]);
-                        const y1 = parseFloat(tokens[i++]);
-                        const x2 = parseFloat(tokens[i++]);
-                        const y2 = parseFloat(tokens[i++]);
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                        if (isNaN(x1 + y1 + x2 + y2)) break;
-                    }
-                } else if (type === 'S') {
-                    while (i + 3 < tokens.length && !isCommand(tokens[i])) {
-                        const x2 = parseFloat(tokens[i++]);
-                        const y2 = parseFloat(tokens[i++]);
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                        if (isNaN(x2 + y2)) break;
-                    }
-                } else if (type === 'Q') {
-                    while (i + 3 < tokens.length && !isCommand(tokens[i])) {
-                        const x1 = parseFloat(tokens[i++]);
-                        const y1 = parseFloat(tokens[i++]);
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                        if (isNaN(x1 + y1)) break;
-                    }
-                } else if (type === 'T') {
-                    while (i + 1 < tokens.length && !isCommand(tokens[i])) {
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                    }
-                } else if (type === 'A') {
-                    while (i + 6 < tokens.length && !isCommand(tokens[i])) {
-                        const rx = parseFloat(tokens[i++]);
-                        const ry = parseFloat(tokens[i++]);
-                        const rot = parseFloat(tokens[i++]);
-                        const laf = parseFloat(tokens[i++]);
-                        const sf = parseFloat(tokens[i++]);
-                        let nx = parseFloat(tokens[i++]);
-                        let ny = parseFloat(tokens[i++]);
-                        if (isRelative) {
-                            nx += cx;
-                            ny += cy;
-                        }
-                        if (!current) startSubpath(cx, cy);
-                        if (current) current.points.push({ x: nx, y: ny });
-                        cx = nx; cy = ny;
-                        if (isNaN(rx + ry + rot + laf + sf)) break;
-                    }
-                } else if (type === 'Z') {
-                    if (current) {
-                        current.closed = true;
-                        subpaths.push(current);
-                        current = null;
-                    }
-                    cx = startX; cy = startY;
-                } else {
-                    i++;
-                }
-            }
-            
-            if (current && current.points.length > 0) subpaths.push(current);
-            return subpaths;
-        }
+
 
         };
 }
