@@ -3182,6 +3182,26 @@ function app() {
                 }, 1000); // Delay to ensure auth restored
             }
 
+            if (urlParams.get('joint_test') && window.location.hostname === 'localhost') {
+                fetch('box cut 2 m.dxf')
+                    .then(r => r.text())
+                    .then(text => {
+                        const parsed = this.parseDxfContent(text);
+                        const shape = this.buildImportedShape(parsed, 'box cut 2 m.dxf');
+                        this.shapes = [shape];
+                        this.activeShapeId = shape.id;
+                        this.openJointResizer();
+                        this.jointOldSize = 3;
+                        this.jointNewSize = 6;
+                        this.jointTolerance = 0.2;
+                        setTimeout(() => this.previewJointResize(), 200);
+                    })
+                    .catch(e => {
+                        this.resizeJointsModal = true;
+                        this.jointStatusMsg = this.lang === 'ar' ? `فشل الاختبار: ${e.message || e}` : `Test failed: ${e.message || e}`;
+                    });
+            }
+
             // Check for Programmatic SEO Routes (Client Side Hydration)
             const path = window.location.pathname;
             const boxMatch = path.match(/^\/box\/(\d+)x(\d+)x(\d+)$/);
@@ -4972,6 +4992,10 @@ function app() {
                 console.warn('Cannot open joint resizer: Invalid shape');
                 return;
             }
+            if (!this.activeShape.pathData && this.activeShape.subpaths) {
+                const joined = this.activeShape.subpaths.filter(Boolean).join(' ');
+                if (joined) this.activeShape.pathData = joined;
+            }
             this.jointStatusMsg = '';
             this.resizeJointsModal = true;
             console.log('Joint Resizer Modal Opened');
@@ -5037,14 +5061,16 @@ function app() {
 
                 const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
             const runDetection = (scale) => {
-                const oldSizeUnit = oldSize * scale;
-                const targetGapUnit = targetGap * scale;
-                const toleranceThreshold = 0.5 * scale;
+                    const oldSizeUnit = oldSize * scale;
+                    const targetGapUnit = targetGap * scale;
+                    const baseTol = 0.5 * scale;
+                    const toleranceThreshold = Math.max(baseTol, oldSizeUnit * 0.2);
                 const axisTol = Math.max(toleranceThreshold * 0.2, 1e-6);
                 const orthoTol = 0.3;
                 let totalFound = 0;
                 let autoLen = null;
                 const smallSegs = [];
+                const allSegs = [];
 
                 const updatedSubpaths = subpaths.map(sp => {
                 if (!sp.points || sp.points.length < 2) return sp;
@@ -5069,6 +5095,7 @@ function app() {
                         const dxRaw0 = p2.x - p1.x;
                         const dyRaw0 = p2.y - p1.y;
                         const d0 = Math.hypot(dxRaw0, dyRaw0);
+                        if (isFinite(d0) && d0 > 0) allSegs.push(d0);
                         const isAxis0 = Math.abs(dxRaw0) < axisTol || Math.abs(dyRaw0) < axisTol;
                         if (isAxis0 && d0 > axisTol) {
                             smallSegs.push(d0);
@@ -5104,7 +5131,24 @@ function app() {
                             bins.forEach((cnt, key) => {
                                 if (cnt > bestCount) { bestCount = cnt; bestKey = key; }
                             });
-                            if (bestKey && bestCount >= 6) autoLen = bestKey;
+                            // Relax requirement: some designs have fewer repeated slots
+                            if (bestKey && bestCount >= 3) autoLen = bestKey;
+                        }
+                        if (!autoLen && allSegs.length >= 8) {
+                            const sortedAll = allSegs.slice().sort((a,b)=>a-b);
+                            const limit = Math.max(6, Math.floor(sortedAll.length * 0.4));
+                            const subset = sortedAll.slice(0, limit);
+                            const binSize = Math.max(0.05 * scale, axisTol * 2);
+                            const bins = new Map();
+                            subset.forEach(val => {
+                                const key = Math.round(val / binSize) * binSize;
+                                bins.set(key, (bins.get(key) || 0) + 1);
+                            });
+                            let bestKey = null, bestCount = 0;
+                            bins.forEach((cnt, key) => {
+                                if (cnt > bestCount) { bestCount = cnt; bestKey = key; }
+                            });
+                            if (bestKey && bestCount >= 3) autoLen = bestKey;
                         }
 
                         const expected = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ||
@@ -5116,7 +5160,7 @@ function app() {
                             if (d <= axisTol) continue;
                             const dx = dxRaw / d;
                             const dy = dyRaw / d;
-                            const axisAngleTol = 6 * (Math.PI / 180);
+                            const axisAngleTol = 12 * (Math.PI / 180);
                             const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol ||
                                 Math.abs(Math.atan2(Math.abs(dyRaw), Math.abs(dxRaw))) < axisAngleTol ||
                                 Math.abs(Math.atan2(Math.abs(dxRaw), Math.abs(dyRaw))) < axisAngleTol;
@@ -5164,6 +5208,36 @@ function app() {
                         }
                     }
 
+                    if (found === 0 && autoLen) {
+                        for (let i = 0; i < idxCount; i++) {
+                            const nextIdx = i + 1;
+                            const p1 = points[i];
+                            const p2 = points[nextIdx];
+                            if (!p1 || !p2) continue;
+                            if (moved.has(i) || moved.has(nextIdx)) continue;
+                            const d = dist(p1, p2);
+                            if (!isFinite(d) || d <= 0) continue;
+                            const near = Math.abs(d - autoLen) < Math.max(toleranceThreshold, autoLen * 0.3);
+                            if (!near) continue;
+                            const dxRaw = p2.x - p1.x;
+                            const dyRaw = p2.y - p1.y;
+                            const dx = dxRaw / d;
+                            const dy = dyRaw / d;
+                            const baseLen = autoLen || d;
+                            const diff = (targetGapUnit - baseLen);
+                            const moveAmt = diff / 2;
+                            const moveX = dx * moveAmt;
+                            const moveY = dy * moveAmt;
+                            newPoints[i].x -= moveX;
+                            newPoints[i].y -= moveY;
+                            newPoints[nextIdx].x += moveX;
+                            newPoints[nextIdx].y += moveY;
+                            moved.add(i);
+                            moved.add(nextIdx);
+                            found++;
+                        }
+                    }
+
                     totalFound += found;
                     return { ...sp, points: newPoints, closed };
                 });
@@ -5192,6 +5266,10 @@ function app() {
                     if (sp.closed) d += ' Z';
                     return d;
                 }).filter(Boolean).join(' ');
+                if (!newPath) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'المسار الناتج فارغ' : 'Resulting path is empty';
+                    return 0;
+                }
                 shape.pathData = newPath;
                 shape._normalized = false;
                 this.normalizeCustomShapeBounds(shape);
