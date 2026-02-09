@@ -5246,56 +5246,9 @@ function app() {
                             newPoints[nextIdx].x += moveX;
                             newPoints[nextIdx].y += moveY;
 
-                            // BUT, we must NOT move the outer neighbors (p0 and p3) along this same vector.
-                            // Instead, p1 and p2 should slide along the *orthogonal* edge connecting to p0/p3?
-                            // No, typically "resizing a slot" means moving the walls of the slot.
-                            // If p1-p2 is the bottom of the slot, moving p1 and p2 changes the width.
-                            // p0 is connected to p1, so p0 must NOT move, but the segment p0-p1 changes angle?
-                            // OR, does p0 move with p1 to keep the wall straight?
-                            // Standard laser cut box joints:
-                            //      |   |
-                            // p0 -- p1 p2 -- p3
-                            // To widen the slot p1-p2, p1 moves left, p2 moves right.
-                            // p0 must move left with p1? No, usually p0-p1 is the depth of the joint.
-                            // If we move p1, the line p0-p1 becomes diagonal if p0 stays put.
-                            // We usually want to move the entire vertical edge.
-                            // So if p0-p1 is perpendicular to p1-p2, we should move p1 along p1-p2 vector,
-                            // AND effectively "slide" the edge p0-p1.
-                            // This means p0 does NOT move in X, but p1 moves in X.
-                            // Wait, if we move p1 and keep p0 fixed, the edge p0-p1 is no longer orthogonal.
-                            // To keep p0-p1 orthogonal, p0 must also move!
-                            
-                            // Let's check the previous logic:
-                            // newPoints[prevIdx].x -= moveX;
-                            // newPoints[prevIdx].y -= moveY;
-                            // This moves p0 along with p1. This preserves the p0-p1 angle (it just translates).
-                            // This effectively changes the length of the segment *before* p0? 
-                            //      p_prev -- p0 -- p1
-                            // If p0 moves, p_prev--p0 changes length.
-                            // This is correct for box joints where we are widening/narrowing the "fingers".
-                            
-                            // HOWEVER, the user says "shape is distorted".
-                            // If p0-p1 is NOT perpendicular (e.g. dove tail or noisy line), moving p0 might be wrong.
-                            // But for standard box joints, moving p0 with p1 is the only way to keep p0-p1 straight.
-                            
-                            // Let's verify if we are moving p0/p3 in the correct direction.
-                            // moveX/moveY is along p1->p2.
-                            // If p1 moves "left" (relative to p2), p0 moves "left" too.
-                            // This seems correct for standard rectangular joints.
-                            
-                            // Maybe the issue is when we have a chain of joints?
-                            // If we move p3 (which is p0 for the next joint), we might have a conflict?
-                            // "moved.add(nextNextIdx)" prevents double moving.
-                            
-                            // User complaint: "after resizing, they appear like this" (implies distortion).
-                            // Perhaps we should ONLY move p1 and p2, but constrain the movement to be
-                            // projected onto the p0-p1 line? No, that changes depth.
-                            
-                            // Let's try strictly moving p1 and p2, but ensure p0 and p3 are moved
-                            // ONLY if the edge p0-p1 and p2-p3 are reasonably orthogonal.
-                            // We already check "dot1 > orthoTol" (orthogonality check).
-                            // So we are fairly sure p0-p1 is perp to p1-p2.
-                            
+                            // We must move p0 and p3 to maintain the orthogonality of the walls (p0-p1 and p2-p3).
+                            // If we only move p1/p2, the walls become slanted.
+                            // By moving p0 with p1, and p3 with p2, we shift the entire wall, keeping it vertical/horizontal.
                             newPoints[prevIdx].x -= moveX;
                             newPoints[prevIdx].y -= moveY;
                             newPoints[nextNextIdx].x += moveX;
