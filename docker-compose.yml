@@ -34,6 +34,18 @@ services:
     networks:
       - acrylic_net
 
+  # Next.js App (DXF tool + SaaS pages)
+  nextapp:
+    build: ./next-saas-migration
+    container_name: acrylic_nextapp
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOSTNAME=0.0.0.0
+    networks:
+      - acrylic_net
+
   # Frontend Service (Nginx)
   frontend:
     image: nginx:alpine
@@ -49,6 +61,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
+      - nextapp
     networks:
       - acrylic_net
 
