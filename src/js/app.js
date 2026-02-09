@@ -505,6 +505,10 @@ function app() {
         jointNewSize: 3,
         jointTolerance: 0.2,
         jointStatusMsg: '',
+        
+        // Monetization placeholders
+        payPalAmount: 0,
+        payPalDescription: '',
 
         get width() { return this.activeShape.width; },
         set width(v) { 
