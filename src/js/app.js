@@ -5053,11 +5053,49 @@ function app() {
                 }
                 const scales = Array.from(new Set(scaleCandidates.filter(v => isFinite(v) && v > 0)));
 
-                const subpaths = this.parsePathToSubpaths(shape.pathData);
+                let subpaths = this.parsePathToSubpaths(shape.pathData);
                 if (!subpaths.length) {
                     this.jointStatusMsg = this.lang === 'ar' ? 'المسار بسيط جداً' : 'Shape is too simple.';
                     return 0;
                 }
+
+                // SIMPLIFY: Merge collinear segments
+                const simplify = (points, closed) => {
+                    if (points.length < 3) return points;
+                    const res = [points[0]];
+                    const n = points.length;
+                    const limit = closed ? n + 1 : n - 1;
+                    
+                    for (let i = 1; i < limit; i++) {
+                        const nextIdx = i % n;
+                        const nextNextIdx = (i + 1) % n;
+                        const p1 = res[res.length - 1]; 
+                        const p2 = points[nextIdx];
+                        const p3 = points[nextNextIdx];
+                        
+                        const dx1 = p2.x - p1.x;
+                        const dy1 = p2.y - p1.y;
+                        const len1 = Math.hypot(dx1, dy1);
+                        
+                        const dx2 = p3.x - p2.x;
+                        const dy2 = p3.y - p2.y;
+                        const len2 = Math.hypot(dx2, dy2);
+                        
+                        if (len1 < 1e-5) continue; 
+                        if (len2 < 1e-5) continue; 
+
+                        const cross = (dx1 * dy2 - dy1 * dx2) / (len1 * len2);
+                        const dot = (dx1 * dx2 + dy1 * dy2) / (len1 * len2);
+                        
+                        if (Math.abs(cross) < 0.02 && dot > 0.9) continue;
+                        
+                        res.push(p2);
+                    }
+                    if (!closed) res.push(points[n - 1]);
+                    return res;
+                };
+
+                subpaths = subpaths.map(sp => ({ ...sp, points: simplify(sp.points, sp.closed) }));
 
                 const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
             const runDetection = (scale) => {
@@ -5066,7 +5104,7 @@ function app() {
                     const baseTol = 0.5 * scale;
                     const toleranceThreshold = Math.max(baseTol, oldSizeUnit * 0.2);
                 const axisTol = Math.max(toleranceThreshold * 0.2, 1e-6);
-                const orthoTol = 0.3;
+                const orthoTol = 0.05;
                 let totalFound = 0;
                 let totalSegments = 0;
                 let autoLen = null;
@@ -5150,7 +5188,7 @@ function app() {
                             if (d <= axisTol) continue;
                             const dx = dxRaw / d;
                             const dy = dyRaw / d;
-                            const axisAngleTol = 12 * (Math.PI / 180);
+                            const axisAngleTol = 5 * (Math.PI / 180);
                             const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol ||
                                 Math.abs(Math.atan2(Math.abs(dyRaw), Math.abs(dxRaw))) < axisAngleTol ||
                                 Math.abs(Math.atan2(Math.abs(dxRaw), Math.abs(dyRaw))) < axisAngleTol;
@@ -5166,8 +5204,14 @@ function app() {
                             const len01 = Math.hypot(v01x, v01y);
                             const len23 = Math.hypot(v23x, v23y);
                             const baseLenForThresh = autoLen || oldSizeUnit || d;
-                            const neighborMinLen = Math.max(baseLenForThresh * 1.8, axisTol * 4);
+                            const neighborMinLen = Math.max(baseLenForThresh * 0.5, axisTol * 4);
                             if (len01 < neighborMinLen || len23 < neighborMinLen) continue;
+                            
+                            if (len01 > axisTol && len23 > axisTol) {
+                                const dotU = (v01x * v23x + v01y * v23y) / (len01 * len23);
+                                if (dotU > -0.9) continue;
+                            }
+
                             if (len01 > axisTol) {
                                 const dot1 = Math.abs((v01x / len01) * dx + (v01y / len01) * dy);
                                 if (dot1 > orthoTol) continue;
