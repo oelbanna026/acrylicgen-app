@@ -5029,23 +5029,24 @@ function app() {
                 const smallSegs = [];
 
                 const updatedSubpaths = subpaths.map(sp => {
-                    if (!sp.points || sp.points.length < 3) return sp;
+                if (!sp.points || sp.points.length < 2) return sp;
                     let points = sp.points;
-                    let closed = sp.closed;
+                let closed = sp.closed;
                     if (!closed && dist(points[0], points[points.length - 1]) < 0.001) {
                         closed = true;
                         points = points.slice(0, -1);
                     }
-                    if (!closed || points.length < 3) return sp;
-                    const n = points.length;
+                const n = points.length;
+                if (n < 2) return sp;
                     const newPoints = points.map(p => ({...p}));
                     const moved = new Set();
                     let found = 0;
+                const idxCount = closed ? n : (n - 1);
 
                     // Collect axis-aligned small segment lengths for auto-detect
-                    for (let i = 0; i < n; i++) {
+                    for (let i = 0; i < idxCount; i++) {
                         const p1 = points[i];
-                        const p2 = points[(i + 1) % n];
+                        const p2 = points[i + 1];
                         const dxRaw0 = p2.x - p1.x;
                         const dyRaw0 = p2.y - p1.y;
                         const d0 = Math.hypot(dxRaw0, dyRaw0);
@@ -5055,10 +5056,13 @@ function app() {
                         }
                     }
 
-                    for (let i = 0; i < n; i++) {
-                        const prevIdx = (i - 1 + n) % n;
-                        const nextIdx = (i + 1) % n;
-                        const nextNextIdx = (i + 2) % n;
+                    for (let i = 0; i < idxCount; i++) {
+                        const prevIdx = closed ? (i - 1 + n) % n : i - 1;
+                        const nextIdx = i + 1;
+                        const nextNextIdx = closed ? (i + 2) % n : i + 2;
+                        if (!closed) {
+                            if (i <= 0 || i + 2 >= n) continue;
+                        }
                         if (moved.has(prevIdx) || moved.has(i) || moved.has(nextIdx) || moved.has(nextNextIdx)) continue;
 
                         const p1 = points[i];
@@ -5091,7 +5095,10 @@ function app() {
                             if (d <= axisTol) continue;
                             const dx = dxRaw / d;
                             const dy = dyRaw / d;
-                            const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol;
+                            const axisAngleTol = 6 * (Math.PI / 180);
+                            const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol ||
+                                Math.abs(Math.atan2(Math.abs(dyRaw), Math.abs(dxRaw))) < axisAngleTol ||
+                                Math.abs(Math.atan2(Math.abs(dxRaw), Math.abs(dyRaw))) < axisAngleTol;
                             if (!isAxisAligned) continue;
 
                             const p0 = points[prevIdx];
