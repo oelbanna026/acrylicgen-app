@@ -5059,40 +5059,58 @@ function app() {
                     return 0;
                 }
 
-                // SIMPLIFY: Merge collinear segments
+                // SIMPLIFY: Merge collinear segments (Iterative and more aggressive)
                 const simplify = (points, closed) => {
                     if (points.length < 3) return points;
-                    const res = [points[0]];
-                    const n = points.length;
-                    const limit = closed ? n + 1 : n - 1;
                     
-                    for (let i = 1; i < limit; i++) {
-                        const nextIdx = i % n;
-                        const nextNextIdx = (i + 1) % n;
-                        const p1 = res[res.length - 1]; 
-                        const p2 = points[nextIdx];
-                        const p3 = points[nextNextIdx];
-                        
-                        const dx1 = p2.x - p1.x;
-                        const dy1 = p2.y - p1.y;
-                        const len1 = Math.hypot(dx1, dy1);
-                        
-                        const dx2 = p3.x - p2.x;
-                        const dy2 = p3.y - p2.y;
-                        const len2 = Math.hypot(dx2, dy2);
-                        
-                        if (len1 < 1e-5) continue; 
-                        if (len2 < 1e-5) continue; 
+                    const runPass = (pts) => {
+                        const res = [pts[0]];
+                        const n = pts.length;
+                        const limit = closed ? n + 1 : n - 1;
+                        let changed = false;
 
-                        const cross = (dx1 * dy2 - dy1 * dx2) / (len1 * len2);
-                        const dot = (dx1 * dx2 + dy1 * dy2) / (len1 * len2);
-                        
-                        if (Math.abs(cross) < 0.02 && dot > 0.9) continue;
-                        
-                        res.push(p2);
+                        for (let i = 1; i < limit; i++) {
+                            const nextIdx = i % n;
+                            const nextNextIdx = (i + 1) % n;
+                            const p1 = res[res.length - 1]; 
+                            const p2 = pts[nextIdx];
+                            const p3 = pts[nextNextIdx];
+                            
+                            const dx1 = p2.x - p1.x;
+                            const dy1 = p2.y - p1.y;
+                            const len1 = Math.hypot(dx1, dy1);
+                            
+                            const dx2 = p3.x - p2.x;
+                            const dy2 = p3.y - p2.y;
+                            const len2 = Math.hypot(dx2, dy2);
+                            
+                            // Merge tiny segments
+                            if (len1 < 0.05) { changed = true; continue; } // Increased from 1e-5 to 0.05
+                            if (len2 < 0.05) { changed = true; continue; }
+
+                            const cross = (dx1 * dy2 - dy1 * dx2) / (len1 * len2);
+                            const dot = (dx1 * dx2 + dy1 * dy2) / (len1 * len2);
+                            
+                            // Relaxed collinearity check: 0.05 cross (~3 deg), dot > 0.9
+                            if (Math.abs(cross) < 0.05 && dot > 0.9) {
+                                changed = true;
+                                continue;
+                            }
+                            
+                            res.push(p2);
+                        }
+                        if (!closed && pts.length > 0) res.push(pts[n - 1]);
+                        return { points: res, changed };
+                    };
+
+                    let currentPoints = points;
+                    for (let pass = 0; pass < 3; pass++) { // Run up to 3 passes
+                        const result = runPass(currentPoints);
+                        currentPoints = result.points;
+                        if (!result.changed) break;
+                        if (currentPoints.length < 3) break;
                     }
-                    if (!closed) res.push(points[n - 1]);
-                    return res;
+                    return currentPoints;
                 };
 
                 subpaths = subpaths.map(sp => ({ ...sp, points: simplify(sp.points, sp.closed) }));
@@ -5249,10 +5267,117 @@ function app() {
                             // We must move p0 and p3 to maintain the orthogonality of the walls (p0-p1 and p2-p3).
                             // If we only move p1/p2, the walls become slanted.
                             // By moving p0 with p1, and p3 with p2, we shift the entire wall, keeping it vertical/horizontal.
+                            
+                            // Wall Walking Logic:
+                            // Move p0 and any preceding points that are collinear with the wall p0-p1
+                            const movePointWithWall = (startIdx, dxMove, dyMove) => {
+                                let curr = startIdx;
+                                // Move the starting point (p0 or p3)
+                                newPoints[curr].x += dxMove;
+                                newPoints[curr].y += dyMove;
+                                moved.add(curr);
+
+                                // Walk backwards from p0 (or forwards from p3) to find other collinear points on the wall
+                                // For p0 (prevIdx), we look at p_prev (prevPrevIdx).
+                                // But wait, p0 is the CORNER of the wall and the floor?
+                                // No, p1 is the corner. p0 is the other end of the wall.
+                                // If p0-p1 is the wall.
+                                // We moved p1. We moved p0.
+                                // Now we check if p_prev-p0 is collinear with p0-p1.
+                                // If so, p_prev is part of the wall (e.g. noise), so move it too.
+                            };
+
+                            // Move p1 and p2 (The joint itself)
+                            newPoints[i].x -= moveX;
+                            newPoints[i].y -= moveY;
+                            newPoints[nextIdx].x += moveX;
+                            newPoints[nextIdx].y += moveY;
+                            
+                            // Move p0 (prevIdx) with p1
+                            // Direction: -moveX, -moveY
                             newPoints[prevIdx].x -= moveX;
                             newPoints[prevIdx].y -= moveY;
+                            moved.add(prevIdx);
+
+                            // Walk backwards from p0 to fix fragmented walls
+                            let curr = prevIdx;
+                            for(let k=0; k<5; k++) { // Limit steps
+                                const prev = closed ? (curr - 1 + n) % n : curr - 1;
+                                if (!closed && prev < 0) break;
+                                if (moved.has(prev)) break; // Already moved, stop
+                                
+                                const p_curr = points[curr]; // Use original points for geometry check
+                                const p_prev = points[prev];
+                                const p_next = points[i]; // p1
+
+                                // Check collinearity of p_prev->p_curr with p_curr->p_next (wall)
+                                // Vector wall: p_next - p_curr (p1 - p0)
+                                const wx = p_next.x - p_curr.x;
+                                const wy = p_next.y - p_curr.y;
+                                const wlen = Math.hypot(wx, wy);
+
+                                // Vector segment: p_curr - p_prev
+                                const sx = p_curr.x - p_prev.x;
+                                const sy = p_curr.y - p_prev.y;
+                                const slen = Math.hypot(sx, sy);
+
+                                if (wlen < 1e-6 || slen < 1e-6) break;
+
+                                const cross = (sx * wy - sy * wx) / (slen * wlen);
+                                const dot = (sx * wx + sy * wy) / (slen * wlen);
+
+                                // If collinear (parallel), move it
+                                if (Math.abs(cross) < 0.1 && dot > 0.9) {
+                                    newPoints[prev].x -= moveX;
+                                    newPoints[prev].y -= moveY;
+                                    moved.add(prev);
+                                    curr = prev;
+                                } else {
+                                    break; // Corner hit
+                                }
+                            }
+
+                            // Move p3 (nextNextIdx) with p2
+                            // Direction: +moveX, +moveY
                             newPoints[nextNextIdx].x += moveX;
                             newPoints[nextNextIdx].y += moveY;
+                            moved.add(nextNextIdx);
+
+                            // Walk forwards from p3
+                            curr = nextNextIdx;
+                            for(let k=0; k<5; k++) {
+                                const next = closed ? (curr + 1) % n : curr + 1;
+                                if (!closed && next >= n) break;
+                                if (moved.has(next)) break;
+
+                                const p_curr = points[curr]; // p3
+                                const p_next = points[next]; // p4
+                                const p_prev = points[nextIdx]; // p2
+
+                                // Wall vector: p_curr - p_prev (p3 - p2)
+                                const wx = p_curr.x - p_prev.x;
+                                const wy = p_curr.y - p_prev.y;
+                                const wlen = Math.hypot(wx, wy);
+
+                                // Segment vector: p_next - p_curr
+                                const sx = p_next.x - p_curr.x;
+                                const sy = p_next.y - p_curr.y;
+                                const slen = Math.hypot(sx, sy);
+
+                                if (wlen < 1e-6 || slen < 1e-6) break;
+
+                                const cross = (wx * sy - wy * sx) / (wlen * slen); // Order matters?
+                                const dot = (wx * sx + wy * sy) / (wlen * slen);
+
+                                if (Math.abs(cross) < 0.1 && dot > 0.9) {
+                                    newPoints[next].x += moveX;
+                                    newPoints[next].y += moveY;
+                                    moved.add(next);
+                                    curr = next;
+                                } else {
+                                    break;
+                                }
+                            }
 
                             moved.add(prevIdx);
                             moved.add(i);
