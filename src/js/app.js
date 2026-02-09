@@ -5264,125 +5264,67 @@ function app() {
                             newPoints[nextIdx].x += moveX;
                             newPoints[nextIdx].y += moveY;
 
-                            // We must move p0 and p3 to maintain the orthogonality of the walls (p0-p1 and p2-p3).
-                            // If we only move p1/p2, the walls become slanted.
-                            // By moving p0 with p1, and p3 with p2, we shift the entire wall, keeping it vertical/horizontal.
+                            // We revert to moving ONLY p1 and p2 (the joint tips), but we add a post-process
+                            // step to "straighten" the walls if they become slanted.
+                            // Moving p0/p3 blindly causes issues when the geometry is complex or noisy.
                             
-                            // Wall Walking Logic:
-                            // Move p0 and any preceding points that are collinear with the wall p0-p1
-                            const movePointWithWall = (startIdx, dxMove, dyMove) => {
-                                let curr = startIdx;
-                                // Move the starting point (p0 or p3)
-                                newPoints[curr].x += dxMove;
-                                newPoints[curr].y += dyMove;
-                                moved.add(curr);
-
-                                // Walk backwards from p0 (or forwards from p3) to find other collinear points on the wall
-                                // For p0 (prevIdx), we look at p_prev (prevPrevIdx).
-                                // But wait, p0 is the CORNER of the wall and the floor?
-                                // No, p1 is the corner. p0 is the other end of the wall.
-                                // If p0-p1 is the wall.
-                                // We moved p1. We moved p0.
-                                // Now we check if p_prev-p0 is collinear with p0-p1.
-                                // If so, p_prev is part of the wall (e.g. noise), so move it too.
-                            };
-
-                            // Move p1 and p2 (The joint itself)
-                            newPoints[i].x -= moveX;
-                            newPoints[i].y -= moveY;
-                            newPoints[nextIdx].x += moveX;
-                            newPoints[nextIdx].y += moveY;
-                            
-                            // Move p0 (prevIdx) with p1
-                            // Direction: -moveX, -moveY
-                            newPoints[prevIdx].x -= moveX;
-                            newPoints[prevIdx].y -= moveY;
-                            moved.add(prevIdx);
-
-                            // Walk backwards from p0 to fix fragmented walls
-                            let curr = prevIdx;
-                            for(let k=0; k<5; k++) { // Limit steps
-                                const prev = closed ? (curr - 1 + n) % n : curr - 1;
-                                if (!closed && prev < 0) break;
-                                if (moved.has(prev)) break; // Already moved, stop
-                                
-                                const p_curr = points[curr]; // Use original points for geometry check
-                                const p_prev = points[prev];
-                                const p_next = points[i]; // p1
-
-                                // Check collinearity of p_prev->p_curr with p_curr->p_next (wall)
-                                // Vector wall: p_next - p_curr (p1 - p0)
-                                const wx = p_next.x - p_curr.x;
-                                const wy = p_next.y - p_curr.y;
-                                const wlen = Math.hypot(wx, wy);
-
-                                // Vector segment: p_curr - p_prev
-                                const sx = p_curr.x - p_prev.x;
-                                const sy = p_curr.y - p_prev.y;
-                                const slen = Math.hypot(sx, sy);
-
-                                if (wlen < 1e-6 || slen < 1e-6) break;
-
-                                const cross = (sx * wy - sy * wx) / (slen * wlen);
-                                const dot = (sx * wx + sy * wy) / (slen * wlen);
-
-                                // If collinear (parallel), move it
-                                if (Math.abs(cross) < 0.1 && dot > 0.9) {
-                                    newPoints[prev].x -= moveX;
-                                    newPoints[prev].y -= moveY;
-                                    moved.add(prev);
-                                    curr = prev;
-                                } else {
-                                    break; // Corner hit
-                                }
-                            }
-
-                            // Move p3 (nextNextIdx) with p2
-                            // Direction: +moveX, +moveY
-                            newPoints[nextNextIdx].x += moveX;
-                            newPoints[nextNextIdx].y += moveY;
-                            moved.add(nextNextIdx);
-
-                            // Walk forwards from p3
-                            curr = nextNextIdx;
-                            for(let k=0; k<5; k++) {
-                                const next = closed ? (curr + 1) % n : curr + 1;
-                                if (!closed && next >= n) break;
-                                if (moved.has(next)) break;
-
-                                const p_curr = points[curr]; // p3
-                                const p_next = points[next]; // p4
-                                const p_prev = points[nextIdx]; // p2
-
-                                // Wall vector: p_curr - p_prev (p3 - p2)
-                                const wx = p_curr.x - p_prev.x;
-                                const wy = p_curr.y - p_prev.y;
-                                const wlen = Math.hypot(wx, wy);
-
-                                // Segment vector: p_next - p_curr
-                                const sx = p_next.x - p_curr.x;
-                                const sy = p_next.y - p_curr.y;
-                                const slen = Math.hypot(sx, sy);
-
-                                if (wlen < 1e-6 || slen < 1e-6) break;
-
-                                const cross = (wx * sy - wy * sx) / (wlen * slen); // Order matters?
-                                const dot = (wx * sx + wy * sy) / (wlen * slen);
-
-                                if (Math.abs(cross) < 0.1 && dot > 0.9) {
-                                    newPoints[next].x += moveX;
-                                    newPoints[next].y += moveY;
-                                    moved.add(next);
-                                    curr = next;
-                                } else {
-                                    break;
-                                }
-                            }
-
-                            moved.add(prevIdx);
                             moved.add(i);
                             moved.add(nextIdx);
-                            moved.add(nextNextIdx);
+                        }
+                    }
+
+                    // Post-process: Straighten walls for moved joints
+                    // If p1 was moved, the wall p0->p1 might be slanted. We project p0 to align with p1's new position
+                    // perpendicular to the joint vector.
+                    // Actually, simpler: if p0-p1 was vertical, and p1 moved horizontally, p0-p1 is now slanted.
+                    // We should move p0 horizontally to match p1.
+                    
+                    // We need to iterate again or track which joints were modified.
+                    // Let's do a quick pass to fix orthogonality for moved points.
+                    if (found > 0) {
+                        for (let i = 0; i < idxCount; i++) {
+                            if (!moved.has(i)) continue;
+                            
+                            // This point 'i' was moved. It's either a p1 or p2 of a joint.
+                            // Let's check its neighbors.
+                            const prev = closed ? (i - 1 + n) % n : i - 1;
+                            const next = closed ? (i + 1) % n : i + 1;
+                            
+                            // We only adjust neighbors that were NOT moved by the joint logic (p0 or p3)
+                            // If neighbor is not in 'moved' set, we might need to align it.
+                            
+                            const adjustNeighbor = (neighborIdx) => {
+                                if (neighborIdx < 0 || neighborIdx >= n) return;
+                                if (moved.has(neighborIdx)) return; // Already part of another joint?
+                                
+                                const p_curr = newPoints[i]; // The moved joint point
+                                const p_neigh = newPoints[neighborIdx]; // The static wall anchor
+                                
+                                // Original vector (before move)
+                                const p_curr_orig = points[i];
+                                const p_neigh_orig = points[neighborIdx];
+                                
+                                const dxOrig = p_curr_orig.x - p_neigh_orig.x;
+                                const dyOrig = p_curr_orig.y - p_neigh_orig.y;
+                                
+                                // Check if original wall was axis-aligned
+                                const isVert = Math.abs(dxOrig) < axisTol;
+                                const isHorz = Math.abs(dyOrig) < axisTol;
+                                
+                                if (isVert) {
+                                    // It was vertical. Align neighbor's X to current's X
+                                    p_neigh.x = p_curr.x;
+                                    // p_neigh.y stays same (unless we want to preserve length? No, wall length changes)
+                                } else if (isHorz) {
+                                    // It was horizontal. Align neighbor's Y to current's Y
+                                    p_neigh.y = p_curr.y;
+                                }
+                            };
+                            
+                            adjustNeighbor(prev);
+                            adjustNeighbor(next);
+                        }
+                    }
                         }
                     }
 
