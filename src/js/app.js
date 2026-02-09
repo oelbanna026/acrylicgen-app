@@ -5068,9 +5068,11 @@ function app() {
                 const axisTol = Math.max(toleranceThreshold * 0.2, 1e-6);
                 const orthoTol = 0.3;
                 let totalFound = 0;
+                let totalSegments = 0;
                 let autoLen = null;
                 const smallSegs = [];
-                const allSegs = [];
+                const minSegLen = Math.max(oldSizeUnit * 0.6, toleranceThreshold * 2);
+                const maxSegLen = Math.max(oldSizeUnit * 1.8, oldSizeUnit + toleranceThreshold * 4);
 
                 const updatedSubpaths = subpaths.map(sp => {
                 if (!sp.points || sp.points.length < 2) return sp;
@@ -5085,7 +5087,8 @@ function app() {
                     const newPoints = points.map(p => ({...p}));
                     const moved = new Set();
                     let found = 0;
-                const idxCount = closed ? n : (n - 1);
+                    const idxCount = closed ? n : (n - 1);
+                    totalSegments += Math.max(0, idxCount);
 
                     // Collect axis-aligned small segment lengths for auto-detect
                     for (let i = 0; i < idxCount; i++) {
@@ -5095,9 +5098,9 @@ function app() {
                         const dxRaw0 = p2.x - p1.x;
                         const dyRaw0 = p2.y - p1.y;
                         const d0 = Math.hypot(dxRaw0, dyRaw0);
-                        if (isFinite(d0) && d0 > 0) allSegs.push(d0);
+                        if (!isFinite(d0) || d0 <= 0) continue;
                         const isAxis0 = Math.abs(dxRaw0) < axisTol || Math.abs(dyRaw0) < axisTol;
-                        if (isAxis0 && d0 > axisTol) {
+                        if (isAxis0 && d0 > axisTol && d0 >= minSegLen && d0 <= maxSegLen * 1.5) {
                             smallSegs.push(d0);
                         }
                     }
@@ -5134,21 +5137,8 @@ function app() {
                             // Relax requirement: some designs have fewer repeated slots
                             if (bestKey && bestCount >= 3) autoLen = bestKey;
                         }
-                        if (!autoLen && allSegs.length >= 8) {
-                            const sortedAll = allSegs.slice().sort((a,b)=>a-b);
-                            const limit = Math.max(6, Math.floor(sortedAll.length * 0.4));
-                            const subset = sortedAll.slice(0, limit);
-                            const binSize = Math.max(0.05 * scale, axisTol * 2);
-                            const bins = new Map();
-                            subset.forEach(val => {
-                                const key = Math.round(val / binSize) * binSize;
-                                bins.set(key, (bins.get(key) || 0) + 1);
-                            });
-                            let bestKey = null, bestCount = 0;
-                            bins.forEach((cnt, key) => {
-                                if (cnt > bestCount) { bestCount = cnt; bestKey = key; }
-                            });
-                            if (bestKey && bestCount >= 3) autoLen = bestKey;
+                        if (autoLen && (autoLen < minSegLen * 0.8 || autoLen > maxSegLen * 1.5)) {
+                            autoLen = null;
                         }
 
                         const expected = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ||
@@ -5175,6 +5165,9 @@ function app() {
                             const v23y = p3.y - p2.y;
                             const len01 = Math.hypot(v01x, v01y);
                             const len23 = Math.hypot(v23x, v23y);
+                            const baseLenForThresh = autoLen || oldSizeUnit || d;
+                            const neighborMinLen = Math.max(baseLenForThresh * 1.8, axisTol * 4);
+                            if (len01 < neighborMinLen || len23 < neighborMinLen) continue;
                             if (len01 > axisTol) {
                                 const dot1 = Math.abs((v01x / len01) * dx + (v01y / len01) * dy);
                                 if (dot1 > orthoTol) continue;
@@ -5187,7 +5180,12 @@ function app() {
                             found++;
                             const baseLen = (Math.abs(d - oldSizeUnit) < toleranceThreshold) ? oldSizeUnit : (autoLen || d);
                             const diff = (targetGapUnit - baseLen);
-                            const moveAmt = diff / 2;
+                            let moveAmt = diff / 2;
+                            const maxMove = Math.min(Math.abs(baseLen), Math.abs(targetGapUnit)) * 0.6;
+                            if (isFinite(maxMove) && maxMove > 0) {
+                                if (moveAmt > maxMove) moveAmt = maxMove;
+                                if (moveAmt < -maxMove) moveAmt = -maxMove;
+                            }
                             const moveX = dx * moveAmt;
                             const moveY = dy * moveAmt;
 
@@ -5223,9 +5221,19 @@ function app() {
                             const dyRaw = p2.y - p1.y;
                             const dx = dxRaw / d;
                             const dy = dyRaw / d;
+                            const axisAngleTol = 12 * (Math.PI / 180);
+                            const isAxisAligned = Math.abs(dxRaw) < axisTol || Math.abs(dyRaw) < axisTol ||
+                                Math.abs(Math.atan2(Math.abs(dyRaw), Math.abs(dxRaw))) < axisAngleTol ||
+                                Math.abs(Math.atan2(Math.abs(dxRaw), Math.abs(dyRaw))) < axisAngleTol;
+                            if (!isAxisAligned) continue;
                             const baseLen = autoLen || d;
                             const diff = (targetGapUnit - baseLen);
-                            const moveAmt = diff / 2;
+                            let moveAmt = diff / 2;
+                            const maxMove = Math.min(Math.abs(baseLen), Math.abs(targetGapUnit)) * 0.6;
+                            if (isFinite(maxMove) && maxMove > 0) {
+                                if (moveAmt > maxMove) moveAmt = maxMove;
+                                if (moveAmt < -maxMove) moveAmt = -maxMove;
+                            }
                             const moveX = dx * moveAmt;
                             const moveY = dy * moveAmt;
                             newPoints[i].x -= moveX;
@@ -5235,14 +5243,19 @@ function app() {
                             moved.add(i);
                             moved.add(nextIdx);
                             found++;
+                            if (found > 1500) break;
                         }
                     }
 
                     totalFound += found;
+                    if (totalFound > 3000) {
+                        // Safety cap to avoid excessive mutations on noisy imports
+                        return { ...sp, points: newPoints, closed };
+                    }
                     return { ...sp, points: newPoints, closed };
                 });
 
-                return { totalFound, updatedSubpaths, scale };
+                return { totalFound, updatedSubpaths, scale, totalSegments };
             };
 
             let best = null;
@@ -5255,11 +5268,19 @@ function app() {
 
             if (dryRun) {
                 const count = best ? best.totalFound : 0;
+                if (best && best.totalSegments && count > best.totalSegments * 0.35) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'اكتشاف مفرط للتعشيقات، عدّل القيم' : 'Too many joints detected, adjust inputs';
+                    return 0;
+                }
                 this.jointStatusMsg = (this.t('joints_found') || 'Joints found') + ': ' + count;
                 return count;
             }
 
             if (best && best.totalFound > 0) {
+                if (best.totalSegments && best.totalFound > best.totalSegments * 0.35) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'اكتشاف مفرط للتعشيقات، لم يتم التطبيق' : 'Too many joints detected, not applied';
+                    return 0;
+                }
                 const newPath = best.updatedSubpaths.map(sp => {
                     if (!sp.points || sp.points.length < 2) return '';
                     let d = sp.points.map((p, i) => (i === 0 ? 'M' : 'L') + ` ${p.x.toFixed(3)} ${p.y.toFixed(3)}`).join(' ');
