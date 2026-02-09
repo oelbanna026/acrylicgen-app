@@ -4978,46 +4978,64 @@ function app() {
         },
 
         previewJointResize() {
-            // Placeholder for preview logic - in a real app, this would overlay the changes
-            this.detectAndResizeJoints(true);
+            try {
+                this.jointStatusMsg = this.t('processing') || 'Processing...';
+                const found = this.detectAndResizeJoints(true);
+                if (found === 0 && !this.jointStatusMsg) {
+                    this.jointStatusMsg = this.t('no_joints_found') || 'No joints found';
+                }
+            } catch (e) {
+                this.jointStatusMsg = this.lang === 'ar' ? `خطأ أثناء المعالجة: ${e.message || e}` : `Processing error: ${e.message || e}`;
+            }
         },
 
         applyJointResize() {
-            const found = this.detectAndResizeJoints(false);
-            if (found > 0) {
-                this.resizeJointsModal = false;
+            try {
+                this.jointStatusMsg = this.t('processing') || 'Processing...';
+                const found = this.detectAndResizeJoints(false);
+                if (found > 0) {
+                    this.resizeJointsModal = false;
+                } else if (!this.jointStatusMsg) {
+                    this.jointStatusMsg = this.t('no_joints_found') || 'No joints found';
+                }
+            } catch (e) {
+                this.jointStatusMsg = this.lang === 'ar' ? `خطأ أثناء المعالجة: ${e.message || e}` : `Processing error: ${e.message || e}`;
             }
         },
 
         detectAndResizeJoints(dryRun = false) {
-            const shape = this.activeShape;
-            if (!shape || !shape.pathData) {
-                this.jointStatusMsg = "No valid path data found.";
-                return 0;
-            }
+            try {
+                const shape = this.activeShape;
+                if (!shape || !shape.pathData) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'لا يوجد مسار صالح' : 'No valid path data found.';
+                    return 0;
+                }
 
-            const oldSize = parseFloat(this.jointOldSize);
-            const newSize = parseFloat(this.jointNewSize);
-            const tol = parseFloat(this.jointTolerance) || 0;
-            const targetGap = newSize - tol;
+                const oldSize = parseFloat(this.jointOldSize);
+                const newSize = parseFloat(this.jointNewSize);
+                const tol = parseFloat(this.jointTolerance) || 0;
+                const targetGap = newSize - tol;
 
-            if (!oldSize || !newSize) return 0;
+                if (!oldSize || !newSize) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'قيم غير صالحة' : 'Invalid inputs';
+                    return 0;
+                }
 
-            const unit = this.unit || 'cm';
-            const baseScale = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
-            const scaleCandidates = [baseScale, 1, 0.1, 10];
-            if (unit === 'inch') {
-                scaleCandidates.push(1 / 2.54);
-            }
-            const scales = Array.from(new Set(scaleCandidates.filter(v => isFinite(v) && v > 0)));
+                const unit = this.unit || 'cm';
+                const baseScale = unit === 'cm' ? 0.1 : unit === 'inch' ? 1 / 25.4 : 1;
+                const scaleCandidates = [baseScale, 1, 0.1, 10];
+                if (unit === 'inch') {
+                    scaleCandidates.push(1 / 2.54);
+                }
+                const scales = Array.from(new Set(scaleCandidates.filter(v => isFinite(v) && v > 0)));
 
-            const subpaths = this.parsePathToSubpaths(shape.pathData);
-            if (!subpaths.length) {
-                this.jointStatusMsg = "Shape is too simple.";
-                return 0;
-            }
+                const subpaths = this.parsePathToSubpaths(shape.pathData);
+                if (!subpaths.length) {
+                    this.jointStatusMsg = this.lang === 'ar' ? 'المسار بسيط جداً' : 'Shape is too simple.';
+                    return 0;
+                }
 
-            const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                const dist = (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
             const runDetection = (scale) => {
                 const oldSizeUnit = oldSize * scale;
                 const targetGapUnit = targetGap * scale;
@@ -5159,7 +5177,7 @@ function app() {
 
             if (dryRun) {
                 const count = best ? best.totalFound : 0;
-                this.jointStatusMsg = this.t('joints_found') + ': ' + count;
+                this.jointStatusMsg = (this.t('joints_found') || 'Joints found') + ': ' + count;
                 return count;
             }
 
@@ -5174,11 +5192,15 @@ function app() {
                 shape._normalized = false;
                 this.normalizeCustomShapeBounds(shape);
                 this.save();
-                this.jointStatusMsg = this.t('success');
+                this.jointStatusMsg = this.t('success') || 'Success';
             } else {
-                this.jointStatusMsg = this.t('no_joints_found');
+                this.jointStatusMsg = this.t('no_joints_found') || 'No joints found';
             }
             return best ? best.totalFound : 0;
+            } catch (e) {
+                this.jointStatusMsg = this.lang === 'ar' ? `خطأ أثناء التحليل: ${e.message || e}` : `Analysis error: ${e.message || e}`;
+                return 0;
+            }
         },
 
         parsePathToSubpaths(d) {
