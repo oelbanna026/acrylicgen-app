@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DxfModel, JointAnalysis, JointSettings } from '@/utils/types'
 import DxfViewer from '@/components/dxf/DxfViewer'
+import { parseDxfToModel, pickLargestClosedPolyline } from '@/utils/dxfParser'
+import { analyzeFingerJoints } from '@/utils/jointDetector'
+import { regenerateFingerJointsRectangular } from '@/utils/jointRegenerator'
+import { exportModelToDxf, exportModelToSvg } from '@/utils/exporter'
 
 type WorkerRequest =
   | { id: string; action: 'parse'; dxfText: string }
@@ -21,6 +25,12 @@ type WorkerRequestWithoutId =
 type WorkerResponse =
   | { id: string; ok: true; action: string; data: any }
   | { id: string; ok: false; action: string; error: string }
+
+type LocalState = {
+  model: DxfModel | null
+  analysis: JointAnalysis | null
+  activePolylineId: string | null
+}
 
 function downloadText(filename: string, text: string, mime: string) {
   const blob = new Blob([text], { type: mime })
@@ -44,9 +54,31 @@ function suggestTolerance(thickness: number, fit: JointSettings['fit']): number 
   return Number(base.toFixed(2))
 }
 
+function makeRequestId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  } catch {}
+  return `${Date.now()}_${Math.random().toString(16).slice(2)}`
+}
+
+async function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: any
+  try {
+    return await Promise.race([
+      p,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms)
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export default function DxfJointEditor() {
   const workerRef = useRef<Worker | null>(null)
   const pendingRef = useRef(new Map<string, (resp: WorkerResponse) => void>())
+  const localRef = useRef<LocalState>({ model: null, analysis: null, activePolylineId: null })
 
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,32 +95,119 @@ export default function DxfJointEditor() {
   const [undoStack, setUndoStack] = useState<string[]>([])
   const [redoStack, setRedoStack] = useState<string[]>([])
 
-  const request = useCallback(async (payload: WorkerRequestWithoutId) => {
-    if (!workerRef.current) throw new Error('Worker not ready')
-    const id = crypto.randomUUID()
-    const msg: WorkerRequest = { id, ...(payload as any) }
-    const p = new Promise<WorkerResponse>((resolve) => {
-      pendingRef.current.set(id, resolve)
-    })
-    workerRef.current.postMessage(msg)
-    const resp = await p
-    if (!resp.ok) throw new Error(resp.error)
-    return resp.data
+  const localHandle = useCallback(async (payload: WorkerRequestWithoutId) => {
+    if (payload.action === 'parse') {
+      const nextModel = parseDxfToModel(payload.dxfText)
+      const main = pickLargestClosedPolyline(nextModel)
+      const nextActive = main?.id ?? null
+      const nextAnalysis = main ? analyzeFingerJoints(main) : null
+      localRef.current = { model: nextModel, activePolylineId: nextActive, analysis: nextAnalysis }
+      return { model: nextModel, activePolylineId: nextActive, analysis: nextAnalysis }
+    }
+
+    if (payload.action === 'analyze') {
+      const st = localRef.current
+      if (!st.model) throw new Error('No model loaded')
+      const wanted = payload.polylineId ?? st.activePolylineId
+      const pl =
+        (wanted ? st.model.polylines.find((p) => p.id === wanted) : null) ?? pickLargestClosedPolyline(st.model)
+      if (!pl) throw new Error('No closed polyline found')
+      const nextAnalysis = analyzeFingerJoints(pl)
+      localRef.current = { model: st.model, activePolylineId: pl.id, analysis: nextAnalysis }
+      return { analysis: nextAnalysis, activePolylineId: pl.id }
+    }
+
+    if (payload.action === 'regenerate') {
+      const st = localRef.current
+      if (!st.model || !st.analysis || !st.activePolylineId) throw new Error('No analysis available')
+      const idx = st.model.polylines.findIndex((p) => p.id === st.activePolylineId)
+      if (idx < 0) throw new Error('Active polyline not found')
+      const original = st.model.polylines[idx]
+      const result = regenerateFingerJointsRectangular(original, st.analysis, payload.settings)
+      const nextModel: DxfModel = { ...st.model, polylines: st.model.polylines.slice() }
+      nextModel.polylines[idx] = result.polyline
+      const nextAnalysis = analyzeFingerJoints(result.polyline)
+      localRef.current = { model: nextModel, activePolylineId: st.activePolylineId, analysis: nextAnalysis }
+      return { model: nextModel, analysis: nextAnalysis, warnings: result.warnings }
+    }
+
+    if (payload.action === 'exportSvg') {
+      const st = localRef.current
+      if (!st.model) throw new Error('No model loaded')
+      return { svg: exportModelToSvg(st.model) }
+    }
+
+    if (payload.action === 'exportDxf') {
+      const st = localRef.current
+      if (!st.model) throw new Error('No model loaded')
+      return { dxf: exportModelToDxf(st.model) }
+    }
+
+    throw new Error('Unknown action')
   }, [])
 
+  const request = useCallback(
+    async (payload: WorkerRequestWithoutId) => {
+      const w = workerRef.current
+      if (!w) return localHandle(payload)
+
+      const id = makeRequestId()
+      const msg: WorkerRequest = { id, ...(payload as any) }
+
+      const p = new Promise<WorkerResponse>((resolve) => {
+        pendingRef.current.set(id, resolve)
+      })
+
+      try {
+        w.postMessage(msg)
+        const resp = await withTimeout(p, 20000, 'Worker timeout')
+        if (!resp.ok) throw new Error(resp.error)
+        return resp.data
+      } catch (e) {
+        workerRef.current = null
+        pendingRef.current.delete(id)
+        return localHandle(payload)
+      }
+    },
+    [localHandle],
+  )
+
   useEffect(() => {
-    const w = new Worker(new URL('../../workers/dxfWorker.ts', import.meta.url))
-    workerRef.current = w
+    let w: Worker | null = null
+    try {
+      w = new Worker(new URL('../../workers/dxfWorker.ts', import.meta.url), { type: 'module' } as any)
+      workerRef.current = w
+    } catch {
+      workerRef.current = null
+      return
+    }
+
+    const flushWithError = (message: string) => {
+      const pending = Array.from(pendingRef.current.entries())
+      pendingRef.current.clear()
+      for (const [id, cb] of pending) cb({ id, ok: false, action: 'worker', error: message })
+    }
+
     w.onmessage = (ev: MessageEvent<WorkerResponse>) => {
       const msg = ev.data
       const cb = pendingRef.current.get(msg.id)
-      if (cb) {
-        pendingRef.current.delete(msg.id)
-        cb(msg)
-      }
+      if (!cb) return
+      pendingRef.current.delete(msg.id)
+      cb(msg)
     }
+
+    w.onerror = () => {
+      workerRef.current = null
+      flushWithError('Worker failed to load')
+    }
+
+    w.onmessageerror = () => {
+      workerRef.current = null
+      flushWithError('Worker message error')
+    }
+
     return () => {
-      w.terminate()
+      w?.terminate()
       workerRef.current = null
       pendingRef.current.clear()
     }
