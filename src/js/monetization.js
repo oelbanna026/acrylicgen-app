@@ -96,65 +96,8 @@
         // Main entry point for protected actions
         executeProtectedAction(callback) {
             if (!this.checkLimit()) return;
-
-            if (this.shouldShowAds()) {
-                this.showAd(callback);
-            } else {
-                this.incrementUsage();
-                callback();
-            }
-        },
-
-        // Load AdSense Script Lazy
-        loadAdScript() {
-            if (this.adScriptLoaded) return;
-            
-            // console.log('Lazy loading AdSense script...');
-            const script = document.createElement('script');
-            script.async = true;
-            // TODO: Replace with your actual AdSense Publisher ID
-            script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX";
-            script.crossOrigin = "anonymous";
-            document.head.appendChild(script);
-            
-            this.adScriptLoaded = true;
-        },
-
-        // Show Ad Modal
-        showAd(callback) {
-            // Lazy load the script when ad is first requested
-            this.loadAdScript();
-
-            this.adCallback = callback;
-            this.adTimer = 5;
-            this.showAdModal = true;
-            
-            // Trigger Alpine update if needed (since this is outside Alpine scope usually)
-            const event = new CustomEvent('ad-modal-open');
-            window.dispatchEvent(event);
-
-            // Start countdown
-            const interval = setInterval(() => {
-                this.adTimer--;
-                window.dispatchEvent(new CustomEvent('ad-timer-tick', { detail: this.adTimer }));
-                
-                if (this.adTimer <= 0) {
-                    clearInterval(interval);
-                    this.completeAd();
-                }
-            }, 1000);
-        },
-
-        completeAd() {
-            this.showAdModal = false;
-            window.dispatchEvent(new CustomEvent('ad-modal-close'));
-            
-            // Execute the action
-            if (this.adCallback) {
-                this.incrementUsage();
-                this.adCallback();
-                this.adCallback = null;
-            }
+            this.incrementUsage();
+            callback();
         },
 
         showUpgradePopup() {

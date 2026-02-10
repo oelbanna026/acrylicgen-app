@@ -147,43 +147,6 @@
 </head>
 <body x-data="app()" x-init="init()" :class="theme" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
 
-    <!-- Ad Modal -->
-    <div x-show="showAdModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 relative text-center">
-            
-            <div class="mb-4">
-                <div class="inline-block p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 mb-2">
-                    <svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-bold dark:text-white">Processing your file...</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Please wait while we prepare your download.</p>
-            </div>
-
-            <!-- Ad Container -->
-            <div class="bg-gray-100 dark:bg-slate-700 rounded-lg p-4 mb-4 min-h-[250px] flex items-center justify-center">
-                <!-- Google AdSense Placeholder -->
-                <div class="text-gray-400 text-sm">
-                    <p>Advertisement</p>
-                    <p class="text-xs mt-1">(Support us to keep this tool free ❤️)</p>
-                </div>
-                <!-- Actual Ad Code will go here -->
-                <!-- <ins class="adsbygoogle" ...></ins> -->
-            </div>
-
-            <div class="text-center">
-                <p class="text-sm font-bold text-gray-600 dark:text-gray-300 mb-2">
-                    Download starting in <span x-text="adTimer" class="text-blue-500 text-lg">5</span>s
-                </p>
-                <button @click="showAdModal = false" class="text-xs text-gray-400 hover:text-gray-600 underline">
-                    Upgrade to Pro to remove ads
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Public Stats Modal -->
     <div x-show="showPublicStatsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak @click="showPublicStatsModal = false">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl p-6 relative" @click.stop>
@@ -1070,14 +1033,16 @@
                     </div>
 
                     <!-- Legal Links -->
-                    <div class="text-center text-[10px] text-gray-400 flex justify-center gap-3">
+                    <div class="text-center text-[10px] text-gray-400 flex justify-center gap-3 flex-wrap">
                         <a href="privacy.html" target="_blank" class="hover:underline">Privacy</a>
                         <span>•</span>
                         <a href="terms.html" target="_blank" class="hover:underline">Terms</a>
                         <span>•</span>
                         <a href="/designs" class="hover:underline text-blue-500">Popular Designs</a>
                         <span>•</span>
-                        <button @click="showAboutModal = true" class="hover:underline">About</button>
+                        <a href="about.html" target="_blank" class="hover:underline">About</a>
+                        <span>•</span>
+                        <a href="contact.html" target="_blank" class="hover:underline">Contact</a>
                     </div>
                 </div>
             </aside>
