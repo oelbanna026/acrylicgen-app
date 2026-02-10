@@ -79,6 +79,7 @@ export default function DxfJointEditor() {
   const workerRef = useRef<Worker | null>(null)
   const pendingRef = useRef(new Map<string, (resp: WorkerResponse) => void>())
   const localRef = useRef<LocalState>({ model: null, analysis: null, activePolylineId: null })
+  const canUseWorkerRef = useRef<boolean>(true)
 
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +149,7 @@ export default function DxfJointEditor() {
 
   const request = useCallback(
     async (payload: WorkerRequestWithoutId) => {
-      const w = workerRef.current
+      const w = canUseWorkerRef.current ? workerRef.current : null
       if (!w) return localHandle(payload)
 
       const id = makeRequestId()
@@ -174,6 +175,15 @@ export default function DxfJointEditor() {
 
   useEffect(() => {
     let w: Worker | null = null
+    try {
+      canUseWorkerRef.current = window.self === window.top
+    } catch {
+      canUseWorkerRef.current = false
+    }
+    if (!canUseWorkerRef.current) {
+      workerRef.current = null
+      return
+    }
     try {
       w = new Worker(new URL('../../workers/dxfWorker.ts', import.meta.url), { type: 'module' } as any)
       workerRef.current = w
