@@ -25,9 +25,15 @@ export default function DxfViewer({
     }
     const pts = model.polylines.flatMap((p) => p.points)
     const bb = bboxOf(pts)
-    const w = bb.maxX - bb.minX || 100
-    const h = bb.maxY - bb.minY || 100
-    const vb = `${bb.minX} ${-bb.maxY} ${w} ${h}`
+    if (![bb.minX, bb.minY, bb.maxX, bb.maxY].every((v) => Number.isFinite(v))) {
+      return { viewBox: '0 0 100 100', paths: [] as string[], jointOverlays: [] as any[] }
+    }
+    const rawW = bb.maxX - bb.minX
+    const rawH = bb.maxY - bb.minY
+    const w = Number.isFinite(rawW) && rawW > 0 ? rawW : 100
+    const h = Number.isFinite(rawH) && rawH > 0 ? rawH : 100
+    const pad = Math.max(w, h) * 0.02
+    const vb = `${bb.minX - pad} ${-(bb.maxY + pad)} ${w + pad * 2} ${h + pad * 2}`
 
     const pths = model.polylines
       .map((p) => polylineToPath(p.points, p.closed))
@@ -90,4 +96,3 @@ export default function DxfViewer({
     </div>
   )
 }
-

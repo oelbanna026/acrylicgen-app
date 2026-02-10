@@ -370,6 +370,16 @@ export default function DxfJointEditor() {
             }}
             className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
           />
+          {model ? (
+            <div className="text-xs text-gray-500">
+              Polylines parsed: {model.polylines.length}
+            </div>
+          ) : null}
+          {model && model.polylines.length === 0 ? (
+            <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+              لم يتم العثور على عناصر هندسية مدعومة داخل DXF. إذا كان الملف مبنيًا على Blocks/Inserts فجرّب رفعه مرة أخرى بعد التحديث.
+            </div>
+          ) : null}
           {analysis && (
             <div className="text-sm text-gray-700 space-y-1">
               <div>عدد التعشيقات المكتشفة: {analysis.totalJoints}</div>
