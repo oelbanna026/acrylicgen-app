@@ -92,6 +92,7 @@ export default function DxfJointEditor() {
   const [materialThickness, setMaterialThickness] = useState<number>(3)
   const [newJointWidth, setNewJointWidth] = useState<number>(10)
   const [tolerance, setTolerance] = useState<number>(0.2)
+  const [kerf, setKerf] = useState<number>(0.15)
 
   const [undoStack, setUndoStack] = useState<string[]>([])
   const [redoStack, setRedoStack] = useState<string[]>([])
@@ -242,9 +243,10 @@ export default function DxfJointEditor() {
       newJointWidth,
       materialThickness,
       tolerance,
+      kerf,
       fit,
     }),
-    [newJointWidth, materialThickness, tolerance, fit],
+    [newJointWidth, materialThickness, tolerance, kerf, fit],
   )
 
   const onUpload = useCallback(
@@ -450,6 +452,19 @@ export default function DxfJointEditor() {
               />
             </div>
             <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Kerf (mm)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={kerf}
+                onChange={(e) => setKerf(Number(e.target.value))}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Fit type</label>
               <select
                 value={fit}
@@ -461,6 +476,7 @@ export default function DxfJointEditor() {
                 <option value="loose">loose</option>
               </select>
             </div>
+            <div />
           </div>
 
           <button

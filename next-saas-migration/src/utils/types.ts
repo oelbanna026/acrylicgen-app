@@ -49,6 +49,6 @@ export type JointSettings = {
   newJointWidth: number
   materialThickness: number
   tolerance: number
+  kerf?: number
   fit: FitType
 }
-

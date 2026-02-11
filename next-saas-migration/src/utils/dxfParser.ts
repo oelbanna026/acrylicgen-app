@@ -330,6 +330,13 @@ export function parseDxfToModel(dxfText: string): DxfModel {
 
   const ins = Number((doc as any)?.header?.$INSUNITS ?? (doc as any)?.header?.INSUNITS ?? (doc as any)?.header?.insunits)
   const sourceUnits: DxfModel['sourceUnits'] = ins === 1 ? 'inch' : ins === 4 ? 'mm' : 'unknown'
+  if (sourceUnits === 'inch') {
+    const scaled: Polyline[] = polylines.map((pl) => ({
+      ...pl,
+      points: pl.points.map((p) => ({ x: p.x * 25.4, y: p.y * 25.4 })),
+    }))
+    return { polylines: scaled, sourceUnits: 'mm' }
+  }
   return { polylines, sourceUnits }
 }
 
