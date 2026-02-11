@@ -82,6 +82,13 @@ function toPolylineId(index: number) {
   return `pl_${index}`
 }
 
+function closeIfNearlyClosed(points: Point[], eps: number): { points: Point[]; closed: boolean } {
+  if (points.length < 3) return { points, closed: false }
+  const d = dist(points[0], points[points.length - 1])
+  if (!Number.isFinite(d) || d > eps) return { points, closed: false }
+  return { points: points.slice(0, -1), closed: true }
+}
+
 export function parseDxfToModel(dxfText: string): DxfModel {
   const parser = new DxfParser()
   const doc = parser.parseSync(dxfText)
@@ -205,6 +212,13 @@ export function parseDxfToModel(dxfText: string): DxfModel {
 
       const clean = simplifyCollinear(points, { eps: 1e-6, closed })
       if (clean.length < 2) return
+      if (!closed) {
+        const maybe = closeIfNearlyClosed(clean, 0.01)
+        if (maybe.closed) {
+          pushPolyline({ layer, closed: true, points: maybe.points })
+          return
+        }
+      }
       pushPolyline({ layer, closed, points: clean })
       return
     }
@@ -318,7 +332,12 @@ export function parseDxfToModel(dxfText: string): DxfModel {
 }
 
 export function pickLargestClosedPolyline(model: DxfModel): Polyline | null {
-  const closed = model.polylines.filter((p) => p.closed && p.points.length >= 3)
+  const closed = model.polylines.filter((p) => {
+    if (p.points.length < 3) return false
+    if (p.closed) return true
+    const d = dist(p.points[0], p.points[p.points.length - 1])
+    return Number.isFinite(d) && d <= 0.01
+  })
   if (!closed.length) return null
   let best: Polyline | null = null
   let bestArea = -Infinity

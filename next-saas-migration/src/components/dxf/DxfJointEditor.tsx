@@ -413,7 +413,7 @@ export default function DxfJointEditor() {
                 step="0.01"
                 value={newJointWidth}
                 onChange={(e) => setNewJointWidth(Number(e.target.value))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </div>
             <div>
@@ -423,7 +423,7 @@ export default function DxfJointEditor() {
                 step="0.01"
                 value={materialThickness}
                 onChange={(e) => setMaterialThickness(Number(e.target.value))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </div>
           </div>
@@ -436,7 +436,7 @@ export default function DxfJointEditor() {
                 step="0.01"
                 value={tolerance}
                 onChange={(e) => setTolerance(Number(e.target.value))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               />
             </div>
             <div>
@@ -444,7 +444,7 @@ export default function DxfJointEditor() {
               <select
                 value={fit}
                 onChange={(e) => setFit(e.target.value as any)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
               >
                 <option value="tight">tight</option>
                 <option value="normal">normal</option>
