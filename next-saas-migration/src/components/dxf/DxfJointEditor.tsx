@@ -121,27 +121,37 @@ export default function DxfJointEditor() {
     if (payload.action === 'regenerate') {
       const st = localRef.current
       if (!st.model || !st.analysis || !st.activePolylineId) throw new Error('No analysis available')
-      const idx = st.model.polylines.findIndex((p) => p.id === st.activePolylineId)
-      if (idx < 0) throw new Error('Active polyline not found')
-      const original = st.model.polylines[idx]
-      const result = regenerateFingerJointsRectangular(original, st.analysis, payload.settings)
-      const nextModel: DxfModel = { ...st.model, polylines: st.model.polylines.slice() }
-      nextModel.polylines[idx] = result.polyline
-      const nextAnalysis = analyzeFingerJoints(result.polyline)
-      localRef.current = { model: nextModel, activePolylineId: st.activePolylineId, analysis: nextAnalysis }
-      return { model: nextModel, analysis: nextAnalysis, warnings: result.warnings }
+      const nextPolylines = st.model.polylines.slice()
+      const warnings: string[] = []
+
+      for (let i = 0; i < nextPolylines.length; i++) {
+        const pl = nextPolylines[i]
+        if (!pl.closed || pl.points.length < 3) continue
+        const a = analyzeFingerJoints(pl)
+        if (!a.totalJoints) continue
+        const r = regenerateFingerJointsRectangular(pl, a, payload.settings)
+        nextPolylines[i] = r.polyline
+        if (r.warnings?.length) warnings.push(...r.warnings.map((w) => `[${pl.id}] ${w}`))
+      }
+
+      const nextModel: DxfModel = { ...st.model, polylines: nextPolylines }
+      const active = nextModel.polylines.find((p) => p.id === st.activePolylineId) ?? pickLargestClosedPolyline(nextModel)
+      const nextActiveId = active?.id ?? st.activePolylineId
+      const nextAnalysis = active ? analyzeFingerJoints(active) : null
+      localRef.current = { model: nextModel, activePolylineId: nextActiveId, analysis: nextAnalysis }
+      return { model: nextModel, analysis: nextAnalysis, warnings }
     }
 
     if (payload.action === 'exportSvg') {
       const st = localRef.current
       if (!st.model) throw new Error('No model loaded')
-      return { svg: exportModelToSvg(st.model) }
+      return { svg: exportModelToSvg(st.model, { convertToMm: true, units: 'mm' }) }
     }
 
     if (payload.action === 'exportDxf') {
       const st = localRef.current
       if (!st.model) throw new Error('No model loaded')
-      return { dxf: exportModelToDxf(st.model) }
+      return { dxf: exportModelToDxf(st.model, { convertToMm: true, units: 'mm' }) }
     }
 
     throw new Error('Unknown action')

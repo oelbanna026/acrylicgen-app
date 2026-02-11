@@ -48,28 +48,38 @@ function reply(message: ResponseMessage) {
 
     if (msg.action === 'regenerate') {
       if (!model || !analysis || !activePolylineId) throw new Error('No analysis available')
-      const idx = model.polylines.findIndex((p) => p.id === activePolylineId)
-      if (idx < 0) throw new Error('Active polyline not found')
-      const original = model.polylines[idx]
-      const result = regenerateFingerJointsRectangular(original, analysis, msg.settings)
-      const next: DxfModel = { ...model, polylines: model.polylines.slice() }
-      next.polylines[idx] = result.polyline
+      const nextPolylines = model.polylines.slice()
+      const warnings: string[] = []
+
+      for (let i = 0; i < nextPolylines.length; i++) {
+        const pl = nextPolylines[i]
+        if (!pl.closed || pl.points.length < 3) continue
+        const a = analyzeFingerJoints(pl)
+        if (!a.totalJoints) continue
+        const r = regenerateFingerJointsRectangular(pl, a, msg.settings)
+        nextPolylines[i] = r.polyline
+        if (r.warnings?.length) warnings.push(...r.warnings.map((w) => `[${pl.id}] ${w}`))
+      }
+
+      const next: DxfModel = { ...model, polylines: nextPolylines }
       model = next
-      analysis = analyzeFingerJoints(result.polyline)
-      reply({ id: msg.id, ok: true, action: msg.action, data: { model, analysis, warnings: result.warnings } })
+      const active = model.polylines.find((p) => p.id === activePolylineId) ?? pickLargestClosedPolyline(model)
+      activePolylineId = active?.id ?? activePolylineId
+      analysis = active ? analyzeFingerJoints(active) : null
+      reply({ id: msg.id, ok: true, action: msg.action, data: { model, analysis, warnings } })
       return
     }
 
     if (msg.action === 'exportSvg') {
       if (!model) throw new Error('No model loaded')
-      const svg = exportModelToSvg(model)
+      const svg = exportModelToSvg(model, { convertToMm: true, units: 'mm' })
       reply({ id: msg.id, ok: true, action: msg.action, data: { svg } })
       return
     }
 
     if (msg.action === 'exportDxf') {
       if (!model) throw new Error('No model loaded')
-      const dxf = exportModelToDxf(model)
+      const dxf = exportModelToDxf(model, { convertToMm: true, units: 'mm' })
       reply({ id: msg.id, ok: true, action: msg.action, data: { dxf } })
       return
     }
@@ -79,4 +89,3 @@ function reply(message: ResponseMessage) {
     reply({ id: msg.id, ok: false, action: msg.action, error: e?.message || String(e) })
   }
 }
-

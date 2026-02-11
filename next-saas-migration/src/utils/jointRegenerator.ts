@@ -49,15 +49,19 @@ export function regenerateFingerJointsRectangular(
   const depth = Math.max(0.01, settings.materialThickness)
 
   const edgeMap = new Map(analysis.edges.map((e) => [e.side, e]))
-  const top = edgeMap.get('top')
-  const right = edgeMap.get('right')
-  const bottom = edgeMap.get('bottom')
-  const left = edgeMap.get('left')
+  const makeStraightEdge = (side: 'top' | 'bottom' | 'left' | 'right') => ({
+    id: side,
+    side,
+    baseline: side === 'top' ? bbox.maxY : side === 'bottom' ? bbox.minY : side === 'left' ? bbox.minX : bbox.maxX,
+    depth: 0,
+    pattern: ['tab'] as Array<'tab' | 'slot'>,
+    joints: [],
+  })
 
-  if (!top || !right || !bottom || !left) {
-    warnings.push('إعادة التوليد الحالية تدعم الأشكال المستطيلة بأربعة أضلاع فقط.')
-    return { polyline: original, warnings }
-  }
+  const top = edgeMap.get('top') ?? makeStraightEdge('top')
+  const right = edgeMap.get('right') ?? makeStraightEdge('right')
+  const bottom = edgeMap.get('bottom') ?? makeStraightEdge('bottom')
+  const left = edgeMap.get('left') ?? makeStraightEdge('left')
 
   const topLens = buildSegmentLengths(top.pattern, width, tabW, slotW)
   const rightLens = buildSegmentLengths(right.pattern, height, tabW, slotW)
@@ -166,4 +170,3 @@ export function regenerateFingerJointsRectangular(
 
   return { polyline, warnings }
 }
-

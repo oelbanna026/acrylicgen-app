@@ -96,6 +96,40 @@ export function analyzeFingerJoints(polyline: Polyline): JointAnalysis {
 
   const edges: JointEdge[] = []
 
+  const edgeSpan = (side: 'top' | 'bottom' | 'left' | 'right') =>
+    side === 'top' || side === 'bottom' ? bbox.maxX - bbox.minX : bbox.maxY - bbox.minY
+
+  const mergeSegments = (items: { start: number; end: number; coord: number; type: JointType }[], mergeEps: number) => {
+    if (!items.length) return items
+    const sorted = items.slice().sort((a, b) => a.start - b.start)
+    const out: typeof sorted = [sorted[0]]
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = out[out.length - 1]
+      const cur = sorted[i]
+      if (cur.type === prev.type && Math.abs(cur.coord - prev.coord) <= mergeEps && cur.start <= prev.end + mergeEps) {
+        prev.end = Math.max(prev.end, cur.end)
+      } else {
+        out.push(cur)
+      }
+    }
+    return out
+  }
+
+  const filterWidths = <T extends { start: number; end: number }>(
+    side: 'top' | 'bottom' | 'left' | 'right',
+    items: T[],
+    depth: number | null,
+  ) => {
+    const span = edgeSpan(side)
+    const d = depth ?? detectedDepth ?? null
+    const minW = Math.max(span * 0.004, d ? d * 0.6 : span * 0.01, 0.05)
+    const maxW = Math.max(span * 0.45, minW + 1e-6)
+    return items.filter((s) => {
+      const w = s.end - s.start
+      return Number.isFinite(w) && w >= minW && w <= maxW
+    })
+  }
+
   const collectEdgeSegments = (side: 'top' | 'bottom' | 'left' | 'right', depth: number | null) => {
     const segments: { start: number; end: number; coord: number; type: JointType }[] = []
     const depthEps = Math.max(eps * 5, 0.01)
@@ -150,15 +184,16 @@ export function analyzeFingerJoints(polyline: Polyline): JointAnalysis {
   const buildEdge = (side: 'top' | 'bottom' | 'left' | 'right', depth: number | null) => {
     const baseline =
       side === 'top' ? topY : side === 'bottom' ? bottomY : side === 'left' ? leftX : rightX
-    const segs = collectEdgeSegments(side, depth)
+    const segs = mergeSegments(collectEdgeSegments(side, depth), Math.max(eps * 20, 0.02))
     if (!segs.length) return
 
-    const sorted = segs
-      .filter((s) => (side === 'top' || side === 'bottom' ? s.end - s.start > eps : s.end - s.start > eps))
-      .sort((a, b) => a.start - b.start)
+    const sorted0 = segs.filter((s) => s.end - s.start > eps).sort((a, b) => a.start - b.start)
+    const filtered = filterWidths(side, sorted0, depth)
+    const sorted = filtered.length ? filtered : sorted0
 
     const widths = sorted.map((s) => s.end - s.start).filter((w) => w > eps)
-    const wMode = mode(widths, { bin: 0.01 })
+    const bin = Math.max(edgeSpan(side) * 0.001, 0.01)
+    const wMode = mode(widths, { bin })
 
     const pattern: JointType[] = []
     const joints: Joint[] = []

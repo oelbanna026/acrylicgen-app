@@ -328,7 +328,9 @@ export function parseDxfToModel(dxfText: string): DxfModel {
     for (const ent of modelSpace) handleEntity(ent as any, identity())
   }
 
-  return { polylines, sourceUnits: 'unknown' }
+  const ins = Number((doc as any)?.header?.$INSUNITS ?? (doc as any)?.header?.INSUNITS ?? (doc as any)?.header?.insunits)
+  const sourceUnits: DxfModel['sourceUnits'] = ins === 1 ? 'inch' : ins === 4 ? 'mm' : 'unknown'
+  return { polylines, sourceUnits }
 }
 
 export function pickLargestClosedPolyline(model: DxfModel): Polyline | null {
