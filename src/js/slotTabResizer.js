@@ -306,6 +306,10 @@
           if (p.code === 70) ent.closed = Number(p.value) === 1
           if (p.code === 10) ent.points.push({ x: Number(p.value), y: 0 })
           if (p.code === 20 && ent.points.length) ent.points[ent.points.length - 1].y = Number(p.value)
+        } else if (type === 'SPLINE') {
+          if (p.code === 70) ent.closed = (Number(p.value) & 1) === 1
+          if (p.code === 10) ent.points.push({ x: Number(p.value), y: 0 })
+          if (p.code === 20 && ent.points.length) ent.points[ent.points.length - 1].y = Number(p.value)
         }
       }
       return ent
@@ -384,7 +388,7 @@
 
       if (inEntities && p.code === 0) {
         const type = String(p.value).trim()
-        if (type === 'LINE' || type === 'LWPOLYLINE') {
+        if (type === 'LINE' || type === 'LWPOLYLINE' || type === 'SPLINE') {
           const ent = readEntity(type)
           if (type === 'LINE' && ent.start && ent.end) {
             polylines.push({ id: `pl_${polylines.length}`, closed: false, layer: ent.layer, points: [ent.start, ent.end] })
@@ -392,6 +396,12 @@
           if (type === 'LWPOLYLINE' && ent.points.length >= 2) {
             const pts = ent.closed ? ent.points.concat([ent.points[0]]) : ent.points
             polylines.push({ id: `pl_${polylines.length}`, closed: Boolean(ent.closed), layer: ent.layer, points: simplifyCollinear(pts, 1e-6) })
+          }
+          if (type === 'SPLINE' && ent.points.length >= 2) {
+            const pts = ent.closed ? ent.points.concat([ent.points[0]]) : ent.points
+            const clean = simplifyCollinear(pts, 1e-6)
+            const closed = Boolean(ent.closed) || (clean.length >= 3 && dist(clean[0], clean[clean.length - 1]) <= 1e-3)
+            polylines.push({ id: `pl_${polylines.length}`, closed, layer: ent.layer, points: clean })
           }
         } else if (type === 'POLYLINE') {
           const ent = readPolyline()
