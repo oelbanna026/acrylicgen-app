@@ -275,7 +275,7 @@
       const code = Number(lines[idx++].trim())
       const value = lines[idx++]
       if (!Number.isFinite(code)) return null
-      return { code, value }
+      return { code, value: value == null ? '' : String(value) }
     }
 
     let insUnits = null
@@ -311,6 +311,53 @@
       return ent
     }
 
+    const readPairsUntilNextEntity = () => {
+      while (true) {
+        const p = nextPair()
+        if (!p) return null
+        if (p.code === 0) return String(p.value).trim()
+      }
+    }
+
+    const readVertex = () => {
+      const v = { x: null, y: null }
+      while (true) {
+        const p = nextPair()
+        if (!p) return { vertex: null, nextType: null }
+        if (p.code === 0) return { vertex: v.x !== null && v.y !== null ? { x: Number(v.x), y: Number(v.y) } : null, nextType: String(p.value).trim() }
+        if (p.code === 10) v.x = Number(p.value)
+        if (p.code === 20) v.y = Number(p.value)
+      }
+    }
+
+    const readPolyline = () => {
+      const pl = { layer: '0', closed: false, points: [] }
+      while (true) {
+        const p = nextPair()
+        if (!p) return pl
+        if (p.code === 0) {
+          const first = String(p.value).trim()
+          let nextType = first
+          while (nextType === 'VERTEX') {
+            const res = readVertex()
+            if (res.vertex) pl.points.push(res.vertex)
+            nextType = res.nextType || ''
+          }
+          if (nextType === 'SEQEND') {
+            const nt = readPairsUntilNextEntity()
+            if (nt) {
+              idx -= 2
+            }
+          } else if (nextType) {
+            idx -= 2
+          }
+          return pl
+        }
+        if (p.code === 8) pl.layer = String(p.value).trim()
+        if (p.code === 70) pl.closed = (Number(p.value) & 1) === 1
+      }
+    }
+
     while (true) {
       const p = nextPair()
       if (!p) break
@@ -343,6 +390,12 @@
             polylines.push({ id: `pl_${polylines.length}`, closed: false, layer: ent.layer, points: [ent.start, ent.end] })
           }
           if (type === 'LWPOLYLINE' && ent.points.length >= 2) {
+            const pts = ent.closed ? ent.points.concat([ent.points[0]]) : ent.points
+            polylines.push({ id: `pl_${polylines.length}`, closed: Boolean(ent.closed), layer: ent.layer, points: simplifyCollinear(pts, 1e-6) })
+          }
+        } else if (type === 'POLYLINE') {
+          const ent = readPolyline()
+          if (ent.points.length >= 2) {
             const pts = ent.closed ? ent.points.concat([ent.points[0]]) : ent.points
             polylines.push({ id: `pl_${polylines.length}`, closed: Boolean(ent.closed), layer: ent.layer, points: simplifyCollinear(pts, 1e-6) })
           }
