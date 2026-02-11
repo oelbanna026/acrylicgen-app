@@ -376,8 +376,6 @@ function app() {
         showHistoryModal: false,
         showAdminModal: false,
         showPublicStatsModal: false,
-        showDxfJointsModal: false,
-        dxfJointsIframeSrc: '',
         publicStats: { totalViews: 0, activeUsers: 0, sales24h: 0, conversionRate: 0, totalExports: 0 },
         statsInterval: null,
         visitInterval: null,

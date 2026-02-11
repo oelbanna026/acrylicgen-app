@@ -12,7 +12,6 @@ export default function MobileSidebar({ user, profile }: { user: any, profile: a
 
   const links = [
     { href: '/dashboard', label: 'Projects', icon: LayoutDashboard },
-    { href: '/dashboard/dxf-joints', label: 'DXF Joints', icon: Box },
     { href: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ]
