@@ -106,7 +106,8 @@ export function analyzeFingerJoints(polyline: Polyline): JointAnalysis {
     for (let i = 1; i < sorted.length; i++) {
       const prev = out[out.length - 1]
       const cur = sorted[i]
-      if (cur.type === prev.type && Math.abs(cur.coord - prev.coord) <= mergeEps && cur.start <= prev.end + mergeEps) {
+      const overlaps = cur.start <= prev.end - mergeEps
+      if (cur.type === prev.type && Math.abs(cur.coord - prev.coord) <= mergeEps && overlaps) {
         prev.end = Math.max(prev.end, cur.end)
       } else {
         out.push(cur)
