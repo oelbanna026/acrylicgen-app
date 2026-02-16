@@ -15,6 +15,8 @@
   const adjSlotWidthEl = $('adjSlotWidth')
   const adjTabHeightEl = $('adjTabHeight')
   const livePreviewEl = $('livePreview')
+  const autoSpaceEl = $('autoSpace')
+  const includeBackupEl = $('includeBackup')
 
   const applyBtn = $('applyBtn')
   const okBtn = $('okBtn')
@@ -497,6 +499,93 @@
     }
   }
 
+  function unionFind(n) {
+    const parent = new Array(n).fill(0).map((_, i) => i)
+    const rank = new Array(n).fill(0)
+    const find = (x) => {
+      while (parent[x] !== x) {
+        parent[x] = parent[parent[x]]
+        x = parent[x]
+      }
+      return x
+    }
+    const union = (a, b) => {
+      let ra = find(a)
+      let rb = find(b)
+      if (ra === rb) return
+      if (rank[ra] < rank[rb]) {
+        parent[ra] = rb
+      } else if (rank[ra] > rank[rb]) {
+        parent[rb] = ra
+      } else {
+        parent[rb] = ra
+        rank[ra]++
+      }
+    }
+    return { find, union }
+  }
+
+  function bboxesTouch(bb1, bb2, eps) {
+    return !(bb2.minX > bb1.maxX + eps || bb2.maxX < bb1.minX - eps || bb2.minY > bb1.maxY + eps || bb2.maxY < bb1.minY - eps)
+  }
+
+  function shiftPolyline(pl, dx, dy) {
+    if (!dx && !dy) return pl
+    return { ...pl, points: pl.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) }
+  }
+
+  function autoSpaceParts(polylines, minGap) {
+    const n = polylines.length
+    if (n <= 1) return { polylines, movedGroups: 0, totalShift: 0 }
+    const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
+    const uf = unionFind(n)
+    const clusterEps = Math.max(0.2, minGap * 0.5)
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (bboxesTouch(bbs[i], bbs[j], clusterEps)) uf.union(i, j)
+      }
+    }
+    const groups = new Map()
+    for (let i = 0; i < n; i++) {
+      const r = uf.find(i)
+      if (!groups.has(r)) groups.set(r, [])
+      groups.get(r).push(i)
+    }
+    const groupList = Array.from(groups.values()).map((indices) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      for (const idx of indices) {
+        const bb = bbs[idx]
+        minX = Math.min(minX, bb.minX)
+        minY = Math.min(minY, bb.minY)
+        maxX = Math.max(maxX, bb.maxX)
+        maxY = Math.max(maxY, bb.maxY)
+      }
+      return { indices, bb: { minX, minY, maxX, maxY } }
+    })
+    groupList.sort((a, b) => a.bb.minX - b.bb.minX)
+    let cursorMaxX = null
+    let movedGroups = 0
+    let totalShift = 0
+    const dxByIndex = new Array(n).fill(0)
+    for (const g of groupList) {
+      if (cursorMaxX === null) {
+        cursorMaxX = g.bb.maxX
+        continue
+      }
+      const dx = cursorMaxX + minGap - g.bb.minX
+      if (dx > 0) {
+        movedGroups++
+        totalShift += dx
+        for (const idx of g.indices) dxByIndex[idx] += dx
+        g.bb.minX += dx
+        g.bb.maxX += dx
+      }
+      cursorMaxX = Math.max(cursorMaxX, g.bb.maxX)
+    }
+    const out = polylines.map((pl, i) => (dxByIndex[i] ? shiftPolyline(pl, dxByIndex[i], 0) : pl))
+    return { polylines: out, movedGroups, totalShift }
+  }
+
   function detectAndResize(model, settings) {
     const oldT = settings.oldT
     const newT = settings.newT
@@ -506,6 +595,7 @@
     const adjSlotDepth = settings.adjSlotDepth
     const adjSlotWidth = settings.adjSlotWidth
     const adjTabHeight = settings.adjTabHeight
+    const autoSpace = settings.autoSpace
 
     const epsBase = Math.max(Math.abs(oldT) * 1e-4, 1e-4)
 
@@ -676,7 +766,17 @@
       next.polylines[i] = resizePolyline(pl)
     }
 
-    return { model: next, overlays, totalFeatures }
+    let spacing = { movedGroups: 0, totalShift: 0 }
+    if (autoSpace) {
+      const minGap = Math.max(0, newT - oldT)
+      if (minGap > 1e-6) {
+        const res = autoSpaceParts(next.polylines, minGap)
+        next.polylines = res.polylines
+        spacing = { movedGroups: res.movedGroups, totalShift: res.totalShift }
+      }
+    }
+
+    return { model: next, overlays, totalFeatures, spacing }
   }
 
   function renderPreview(svgText) {
@@ -734,6 +834,8 @@
       adjSlotDepth: Boolean(adjSlotDepthEl.checked),
       adjSlotWidth: Boolean(adjSlotWidthEl.checked),
       adjTabHeight: Boolean(adjTabHeightEl.checked),
+      autoSpace: Boolean(autoSpaceEl?.checked),
+      includeBackup: Boolean(includeBackupEl?.checked),
     }
   }
 
@@ -756,10 +858,11 @@
       const res = detectAndResize(state.original, settings)
       state.current = res.model
       state.overlays = res.overlays
-      const svg = modelToSvg(state.current, { keepOriginal: true, overlays: livePreviewEl.checked ? state.overlays : [] })
+      const svg = modelToSvg(state.current, { keepOriginal: Boolean(settings.includeBackup), overlays: livePreviewEl.checked ? state.overlays : [] })
       renderPreview(svg)
       updateStats()
-      setActionReport(`تم الكشف: ${res.totalFeatures} مناطق محتملة للتعشيقات/الشقوق.`, false)
+      const spaced = res.spacing && res.spacing.movedGroups ? ` | تم إبعاد ${res.spacing.movedGroups} مجموعات` : ''
+      setActionReport(`تم الكشف: ${res.totalFeatures} مناطق محتملة للتعشيقات/الشقوق.${spaced}`, false)
       updateButtons()
     } catch (e) {
       setActionReport(e?.message || String(e), true)
@@ -781,14 +884,16 @@
   function exportSvg() {
     if (!state.current) return
     const name = (state.fileName || 'resized').replace(/\.(svg|dxf)$/i, '')
-    const svg = modelToSvg(state.current, { keepOriginal: true, overlays: [] })
+    const keepOriginal = Boolean(includeBackupEl?.checked)
+    const svg = modelToSvg(state.current, { keepOriginal, overlays: [] })
     downloadText(`${name}.resized.svg`, svg)
   }
 
   function exportDxf() {
     if (!state.current) return
     const name = (state.fileName || 'resized').replace(/\.(svg|dxf)$/i, '')
-    const dxf = modelToDxf(state.current, { keepOriginal: true })
+    const keepOriginal = Boolean(includeBackupEl?.checked)
+    const dxf = modelToDxf(state.current, { keepOriginal })
     downloadText(`${name}.resized.dxf`, dxf)
   }
 
@@ -833,7 +938,7 @@
   exportSvgBtn.addEventListener('click', () => exportSvg())
   exportDxfBtn.addEventListener('click', () => exportDxf())
 
-  for (const el of [oldTEl, newTEl, tolEl, kerfEl, adjSlotDepthEl, adjSlotWidthEl, adjTabHeightEl, livePreviewEl]) {
+  for (const el of [oldTEl, newTEl, tolEl, kerfEl, adjSlotDepthEl, adjSlotWidthEl, adjTabHeightEl, livePreviewEl, autoSpaceEl, includeBackupEl]) {
     el.addEventListener('input', () => {
       if (!state.original) return
       if (!livePreviewEl.checked) return
