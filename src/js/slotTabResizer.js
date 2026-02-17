@@ -537,52 +537,61 @@
   function autoSpaceParts(polylines, minGap) {
     const n = polylines.length
     if (n <= 1) return { polylines, movedGroups: 0, totalShift: 0 }
-    const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
-    const uf = unionFind(n)
-    const clusterEps = Math.max(0.2, minGap * 0.5)
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        if (bboxesTouch(bbs[i], bbs[j], clusterEps)) uf.union(i, j)
-      }
-    }
-    const groups = new Map()
-    for (let i = 0; i < n; i++) {
-      const r = uf.find(i)
-      if (!groups.has(r)) groups.set(r, [])
-      groups.get(r).push(i)
-    }
-    const groupList = Array.from(groups.values()).map((indices) => {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      for (const idx of indices) {
-        const bb = bbs[idx]
-        minX = Math.min(minX, bb.minX)
-        minY = Math.min(minY, bb.minY)
-        maxX = Math.max(maxX, bb.maxX)
-        maxY = Math.max(maxY, bb.maxY)
-      }
-      return { indices, bb: { minX, minY, maxX, maxY } }
-    })
-    groupList.sort((a, b) => a.bb.minX - b.bb.minX)
-    let cursorMaxX = null
+
+    const items = polylines.map((pl, i) => ({ i, pl, bb: bboxOfPoints(pl.points) }))
+    const dxByIndex = new Array(n).fill(0)
+    const dyByIndex = new Array(n).fill(0)
     let movedGroups = 0
     let totalShift = 0
-    const dxByIndex = new Array(n).fill(0)
-    for (const g of groupList) {
-      if (cursorMaxX === null) {
-        cursorMaxX = g.bb.maxX
-        continue
+
+    const passX = () => {
+      items.sort((a, b) => a.bb.minX - b.bb.minX)
+      let cursorMaxX = null
+      for (const it of items) {
+        if (cursorMaxX === null) {
+          cursorMaxX = it.bb.maxX
+          continue
+        }
+        const dx = cursorMaxX + minGap - it.bb.minX
+        if (dx > 0) {
+          movedGroups++
+          totalShift += dx
+          dxByIndex[it.i] += dx
+          it.bb.minX += dx
+          it.bb.maxX += dx
+        }
+        cursorMaxX = Math.max(cursorMaxX, it.bb.maxX)
       }
-      const dx = cursorMaxX + minGap - g.bb.minX
-      if (dx > 0) {
-        movedGroups++
-        totalShift += dx
-        for (const idx of g.indices) dxByIndex[idx] += dx
-        g.bb.minX += dx
-        g.bb.maxX += dx
-      }
-      cursorMaxX = Math.max(cursorMaxX, g.bb.maxX)
     }
-    const out = polylines.map((pl, i) => (dxByIndex[i] ? shiftPolyline(pl, dxByIndex[i], 0) : pl))
+
+    const passY = () => {
+      items.sort((a, b) => a.bb.minY - b.bb.minY)
+      let cursorMaxY = null
+      for (const it of items) {
+        if (cursorMaxY === null) {
+          cursorMaxY = it.bb.maxY
+          continue
+        }
+        const dy = cursorMaxY + minGap - it.bb.minY
+        if (dy > 0) {
+          movedGroups++
+          totalShift += dy
+          dyByIndex[it.i] += dy
+          it.bb.minY += dy
+          it.bb.maxY += dy
+        }
+        cursorMaxY = Math.max(cursorMaxY, it.bb.maxY)
+      }
+    }
+
+    passX()
+    passY()
+
+    const out = polylines.map((pl, i) => {
+      const dx = dxByIndex[i]
+      const dy = dyByIndex[i]
+      return dx || dy ? shiftPolyline(pl, dx, dy) : pl
+    })
     return { polylines: out, movedGroups, totalShift }
   }
 
@@ -677,16 +686,20 @@
         if (!near(Math.abs(c2 - c0), oldT)) continue
 
         const axis = isHVHVH ? 'y' : 'x'
-        const mid = axis === 'y' ? midY : midX
-        const outerIsC0 = Math.abs(c0 - mid) > Math.abs(c2 - mid)
+        const dToEdge = (c) => {
+          if (axis === 'y') return Math.min(Math.abs(c - bb.minY), Math.abs(c - bb.maxY))
+          return Math.min(Math.abs(c - bb.minX), Math.abs(c - bb.maxX))
+        }
+        const d0 = dToEdge(c0)
+        const d2 = dToEdge(c2)
+        const outerIsC0 = d0 <= d2
         const kind = outerIsC0 ? 'slot' : 'tab'
-
         const outerCoord = outerIsC0 ? c0 : c2
         const innerCoord = outerIsC0 ? c2 : c0
-        const sign = Math.sign((outerIsC0 ? c2 - c0 : c2 - c0) || 1)
+        const signOut = Math.sign(outerCoord - innerCoord || 1)
 
         if (kind === 'slot' && adjSlotDepth) {
-          const innerNew = outerCoord + sign * newT
+          const innerNew = outerCoord - signOut * newT
           setSegCoord(s2, axis, innerNew)
           totalFeatures++
           const bb2 = bboxOfPoints([s0.a, s0.b, s1.b, s2.b, s3.b])
@@ -694,7 +707,7 @@
         }
 
         if (kind === 'tab' && adjTabHeight) {
-          const outerNew = innerCoord + sign * newT
+          const outerNew = innerCoord + signOut * newT
           setSegCoord(s2, axis, outerNew)
           totalFeatures++
           const bb2 = bboxOfPoints([s0.a, s0.b, s1.b, s2.b, s3.b])
@@ -768,7 +781,7 @@
 
     let spacing = { movedGroups: 0, totalShift: 0 }
     if (autoSpace) {
-      const minGap = Math.max(0, newT - oldT)
+      const minGap = Math.max(0, newT)
       if (minGap > 1e-6) {
         const res = autoSpaceParts(next.polylines, minGap)
         next.polylines = res.polylines
