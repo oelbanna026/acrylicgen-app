@@ -529,6 +529,10 @@
     return !(bb2.minX > bb1.maxX + eps || bb2.maxX < bb1.minX - eps || bb2.minY > bb1.maxY + eps || bb2.maxY < bb1.minY - eps)
   }
 
+  function bboxContains(outer, inner, eps) {
+    return inner.minX >= outer.minX - eps && inner.maxX <= outer.maxX + eps && inner.minY >= outer.minY - eps && inner.maxY <= outer.maxY + eps
+  }
+
   function shiftPolyline(pl, dx, dy) {
     if (!dx && !dy) return pl
     return { ...pl, points: pl.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) }
@@ -538,60 +542,146 @@
     const n = polylines.length
     if (n <= 1) return { polylines, movedGroups: 0, totalShift: 0 }
 
-    const items = polylines.map((pl, i) => ({ i, pl, bb: bboxOfPoints(pl.points) }))
-    const dxByIndex = new Array(n).fill(0)
-    const dyByIndex = new Array(n).fill(0)
+    const isClosed = (pl) => {
+      if (pl.closed) return true
+      if (!pl.points || pl.points.length < 3) return false
+      return dist(pl.points[0], pl.points[pl.points.length - 1]) <= 1e-3
+    }
+
+    const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
+    const areas = bbs.map((bb) => Math.max(0, (bb.maxX - bb.minX) * (bb.maxY - bb.minY)))
+
+    const candidates = []
+    for (let i = 0; i < n; i++) {
+      if (!isClosed(polylines[i])) continue
+      if (polylines[i].points.length < 4) continue
+      candidates.push(i)
+    }
+
+    let areaMedian = 0
+    if (candidates.length) {
+      const vals = candidates.map((i) => areas[i]).filter((a) => a > 0).sort((a, b) => a - b)
+      areaMedian = vals.length ? vals[Math.floor(vals.length / 2)] : 0
+    }
+
+    const partSeeds = candidates.filter((i) => areas[i] >= Math.max(areaMedian * 0.25, 50))
+
+    const parts = []
+    if (partSeeds.length) {
+      const seedInfo = partSeeds
+        .map((i) => ({ i, bb: { ...bbs[i] }, area: areas[i] }))
+        .sort((a, b) => a.area - b.area)
+
+      const assign = new Array(n).fill(-1)
+
+      for (let i = 0; i < n; i++) {
+        const inner = bbs[i]
+        let best = -1
+        let bestArea = Infinity
+        for (let k = 0; k < seedInfo.length; k++) {
+          const s = seedInfo[k]
+          if (!bboxContains(s.bb, inner, Math.max(0.5, minGap * 0.25))) continue
+          if (s.area < bestArea) {
+            bestArea = s.area
+            best = k
+          }
+        }
+        if (best >= 0) assign[i] = best
+      }
+
+      const groups = new Map()
+      for (let i = 0; i < n; i++) {
+        const g = assign[i]
+        if (g < 0) continue
+        if (!groups.has(g)) groups.set(g, [])
+        groups.get(g).push(i)
+      }
+
+      for (const [g, indices] of groups.entries()) {
+        parts.push({ indices })
+      }
+
+      const unassigned = []
+      for (let i = 0; i < n; i++) if (assign[i] < 0) unassigned.push(i)
+      if (unassigned.length) parts.push({ indices: unassigned })
+    } else {
+      const uf = unionFind(n)
+      const eps = Math.max(0.5, minGap * 0.5)
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (bboxesTouch(bbs[i], bbs[j], eps)) uf.union(i, j)
+        }
+      }
+      const groups = new Map()
+      for (let i = 0; i < n; i++) {
+        const r = uf.find(i)
+        if (!groups.has(r)) groups.set(r, [])
+        groups.get(r).push(i)
+      }
+      for (const indices of groups.values()) parts.push({ indices })
+    }
+
+    const partBoxes = parts.map((p) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      for (const idx of p.indices) {
+        const bb = bbs[idx]
+        minX = Math.min(minX, bb.minX)
+        minY = Math.min(minY, bb.minY)
+        maxX = Math.max(maxX, bb.maxX)
+        maxY = Math.max(maxY, bb.maxY)
+      }
+      return { minX, minY, maxX, maxY }
+    })
+
+    const partShift = parts.map(() => ({ dx: 0, dy: 0 }))
     let movedGroups = 0
     let totalShift = 0
 
-    const passX = () => {
-      items.sort((a, b) => a.bb.minX - b.bb.minX)
-      let cursorMaxX = null
-      for (const it of items) {
-        if (cursorMaxX === null) {
-          cursorMaxX = it.bb.maxX
-          continue
-        }
-        const dx = cursorMaxX + minGap - it.bb.minX
-        if (dx > 0) {
-          movedGroups++
-          totalShift += dx
-          dxByIndex[it.i] += dx
-          it.bb.minX += dx
-          it.bb.maxX += dx
-        }
-        cursorMaxX = Math.max(cursorMaxX, it.bb.maxX)
+    const orderX = parts.map((_, i) => i).sort((a, b) => partBoxes[a].minX - partBoxes[b].minX)
+    let cursorMaxX = null
+    for (const pi of orderX) {
+      const bb = partBoxes[pi]
+      if (cursorMaxX === null) {
+        cursorMaxX = bb.maxX
+        continue
       }
+      const dx = cursorMaxX + minGap - bb.minX
+      if (dx > 0) {
+        partShift[pi].dx += dx
+        movedGroups++
+        totalShift += dx
+        bb.minX += dx
+        bb.maxX += dx
+      }
+      cursorMaxX = Math.max(cursorMaxX, bb.maxX)
     }
 
-    const passY = () => {
-      items.sort((a, b) => a.bb.minY - b.bb.minY)
-      let cursorMaxY = null
-      for (const it of items) {
-        if (cursorMaxY === null) {
-          cursorMaxY = it.bb.maxY
-          continue
-        }
-        const dy = cursorMaxY + minGap - it.bb.minY
-        if (dy > 0) {
-          movedGroups++
-          totalShift += dy
-          dyByIndex[it.i] += dy
-          it.bb.minY += dy
-          it.bb.maxY += dy
-        }
-        cursorMaxY = Math.max(cursorMaxY, it.bb.maxY)
+    const orderY = parts.map((_, i) => i).sort((a, b) => partBoxes[a].minY - partBoxes[b].minY)
+    let cursorMaxY = null
+    for (const pi of orderY) {
+      const bb = partBoxes[pi]
+      if (cursorMaxY === null) {
+        cursorMaxY = bb.maxY
+        continue
       }
+      const dy = cursorMaxY + minGap - bb.minY
+      if (dy > 0) {
+        partShift[pi].dy += dy
+        movedGroups++
+        totalShift += dy
+        bb.minY += dy
+        bb.maxY += dy
+      }
+      cursorMaxY = Math.max(cursorMaxY, bb.maxY)
     }
 
-    passX()
-    passY()
+    const out = polylines.slice()
+    for (let p = 0; p < parts.length; p++) {
+      const { dx, dy } = partShift[p]
+      if (!dx && !dy) continue
+      for (const idx of parts[p].indices) out[idx] = shiftPolyline(out[idx], dx, dy)
+    }
 
-    const out = polylines.map((pl, i) => {
-      const dx = dxByIndex[i]
-      const dy = dyByIndex[i]
-      return dx || dy ? shiftPolyline(pl, dx, dy) : pl
-    })
     return { polylines: out, movedGroups, totalShift }
   }
 
