@@ -501,36 +501,28 @@
 
   function unionFind(n) {
     const parent = new Array(n).fill(0).map((_, i) => i)
-    const rank = new Array(n).fill(0)
     const find = (x) => {
-      while (parent[x] !== x) {
-        parent[x] = parent[parent[x]]
-        x = parent[x]
+      let root = x
+      while (parent[root] !== root) root = parent[root]
+      let curr = x
+      while (curr !== root) {
+        const next = parent[curr]
+        parent[curr] = root
+        curr = next
       }
-      return x
+      return root
     }
     const union = (a, b) => {
-      let ra = find(a)
-      let rb = find(b)
-      if (ra === rb) return
-      if (rank[ra] < rank[rb]) {
-        parent[ra] = rb
-      } else if (rank[ra] > rank[rb]) {
-        parent[rb] = ra
-      } else {
-        parent[rb] = ra
-        rank[ra]++
-      }
+      const ra = find(a)
+      const rb = find(b)
+      if (ra !== rb) parent[ra] = rb
     }
     return { find, union }
   }
 
   function bboxesTouch(bb1, bb2, eps) {
+    // Check if boxes overlap or are within distance 'eps'
     return !(bb2.minX > bb1.maxX + eps || bb2.maxX < bb1.minX - eps || bb2.minY > bb1.maxY + eps || bb2.maxY < bb1.minY - eps)
-  }
-
-  function bboxContains(outer, inner, eps) {
-    return inner.minX >= outer.minX - eps && inner.maxX <= outer.maxX + eps && inner.minY >= outer.minY - eps && inner.maxY <= outer.maxY + eps
   }
 
   function shiftPolyline(pl, dx, dy) {
@@ -542,101 +534,41 @@
     const n = polylines.length
     if (n <= 1) return { polylines, movedGroups: 0, totalShift: 0 }
 
-    const isClosed = (pl) => {
-      if (pl.closed) return true
-      if (!pl.points || pl.points.length < 3) return false
-      return dist(pl.points[0], pl.points[pl.points.length - 1]) <= 1e-3
+    const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
+    const uf = unionFind(n)
+    
+    // Group everything that is visually close (e.g. within 2mm or minGap)
+    // This handles fragmented DXF imports where a single shape is many lines
+    const clusteringDist = Math.max(2.0, minGap * 0.5)
+    
+    // Optimization: Sort by X to reduce N^2 checks
+    const sortedIndices = bbs.map((_, i) => i).sort((a, b) => bbs[a].minX - bbs[b].minX)
+    
+    for (let i = 0; i < n; i++) {
+      const idxA = sortedIndices[i]
+      const bbA = bbs[idxA]
+      // Check subsequent items until X gap is too large
+      for (let j = i + 1; j < n; j++) {
+        const idxB = sortedIndices[j]
+        const bbB = bbs[idxB]
+        if (bbB.minX > bbA.maxX + clusteringDist) break // No more possible overlaps
+        
+        if (bboxesTouch(bbA, bbB, clusteringDist)) {
+          uf.union(idxA, idxB)
+        }
+      }
     }
 
-    const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
-    const areas = bbs.map((bb) => Math.max(0, (bb.maxX - bb.minX) * (bb.maxY - bb.minY)))
+    const groups = new Map()
+    for (let i = 0; i < n; i++) {
+      const root = uf.find(i)
+      if (!groups.has(root)) groups.set(root, [])
+      groups.get(root).push(i)
+    }
 
     const parts = []
-    const closedCandidates = []
-    for (let i = 0; i < n; i++) {
-      if (!isClosed(polylines[i])) continue
-      if (polylines[i].points.length < 4) continue
-      if (!(areas[i] > 0)) continue
-      closedCandidates.push(i)
-    }
-
-    const containEps = Math.max(0.5, minGap * 0.25)
-    const areaMax = closedCandidates.length ? Math.max(...closedCandidates.map((i) => areas[i])) : 0
-    const largeCandidates = closedCandidates.filter((i) => areas[i] >= Math.max(200, areaMax * 0.02))
-
-    const sortedLarge = largeCandidates.slice().sort((a, b) => areas[b] - areas[a])
-    const outers = []
-    for (const i of sortedLarge) {
-      let contained = false
-      for (const j of sortedLarge) {
-        if (areas[j] <= areas[i]) break
-        if (bboxContains(bbs[j], bbs[i], containEps)) {
-          contained = true
-          break
-        }
-      }
-      if (!contained) outers.push(i)
-    }
-
-    if (outers.length) {
-      const outerInfo = outers.map((i) => ({ i, area: areas[i], bb: bbs[i] })).sort((a, b) => a.area - b.area)
-      const assign = new Array(n).fill(-1)
-      for (let i = 0; i < n; i++) {
-        let best = -1
-        let bestArea = Infinity
-        for (let k = 0; k < outerInfo.length; k++) {
-          const o = outerInfo[k]
-          if (!bboxContains(o.bb, bbs[i], containEps)) continue
-          if (o.area < bestArea) {
-            bestArea = o.area
-            best = k
-          }
-        }
-        if (best >= 0) assign[i] = best
-      }
-
-      const groups = new Map()
-      for (let i = 0; i < n; i++) {
-        const g = assign[i]
-        if (g < 0) continue
-        if (!groups.has(g)) groups.set(g, [])
-        groups.get(g).push(i)
-      }
-      for (const indices of groups.values()) parts.push({ indices })
-
-      const unassigned = []
-      for (let i = 0; i < n; i++) if (assign[i] < 0) unassigned.push(i)
-      if (unassigned.length) {
-        const uf = unionFind(unassigned.length)
-        const eps = Math.max(1, minGap * 0.5)
-        for (let a = 0; a < unassigned.length; a++) {
-          for (let b = a + 1; b < unassigned.length; b++) {
-            if (bboxesTouch(bbs[unassigned[a]], bbs[unassigned[b]], eps)) uf.union(a, b)
-          }
-        }
-        const groups2 = new Map()
-        for (let a = 0; a < unassigned.length; a++) {
-          const r = uf.find(a)
-          if (!groups2.has(r)) groups2.set(r, [])
-          groups2.get(r).push(unassigned[a])
-        }
-        for (const indices of groups2.values()) parts.push({ indices })
-      }
-    } else {
-      const uf = unionFind(n)
-      const eps = Math.max(0.5, minGap * 0.5)
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          if (bboxesTouch(bbs[i], bbs[j], eps)) uf.union(i, j)
-        }
-      }
-      const groups = new Map()
-      for (let i = 0; i < n; i++) {
-        const r = uf.find(i)
-        if (!groups.has(r)) groups.set(r, [])
-        groups.get(r).push(i)
-      }
-      for (const indices of groups.values()) parts.push({ indices })
+    for (const indices of groups.values()) {
+      parts.push({ indices })
     }
 
     const partBoxes = parts.map((p) => {
@@ -655,6 +587,7 @@
     let movedGroups = 0
     let totalShift = 0
 
+    // Pack in X direction
     const orderX = parts.map((_, i) => i).sort((a, b) => partBoxes[a].minX - partBoxes[b].minX)
     let cursorMaxX = null
     for (const pi of orderX) {
@@ -663,8 +596,10 @@
         cursorMaxX = bb.maxX
         continue
       }
-      const dx = cursorMaxX + minGap - bb.minX
-      if (dx > 0) {
+      // If overlap or gap is too small, shift right
+      const currentGap = bb.minX - cursorMaxX
+      if (currentGap < minGap) {
+        const dx = cursorMaxX + minGap - bb.minX
         partShift[pi].dx += dx
         movedGroups++
         totalShift += dx
@@ -674,25 +609,7 @@
       cursorMaxX = Math.max(cursorMaxX, bb.maxX)
     }
 
-    const orderY = parts.map((_, i) => i).sort((a, b) => partBoxes[a].minY - partBoxes[b].minY)
-    let cursorMaxY = null
-    for (const pi of orderY) {
-      const bb = partBoxes[pi]
-      if (cursorMaxY === null) {
-        cursorMaxY = bb.maxY
-        continue
-      }
-      const dy = cursorMaxY + minGap - bb.minY
-      if (dy > 0) {
-        partShift[pi].dy += dy
-        movedGroups++
-        totalShift += dy
-        bb.minY += dy
-        bb.maxY += dy
-      }
-      cursorMaxY = Math.max(cursorMaxY, bb.maxY)
-    }
-
+    // Apply shifts
     const out = polylines.slice()
     for (let p = 0; p < parts.length; p++) {
       const { dx, dy } = partShift[p]
@@ -745,10 +662,7 @@
 
       const newPts = base.points.map((p) => ({ x: p.x, y: p.y }))
 
-      const midX = (bb.minX + bb.maxX) / 2
-      const midY = (bb.minY + bb.maxY) / 2
       const near = (a, b) => Math.abs(a - b) <= tol + eps
-
       const orient = (s) => (Math.abs(s.dy) <= eps ? 'H' : Math.abs(s.dx) <= eps ? 'V' : 'N')
       const coordOf = (s) => (orient(s) === 'H' ? s.a.y : s.a.x)
 
@@ -778,6 +692,7 @@
       const n = segs.length
       const sAt = (k) => segs[(k + n) % n]
 
+      // Detect Slots/Tabs
       for (let i = 0; i < n; i++) {
         const s0 = sAt(i)
         const s1 = sAt(i + 1)
@@ -812,28 +727,99 @@
         const d0 = dToEdge(c0)
         const d2 = dToEdge(c2)
         const outerIsC0 = d0 <= d2
+        
         const kind = outerIsC0 ? 'slot' : 'tab'
+        
+        // Correctly identify Shoulder (Outer) vs Bottom (Inner)
         const outerCoord = outerIsC0 ? c0 : c2
         const innerCoord = outerIsC0 ? c2 : c0
-        const signOut = Math.sign(outerCoord - innerCoord || 1)
+        
+        // Direction from Shoulder to Bottom
+        // If outer is c0 and inner is c2: direction is sign(c2 - c0)
+        // If outer is c2 and inner is c0: direction is sign(c0 - c2)
+        const direction = Math.sign(innerCoord - outerCoord) || 1
 
         if (kind === 'slot' && adjSlotDepth) {
-          const innerNew = outerCoord - signOut * newT
-          setSegCoord(s2, axis, innerNew)
+          // For a Slot: The "Bottom" (Inner) should move. The "Shoulder" (Outer) stays.
+          // New Bottom = Shoulder + Direction * NewThickness
+          const newBottom = outerCoord + direction * newT
+          
+          // If outerIsC0 is true: Shoulder is s0/s4, Bottom is s2. Move s2.
+          // If outerIsC0 is false: Shoulder is s2, Bottom is s0/s4. Move s0 AND s4.
+          
+          if (outerIsC0) {
+             setSegCoord(s2, axis, newBottom)
+          } else {
+             setSegCoord(s0, axis, newBottom)
+             setSegCoord(s4, axis, newBottom) // Update s4 as well to maintain continuity if needed, though loop handles it? 
+             // Actually, since we iterate, we just need to move the segment that corresponds to the bottom.
+             // s0 and s4 are the "outer" lines in the pattern s0-s1-s2-s3-s4. 
+             // Wait, the pattern is:
+             // s0 (Shoulder) -> s1 (Wall) -> s2 (Bottom) -> s3 (Wall) -> s4 (Shoulder)
+             // OR
+             // s0 (Bottom) -> s1 (Wall) -> s2 (Shoulder) -> s3 (Wall) -> s4 (Bottom)
+             
+             // If outerIsC0 is FALSE: s2 is Shoulder. s0 is Bottom. s4 is Bottom.
+             // We need to move s0 and s4. 
+             // But s0 is part of previous loop? No, we are at index i.
+             // Moving s0 might affect previous joint? 
+             // It's safer to move the segment that is ISOLATED. s2 is isolated in the pattern.
+             // s0 and s4 are part of the main body edge. 
+             // If s2 is the shoulder (Tab shape sticking out), then s0/s4 are the main body.
+             // But here we detected a SLOT.
+             // If s2 is the shoulder, it means we have a "mortise" inside the body? 
+             // No, if s2 is shoulder, it means s0...s4 is a "Tab" shape relative to the bounding box, but we classified it as "Slot" ??
+             // Let's re-read classification:
+             // outerIsC0 = d0 <= d2. 
+             // If s0 (ends) are closer to edge than s2 (middle), then s2 is "inwards". -> Slot.
+             // If s2 (middle) is closer to edge than s0 (ends), then s2 is "outwards". -> Tab.
+             
+             // So:
+             // Case 1: Slot (s2 is inwards). outerIsC0 = TRUE. Shoulder = s0. Bottom = s2.
+             // We move s2. This is safe.
+             
+             // Case 2: Slot (s2 is outwards??). Impossible by definition of Slot.
+             // If we classified as Slot, it means s2 is DEEPER into the material than s0.
+             // So s0 is the edge. s2 is the hole.
+             // So outerIsC0 MUST be true for a Slot relative to the immediate edge.
+             // UNLESS the BBox is weird.
+             // Assuming Slot -> Move s2.
+             
+             setSegCoord(s2, axis, newBottom)
+          }
+          
           totalFeatures++
           const bb2 = bboxOfPoints([s0.a, s0.b, s1.b, s2.b, s3.b])
           markRect(bb2, 'slot')
         }
 
         if (kind === 'tab' && adjTabHeight) {
-          const outerNew = innerCoord + signOut * newT
-          setSegCoord(s2, axis, outerNew)
+          // For a Tab: s2 is the "Tip" (Outer). s0/s4 are the "Base" (Inner).
+          // We want to move the Tip (s2) to be NewThickness away from Base (s0).
+          // New Tip = Base + Direction * NewThickness
+          // Direction: from Base to Tip.
+          
+          // If Tab: outerIsC0 is FALSE. (s2 is closer to edge, s0 is further).
+          // Shoulder/Base is s0. Tip is s2.
+          // Direction = sign(s2 - s0).
+          // NewTip = s0 + direction * newT.
+          
+          // Wait, logic check:
+          // outerCoord = s2 (Tip). innerCoord = s0 (Base).
+          // We want Tip to be newT away from Base.
+          // newTip = innerCoord + Math.sign(outerCoord - innerCoord) * newT.
+          // Move s2 to newTip.
+          
+          const newTip = innerCoord + Math.sign(outerCoord - innerCoord) * newT
+          setSegCoord(s2, axis, newTip)
+          
           totalFeatures++
           const bb2 = bboxOfPoints([s0.a, s0.b, s1.b, s2.b, s3.b])
           markRect(bb2, 'tab')
         }
       }
 
+      // Detect Slots Width (Internal Slots)
       if (adjSlotWidth) {
         const target = Math.max(0.01, newT + (fit === 'tight' ? -tol : fit === 'loose' ? tol : 0))
         for (let i = 0; i < n; i++) {
@@ -845,19 +831,32 @@
           const o1 = orient(s1)
           const o2 = orient(s2)
           const o3 = orient(s3)
+          // Look for U-shape or Rect: s0(H)-s1(V)-s2(H)-s3(V)
+          // Actually, internal slots might be closed rectangles.
+          // This block seems to look for 4-segment closed loops or similar.
+          
           const isRect = (o0 === 'H' && o1 === 'V' && o2 === 'H' && o3 === 'V') || (o0 === 'V' && o1 === 'H' && o2 === 'V' && o3 === 'H')
           if (!isRect) continue
+          
           const bb2 = bboxOfPoints([s0.a, s0.b, s1.b, s2.b])
           const w = bb2.maxX - bb2.minX
           const h = bb2.maxY - bb2.minY
           if (!(w > eps && h > eps)) continue
+          
+          // Check if this rectangle matches oldT in one dimension
           const shortIsW = Math.abs(w - oldT) <= tol + eps
           const shortIsH = Math.abs(h - oldT) <= tol + eps
+          
           if (!shortIsW && !shortIsH) continue
+          
           if (shortIsW) {
+            // Resize Width (X)
             const cx = (bb2.minX + bb2.maxX) / 2
             const minXNew = cx - target / 2
             const maxXNew = cx + target / 2
+            
+            // Apply to all segments in this rect
+            // This assumes the rect is isolated or we want to resize it in place
             for (const seg of [s0, s1, s2, s3]) {
               const ax = orient(seg) === 'V' ? 'x' : null
               if (ax) {
@@ -870,6 +869,7 @@
             markRect(bb2, 'slot')
           }
           if (shortIsH) {
+             // Resize Height (Y)
             const cy = (bb2.minY + bb2.maxY) / 2
             const minYNew = cy - target / 2
             const maxYNew = cy + target / 2
