@@ -530,6 +530,91 @@
     return { ...pl, points: pl.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) }
   }
 
+  function joinPolylines(polylines, eps) {
+    // 1. Convert all polylines to point lists
+    let pool = polylines.map((pl, i) => ({
+      id: i,
+      pts: pl.points.map((p) => ({ x: p.x, y: p.y })),
+      closed: pl.closed,
+      layer: pl.layer,
+    })).filter((pl) => pl.pts.length > 0)
+
+    const result = []
+
+    while (pool.length > 0) {
+      // Start a new path with the first available segment
+      let current = pool.shift()
+      let changed = true
+
+      while (changed) {
+        changed = false
+        if (current.closed) break
+
+        const head = current.pts[0]
+        const tail = current.pts[current.pts.length - 1]
+
+        // Look for extensions
+        for (let i = 0; i < pool.length; i++) {
+          const other = pool[i]
+          if (other.closed) continue // Already closed loops stay separate
+
+          const oHead = other.pts[0]
+          const oTail = other.pts[other.pts.length - 1]
+
+          // Check connections
+          // Tail -> Head (Append)
+          if (dist(tail, oHead) <= eps) {
+            current.pts.push(...other.pts.slice(1))
+            pool.splice(i, 1)
+            changed = true
+            break
+          }
+          // Tail -> Tail (Append Reverse)
+          if (dist(tail, oTail) <= eps) {
+            current.pts.push(...other.pts.slice(0, -1).reverse())
+            pool.splice(i, 1)
+            changed = true
+            break
+          }
+          // Head -> Tail (Prepend)
+          if (dist(head, oTail) <= eps) {
+            current.pts.unshift(...other.pts.slice(0, -1))
+            pool.splice(i, 1)
+            changed = true
+            break
+          }
+          // Head -> Head (Prepend Reverse)
+          if (dist(head, oHead) <= eps) {
+            current.pts.unshift(...other.pts.slice(1).reverse())
+            pool.splice(i, 1)
+            changed = true
+            break
+          }
+        }
+      }
+
+      // Check closure
+      if (!current.closed && current.pts.length > 2) {
+        if (dist(current.pts[0], current.pts[current.pts.length - 1]) <= eps) {
+          current.closed = true
+          current.pts.pop() // Remove duplicate end point
+        }
+      }
+
+      // Clean up collinear points after join
+      current.pts = simplifyCollinear(current.pts, 1e-4)
+
+      result.push({
+        id: `joined_${result.length}`,
+        closed: current.closed,
+        layer: current.layer,
+        points: current.pts,
+      })
+    }
+
+    return result
+  }
+
   function autoSpaceParts(polylines, minGap) {
     const n = polylines.length
     if (n <= 1) return { polylines, movedGroups: 0, totalShift: 0 }
@@ -637,6 +722,9 @@
     let totalFeatures = 0
 
     const next = deepCloneModel(model)
+    // Join loose lines into closed loops before processing
+    // Tolerance 0.05mm is usually safe for DXF
+    next.polylines = joinPolylines(next.polylines, 0.05) 
     next.originalPolylines = deepCloneModel(model).polylines
 
     const resizePolyline = (pl) => {
