@@ -551,38 +551,44 @@
     const bbs = polylines.map((pl) => bboxOfPoints(pl.points))
     const areas = bbs.map((bb) => Math.max(0, (bb.maxX - bb.minX) * (bb.maxY - bb.minY)))
 
-    const candidates = []
+    const parts = []
+    const closedCandidates = []
     for (let i = 0; i < n; i++) {
       if (!isClosed(polylines[i])) continue
       if (polylines[i].points.length < 4) continue
-      candidates.push(i)
+      if (!(areas[i] > 0)) continue
+      closedCandidates.push(i)
     }
 
-    let areaMedian = 0
-    if (candidates.length) {
-      const vals = candidates.map((i) => areas[i]).filter((a) => a > 0).sort((a, b) => a - b)
-      areaMedian = vals.length ? vals[Math.floor(vals.length / 2)] : 0
+    const containEps = Math.max(0.5, minGap * 0.25)
+    const areaMax = closedCandidates.length ? Math.max(...closedCandidates.map((i) => areas[i])) : 0
+    const largeCandidates = closedCandidates.filter((i) => areas[i] >= Math.max(200, areaMax * 0.02))
+
+    const sortedLarge = largeCandidates.slice().sort((a, b) => areas[b] - areas[a])
+    const outers = []
+    for (const i of sortedLarge) {
+      let contained = false
+      for (const j of sortedLarge) {
+        if (areas[j] <= areas[i]) break
+        if (bboxContains(bbs[j], bbs[i], containEps)) {
+          contained = true
+          break
+        }
+      }
+      if (!contained) outers.push(i)
     }
 
-    const partSeeds = candidates.filter((i) => areas[i] >= Math.max(areaMedian * 0.25, 50))
-
-    const parts = []
-    if (partSeeds.length) {
-      const seedInfo = partSeeds
-        .map((i) => ({ i, bb: { ...bbs[i] }, area: areas[i] }))
-        .sort((a, b) => a.area - b.area)
-
+    if (outers.length) {
+      const outerInfo = outers.map((i) => ({ i, area: areas[i], bb: bbs[i] })).sort((a, b) => a.area - b.area)
       const assign = new Array(n).fill(-1)
-
       for (let i = 0; i < n; i++) {
-        const inner = bbs[i]
         let best = -1
         let bestArea = Infinity
-        for (let k = 0; k < seedInfo.length; k++) {
-          const s = seedInfo[k]
-          if (!bboxContains(s.bb, inner, Math.max(0.5, minGap * 0.25))) continue
-          if (s.area < bestArea) {
-            bestArea = s.area
+        for (let k = 0; k < outerInfo.length; k++) {
+          const o = outerInfo[k]
+          if (!bboxContains(o.bb, bbs[i], containEps)) continue
+          if (o.area < bestArea) {
+            bestArea = o.area
             best = k
           }
         }
@@ -596,14 +602,26 @@
         if (!groups.has(g)) groups.set(g, [])
         groups.get(g).push(i)
       }
-
-      for (const [g, indices] of groups.entries()) {
-        parts.push({ indices })
-      }
+      for (const indices of groups.values()) parts.push({ indices })
 
       const unassigned = []
       for (let i = 0; i < n; i++) if (assign[i] < 0) unassigned.push(i)
-      if (unassigned.length) parts.push({ indices: unassigned })
+      if (unassigned.length) {
+        const uf = unionFind(unassigned.length)
+        const eps = Math.max(1, minGap * 0.5)
+        for (let a = 0; a < unassigned.length; a++) {
+          for (let b = a + 1; b < unassigned.length; b++) {
+            if (bboxesTouch(bbs[unassigned[a]], bbs[unassigned[b]], eps)) uf.union(a, b)
+          }
+        }
+        const groups2 = new Map()
+        for (let a = 0; a < unassigned.length; a++) {
+          const r = uf.find(a)
+          if (!groups2.has(r)) groups2.set(r, [])
+          groups2.get(r).push(unassigned[a])
+        }
+        for (const indices of groups2.values()) parts.push({ indices })
+      }
     } else {
       const uf = unionFind(n)
       const eps = Math.max(0.5, minGap * 0.5)
@@ -709,12 +727,23 @@
       if (pts.length < 4) return pl
       const bb = bboxOfPoints(pts)
       const eps = Math.max((bb.maxX - bb.minX + bb.maxY - bb.minY) * 1e-6, epsBase)
-      const segs = segmentsOfPolyline(pl, eps)
+      const snapEps = Math.max(tol * 0.5, 0.05)
+      const snapped = pts.map((p) => ({ x: p.x, y: p.y }))
+      for (let i = 0; i < snapped.length - 1; i++) {
+        const a = snapped[i]
+        const b = snapped[i + 1]
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        if (Math.abs(dy) <= snapEps) b.y = a.y
+        if (Math.abs(dx) <= snapEps) b.x = a.x
+      }
+      const base = { ...pl, points: simplifyCollinear(snapped, eps) }
+      const segs = segmentsOfPolyline(base, eps)
       if (!segs.length) return pl
       const bad = segs.some((s) => !isAxisAligned(s.a, s.b, eps))
       if (bad) return pl
 
-      const newPts = pts.map((p) => ({ x: p.x, y: p.y }))
+      const newPts = base.points.map((p) => ({ x: p.x, y: p.y }))
 
       const midX = (bb.minX + bb.maxX) / 2
       const midY = (bb.minY + bb.maxY) / 2
